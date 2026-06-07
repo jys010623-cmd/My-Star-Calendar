@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Fandom Archive (덕질 아카이브 웹앱)</title>
+    <style>
+        /* CSS Reset & Variables */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+
+        :root {
+            --primary-color: #7B2CBF;
+            --primary-light: #E0AAFF;
+            --primary-dark: #3C096C;
+            --bg-color: #F8F9FA;
+            --sidebar-bg: #FFFFFF;
+            --card-bg: #FFFFFF;
+            --text-main: #212529;
+            --text-muted: #6C757D;
+            --border-color: #E9ECEF;
+            --accent-glow: rgba(123, 44, 191, 0.15);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: block;
+            min-height: 100vh;
+        }
+
+        /* Layout Structure */
+        .app-container {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+            min-height: 100vh;
+        }
+
+        .sidebar-cell {
+            display: table-cell;
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            vertical-align: top;
+            padding: 24px;
+        }
+
+        .main-cell {
+            display: table-cell;
+            vertical-align: top;
+            padding: 32px;
+        }
+
+        /* Profile Section */
+        .profile-card {
+            text-align: center;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 24px;
+        }
+
+        .profile-avatar {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary-color));
+            margin: 0 auto 12px auto;
+            display: block;
+            border: 3px solid #FFF;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .profile-name {
+            font-size: 16pt;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        .d-day-badge {
+            display: inline-block;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 9pt;
+            font-weight: 600;
+            margin-top: 6px;
+        }
+
+        /* Navigation Menu */
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-item {
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background-color: var(--accent-glow);
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* Theme Customizer Inside Sidebar */
+        .theme-box {
+            margin-top: 40px;
+            padding: 16px;
+            background-color: var(--bg-color);
+            border-radius: 12px;
+            border: 1px dashed var(--border-color);
+        }
+
+        .theme-box-title {
+            font-size: 10pt;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .color-pickers {
+            display: table;
+            width: 100%;
+        }
+
+        .color-dot {
+            display: table-cell;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .color-dot.active {
+            border-color: #000;
+        }
+
+        /* Main Dashboard Elements */
+        .dashboard-header {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .dashboard-title {
+            font-size: 20pt;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        /* Grid View For Cards */
+        .grid-row {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+            margin-bottom: 24px;
+        }
+
+        .grid-col-3 {
+            display: table-cell;
+            width: 33.33%;
+            padding-right: 16px;
+            vertical-align: top;
+        }
+
+        .grid-col-3:last-child {
+            padding-right: 0;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            border: 1px solid var(--border-color);
+            height: 100%;
+        }
+
+        .card-header-title {
+            font-size: 12pt;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-main);
+            border-left: 4px solid var(--primary-color);
+            padding-left: 8px;
+        }
+
+        /* Schedule List View */
+        .schedule-item {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .schedule-item:last-child {
+            border-bottom: none;
+        }
+
+        .schedule-time {
+            font-size: 9pt;
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .schedule-text {
+            font-size: 10.5pt;
+            font-weight: 500;
+        }
+
+        /* Pocket Binder System Slots */
+        .binder-grid {
+            display: table;
+            width: 100%;
+        }
+
+        .binder-row {
+            display: table-row;
+        }
+
+        .binder-item {
+            display: table-cell;
+            width: 50%;
+            padding: 6px;
+        }
+
+        .photocard-slot {
+            background-color: #F1F3F5;
+            border-radius: 8px;
+            height: 110px;
+            text-align: center;
+            vertical-align: middle;
+            padding-top: 35px;
+            color: var(--text-muted);
+            font-size: 9pt;
+            border: 1px dashed #CED4DA;
+            cursor: pointer;
+        }
+
+        .photocard-slot:hover {
+            background-color: var(--accent-glow);
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        /* Link Box Tracker (X/Twitter Archive Solution) */
+        .link-archive-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-size: 9.5pt;
+        }
+
+        .btn-add {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 9.5pt;
+            width: 100%;
+        }
+
+        .btn-add:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .archived-links-list {
+            margin-top: 12px;
+            font-size: 9.5pt;
+        }
+
+        .link-pill {
+            background-color: var(--bg-color);
+            padding: 6px 10px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            white-border: 1px solid var(--border-color);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Tabs display block logic */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Financial stat styling */
+        .stat-huge {
+            font-size: 20pt;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 10px 0;
+        }
+
+        /* Custom Student Card Feature */
+        .membership-card-mock {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 15px;
+            position: relative;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        }
+
+        .membership-card-mock h4 {
+            font-size: 14pt;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+        }
+
+        .membership-card-mock p {
+            font-size: 9pt;
+            opacity: 0.8;
+        }
+
+        /* Responsive Breakpoints fallback built manually */
+        @media (max-width: 900px) {
+            .app-container, .grid-row, .color-pickers, .binder-grid, .binder-row {
+                display: block !important;
+                width: 100% !important;
+            }
+            .sidebar-cell, .main-cell, .grid-col-3, .binder-item {
+                display: block !important;
+                width: 100% !important;
+                padding-right: 0 !important;
+                margin-bottom: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- SIDEBAR VIEW: Dynamic Customization Focus -->
+        <div class="sidebar-cell">
+            <div class="profile-card">
+                <div class="profile-avatar" id="avatarBox"></div>
+                <div class="profile-name" id="artistNameDisplay">최애 아티스트</div>
+                <span class="d-day-badge" id="dDayDisplay">D+124</span>
+            </div>
+
+            <ul class="nav-menu">
+                <li class="nav-item active" onclick="switchTab('dashboard')">대시보드 메인</li>
+                <li class="nav-item" onclick="switchTab('binder')">포카 바인더</li>
+                <li class="nav-item" onclick="switchTab('items')">아이템 컬렉션</li>
+                <li class="nav-item" onclick="switchTab('membership')">나만의 멤버십</li>
+            </ul>
+
+            <!-- Dynamic Theme Engine Selector -->
+            <div class="theme-box">
+                <div class="theme-box-title">퍼스널 컬러 테마설정</div>
+                <div style="display: flex; gap: 8px;">
+                    <div class="color-dot" style="background-color: #7B2CBF;" onclick="changeTheme('#7B2CBF', '#E0AAFF', '#3C096C')"></div>
+                    <div class="color-dot" style="background-color: #1D3557;" onclick="changeTheme('#1D3557', '#A8DADC', '#457B9D')"></div>
+                    <div class="color-dot" style="background-color: #E63946;" onclick="changeTheme('#E63946', '#F1FAEE', '#A83232')"></div>
+                    <div class="color-dot" style="background-color: #2A9D8F;" onclick="changeTheme('#2A9D8F', '#E9C46A', '#264653')"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN DASHBOARD CONTENT VIEW -->
+        <div class="main-cell">
+            
+            <!-- TAB 1: MAIN DASHBOARD -->
+            <div id="tab-dashboard" class="tab-content active">
+                <div class="dashboard-header">
+                    <h1 class="dashboard-title">스케줄 & 아카이브 피드</h1>
+                    <p style="color: var(--text-muted); margin-top: 4px;">나의 최애에게 맞춤 설계된 다이나믹 웹앱 인터페이스</p>
+                </div>
+
+                <!-- 1st Row Grid: Schedule, Ticket sync, Budget -->
+                <div class="grid-row">
+                    <div class="grid-col-3">
+                        <div class="card">
+                            <div class="card-header-title">멀티 캘린더 (오늘의 일정)</div>
+                            <div class="schedule-item">
+                                <div class="schedule-time">18:00 방송</div>
+                                <div class="schedule-text">엠카운트다운 본방송 출연</div>
+                            </div>
+                            <div class="schedule-item">
+                                <div class="schedule-time">20:00 티켓팅</div>
+                                <div class="schedule-text">아시아 투어 서울 콘서트 선예매</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid-col-3">
+                        <div class="card">
+                            <div class="card-header-title">티켓팅 실시간 타이머</div>
+                            <div style="text-align: center; padding: 10px 0;">
+                                <div style="font-size: 24pt; font-weight: 800; color: #E63946;" id="serverClock">00:00:00</div>
+                                <p style="font-size: 9pt; color: var(--text-muted); margin-top: 4px;">인터넷 서버 시간 동기화 완료</p>
+                                <button class="btn-add" style="margin-top: 15px; background-color: #212529;">예매 사이트 직행 링크</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid-col-3">
+                        <div class="card">
+                            <div class="card-header-title">이번 달 행복 비용 통계</div>
+                            <div class="stat-huge">₩248,500</div>
+                            <p style="font-size: 9.5pt; color: var(--text-muted);">굿즈 공구 및 생일카페 소비 포함</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2nd Row Grid: SNS Link Container & Offline Maps concept -->
+                <div class="grid-row">
+                    <div class="grid-col-3">
+                        <div class="card">
+                            <div class="card-header-title">X(트위터) & 미디어 링크 아카이브</div>
+                            <p style="font-size: 9pt; color: var(--text-muted); margin-bottom: 8px;">과부하 없는 나만의 실시간 링크 저장 보관소</p>
+                            <input type="text" id="linkInput" class="link-archive-input" placeholder="https://x.com/... 링크 주소 입력">
+                            <button class="btn-add" onclick="addArchivedLink()">아카이브에 안전하게 저장</button>
+                            <div class="archived-links-list" id="linksList">
+                                <div class="link-pill">🔗 콘서트 고화질 홈마 직캠 링크</div>
+                                <div class="link-pill">🔗 팬싸인회 레전드 주접 일화 텍스트</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid-col-3">
+                        <div class="card">
+                            <div class="card-header-title">오프라인 스케줄 지도 연동</div>
+                            <div style="background-color: #E9ECEF; border-radius: 8px; height: 120px; text-align: center; padding-top: 50px; color: var(--text-muted); font-size: 10pt;">
+                                [ 생일 카페 및 팝업스토어 지도 플랫폼 연동 구역 ]
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid-col-3">
+                        <div class="card">
+                            <div class="card-header-title">달력 데코 스티커 시스템</div>
+                            <p style="font-size: 9pt; color: var(--text-muted); margin-bottom: 12px;">원하는 아이콘 스티커를 캘린더에 직접 드래그앤드롭</p>
+                            <div style="display: flex; gap: 10px; font-size: 16pt;">
+                                <span>🎂</span><span>🎤</span><span>🎟️</span><span>✨</span><span>⭐</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: POCKET BINDER -->
+            <div id="tab-binder" class="tab-content">
+                <div class="dashboard-header">
+                    <h1 class="dashboard-title">온라인 포카 바인더 시스템</h1>
+                    <p style="color: var(--text-muted); margin-top: 4px;">수집한 포토카드를 실물 감성 그대로 아카이빙하는 컬렉션룸</p>
+                </div>
+                <div class="card">
+                    <div class="binder-grid">
+                        <div class="binder-row">
+                            <div class="binder-item"><div class="photocard-slot">+ 포토카드 이미지 등록</div></div>
+                            <div class="binder-item"><div class="photocard-slot">+ 포토카드 이미지 등록</div></div>
+                        </div>
+                        <div class="binder-row">
+                            <div class="binder-item"><div class="photocard-slot">+ 포토카드 이미지 등록</div></div>
+                            <div class="binder-item"><div class="photocard-slot">+ 포토카드 이미지 등록</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: COLLECTIBLE ITEMS -->
+            <div id="tab-items" class="tab-content">
+                <div class="dashboard-header">
+                    <h1 class="dashboard-title">착장 & 아이템 기록보관소</h1>
+                    <p style="color: var(--text-muted); margin-top: 4px;">최애가 착용한 의류, 액세서리 등의 기록 및 나의 실구매 매칭 관리</p>
+                </div>
+                <div class="card">
+                    <div class="card-header-title">아이템 위시리스트 및 구매 상태</div>
+                    <div style="padding: 10px 0;">
+                        <p style="font-weight: 600;">👟 무대 착장 스트릿 스니커즈</p>
+                        <p style="font-size: 9.5pt; color: var(--text-muted); margin-bottom: 12px;">정보: OOO 브랜드 제품 / 상태: <span style="color: var(--primary-color); font-weight: bold;">구매 완료 🛍️</span></p>
+                        
+                        <p style="font-weight: 600;">🧥 공항 패션 오버핏 블레이저</p>
+                        <p style="font-size: 9.5pt; color: var(--text-muted);">정보: XXX 디자이너 브랜드 / 상태: <span style="color: #E63946; font-weight: bold;">위시리스트 보관 중</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: CUSTOM MEMBERSHIP CARD -->
+            <div id="tab-membership" class="tab-content">
+                <div class="dashboard-header">
+                    <h1 class="dashboard-title">나만의 커스텀 멤버십</h1>
+                    <p style="color: var(--text-muted); margin-top: 4px;">내가 직접 디자인하고 텍스트를 커스텀하는 세상에 단 하나뿐인 전용 학생증 카드</p>
+                </div>
+                <div class="card" style="max-width: 450px;">
+                    <div class="card-header-title">디지털 모바일 멤버십 카드</div>
+                    <div class="membership-card-mock">
+                        <h4>FANDOM PASS</h4>
+                        <div style="margin-top: 20px;">
+                            <p id="cardNameDisplay" style="font-size: 11pt; font-weight: bold; opacity: 1; margin-bottom: 4px;">OWNER: 정영심</p>
+                            <p>CERTIFIED FAN NO: #2026-0606</p>
+                        </div>
+                        <div style="position: absolute; right: 20px; bottom: 20px; font-size: 24pt; opacity: 0.3;">
+                            ✨
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <label style="font-size: 9pt; font-weight: bold; display: block; margin-bottom: 5px;">소유자 이름 변경</label>
+                        <input type="text" id="cardNameInput" class="link-archive-input" value="정영심" oninput="updateCardName()">
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Interactive JavaScript Engine -->
+    <script>
+        // Tab switching controller
+        function switchTab(tabId) {
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => item.classList.remove('active'));
+            
+            document.getElementById('tab-' + tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        // Dynamic theme controller
+        function changeTheme(primary, light, dark) {
+            document.documentElement.style.setProperty('--primary-color', primary);
+            document.documentElement.style.setProperty('--primary-light', light);
+            document.documentElement.style.setProperty('--primary-dark', dark);
+            document.documentElement.style.setProperty('--accent-glow', primary + '1A');
+        }
+
+        // Real-time server timer simulation for ticketing synchronization
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('serverClock').innerText = hours + ":" + minutes + ":" + seconds;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // X/Twitter link custom archive logging without kakaotalk overloading
+        function addArchivedLink() {
+            const input = document.getElementById('linkInput');
+            const value = input.value.trim();
+            if(value) {
+                const list = document.getElementById('linksList');
+                const newPill = document.createElement('div');
+                newPill.className = 'link-pill';
+                newPill.innerText = "🔗 " + value;
+                list.insertBefore(newPill, list.firstChild);
+                input.value = '';
+            }
+        }
+
+        // Live membership name modification rendering
+        function updateCardName() {
+            const input = document.getElementById('cardNameInput');
+            document.getElementById('cardNameDisplay').innerText = "OWNER: " + input.value;
+        }
+    </script>
+</body>
+</html>
