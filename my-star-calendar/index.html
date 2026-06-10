@@ -72,15 +72,15 @@
       <h2 class="ob-h2">기념일을 알려주세요</h2>
       <div class="field">
         <label>덕질 시작일 * <small>(D+일수 계산에 쓰여요)</small></label>
-        <input type="date" id="obStart">
+        <div id="obStartWrap"></div>
       </div>
       <div class="field">
         <label>최애 생일</label>
-        <input type="date" id="obBirthday">
+        <div id="obBirthdayWrap"></div>
       </div>
       <div class="field">
         <label>그룹 데뷔일</label>
-        <input type="date" id="obDebut">
+        <div id="obDebutWrap"></div>
       </div>
       <button class="btn btn-primary btn-lg" onclick="App.obNext()">다음</button>
     </section>
@@ -217,49 +217,76 @@
         </div>
       </div>
 
-      <p class="home-cheer" id="homeCheer"></p>
-      <div class="home-stats" id="homeStats"></div>
+      <div class="home-tools">
+        <button class="home-edit-btn" id="homeEditBtn" onclick="App.toggleEditHome()"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg> 홈 편집</button>
+      </div>
+      <p class="home-edit-hint" id="homeEditHint">손잡이(⠿)를 끌어 옮기고, ✕로 빼면 아래 '숨긴 블록'에 모여요. 거기서 다시 추가할 수 있어요. '완료'를 누르면 저장돼요.</p>
 
-      <div class="section-head"><h3>D-DAY</h3></div>
-      <div class="dday-scroll" id="homeDday"></div>
-
-      <div class="section-head"><h3>이번 주</h3></div>
-      <div class="week-strip" id="homeWeek"></div>
-
-      <div class="section-head"><h3>TODAY</h3><span class="section-sub" id="todayDateLabel"></span></div>
-      <div class="today-scroll" id="todayScroll"></div>
-
-      <div class="home-grid">
-        <div class="card" id="ticketCard">
-          <div class="card-title">티켓팅 타이머</div>
-          <div class="clock" id="liveClock">00:00:00</div>
-          <div class="ticket-next" id="ticketNext">예정된 티켓팅이 없어요</div>
-          <a class="btn btn-dark btn-sm hidden" id="ticketLinkBtn" target="_blank" rel="noopener">예매 사이트 바로가기 <svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a>
+      <div id="homeBlocks">
+        <div class="home-block" data-block="cheer">
+          <p class="home-cheer" id="homeCheer"></p>
+          <div class="home-stats" id="homeStats"></div>
         </div>
-        <div class="card">
-          <div class="card-title">이번 달 행복 비용</div>
-          <div class="stat-big" id="homeSpend">₩0</div>
-          <div class="spend-bar" id="homeSpendBar"></div>
-          <p class="budget-hint" id="homeBudgetHint"></p>
-          <button class="btn btn-ghost btn-sm" onclick="App.go('ledger')">가계부 보기 <svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M13 5l7 7-7 7"/></svg></button>
+
+        <div class="home-block" data-block="dday">
+          <div class="section-head"><h3>D-DAY</h3></div>
+          <div class="dday-scroll" id="homeDday"></div>
         </div>
-        <div class="card">
-          <div class="card-title">다가오는 일정</div>
-          <ul class="up-list" id="upcomingList"></ul>
+
+        <div class="home-block" data-block="week">
+          <div class="section-head"><h3>이번 주</h3></div>
+          <div class="week-strip" id="homeWeek"></div>
         </div>
-        <div class="card membership-wrap">
-          <div class="card-title">나만의 멤버십</div>
-          <div class="member-card" id="memberCard" onclick="App.openModal('membership')">
-            <div class="mc-top"><span class="mc-logo" id="mcIcon">✦</span><span class="mc-title" id="mcTitle">MY STAR PASS</span></div>
-            <div class="mc-name" id="mcName">NAME</div>
-            <div class="mc-foot"><span id="mcSince">SINCE —</span><span id="mcNo">NO. 0001</span></div>
+
+        <div class="home-block" data-block="today">
+          <div class="section-head"><h3>TODAY</h3><span class="section-sub" id="todayDateLabel"></span></div>
+          <div class="today-scroll" id="todayScroll"></div>
+        </div>
+
+        <div class="home-block" data-block="ticket">
+          <div class="card" id="ticketCard">
+            <div class="card-title" id="ticketTitle">시계</div>
+            <div class="clock" id="liveClock" title="탭하면 전체화면 시계로 커져요" role="button" tabindex="0">00:00:00</div>
+            <button class="sb-open" id="sbOpenBtn"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg> 전체화면 시계</button>
+            <div class="ticket-next" id="ticketNext">예정된 티켓팅이 없어요</div>
+            <a class="btn btn-dark btn-sm hidden" id="ticketLinkBtn" target="_blank" rel="noopener">예매 사이트 바로가기 <svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a>
           </div>
-          <p class="hint">카드를 누르면 수정할 수 있어요</p>
+        </div>
+
+        <div class="home-block" data-block="spend">
+          <div class="card">
+            <div class="card-title">이번 달 행복 비용</div>
+            <div class="stat-big" id="homeSpend">₩0</div>
+            <div class="spend-bar" id="homeSpendBar"></div>
+            <p class="budget-hint" id="homeBudgetHint"></p>
+            <button class="btn btn-ghost btn-sm" onclick="App.go('ledger')">가계부 보기 <svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M13 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+
+        <div class="home-block" data-block="upcoming">
+          <div class="card">
+            <div class="card-title">다가오는 일정</div>
+            <ul class="up-list" id="upcomingList"></ul>
+          </div>
+        </div>
+
+        <div class="home-block" data-block="membership">
+          <div class="card membership-wrap">
+            <div class="card-title">나만의 멤버십</div>
+            <div class="member-card" id="memberCard" onclick="App.openModal('membership')">
+              <div class="mc-top"><span class="mc-logo" id="mcIcon">✦</span><span class="mc-title" id="mcTitle">MY STAR PASS</span></div>
+              <div class="mc-name" id="mcName">NAME</div>
+              <div class="mc-foot"><span id="mcSince">SINCE —</span><span id="mcNo">NO. 0001</span></div>
+            </div>
+            <p class="hint">카드를 누르면 수정할 수 있어요</p>
+          </div>
+        </div>
+
+        <div class="home-block" data-block="recent">
+          <div class="section-head"><h3>최근 기록</h3></div>
+          <div class="recent-scroll" id="homeRecent"></div>
         </div>
       </div>
-
-      <div class="section-head"><h3>최근 기록</h3></div>
-      <div class="recent-scroll" id="homeRecent"></div>
     </section>
 
     <!-- ──────── 프로필 상세 (카톡식: 커버+아바타+꾸미기) ──────── -->
@@ -296,8 +323,9 @@
     <section class="page" id="page-calendar">
       <div class="cal-head">
         <button class="cal-arrow" onclick="App.calMove(-1)">‹</button>
-        <h2 class="cal-title" id="calTitle">2026.06</h2>
+        <h2 class="cal-title" id="calTitle" onclick="App.calJump()" role="button" title="탭하면 다른 달로 이동">2026.06</h2>
         <button class="cal-arrow" onclick="App.calMove(1)">›</button>
+        <button class="cal-today" onclick="App.calToday()">오늘</button>
       </div>
       <div class="mode-tabs cal-mode" id="calModeSeg"></div>
       <div class="filter-row" id="catFilters"></div>
@@ -329,6 +357,7 @@
         <button class="tab" data-btab="trade" onclick="App.binderTab('trade')">교환 중</button>
       </div>
       <div class="filter-row" id="albumRow"></div>
+      <p class="binder-hint hidden" id="binderHint">포카를 꾹 눌러 끌면 순서를 바꿀 수 있어요</p>
       <div class="binder-grid" id="binderGrid"></div>
       <div class="binder-pager" id="binderPager"></div>
     </section>
@@ -353,7 +382,12 @@
         <div class="ledger-pay" id="ledgerPay"></div>
       </div>
       <div class="card">
-        <div class="card-title">월별 그래프 <small>(최근 6개월)</small></div>
+        <div class="card-title">월별 그래프 <small id="ledgerChartSub">(최근 6개월)</small></div>
+        <div class="seg-row" id="ledgerChartTabs">
+          <button class="f-chip" data-cmode="recent">최근 6개월</button>
+          <button class="f-chip" data-cmode="h1">상반기 (1~6월)</button>
+          <button class="f-chip" data-cmode="h2">하반기 (7~12월)</button>
+        </div>
         <div class="bar-chart" id="ledgerChart"></div>
       </div>
       <div class="card">
@@ -563,6 +597,33 @@
   <div class="modal" id="modalBox" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-head"><h3 id="modalTitle"></h3><button class="modal-x" onclick="App.closeModal()" aria-label="닫기"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- ════════════ 전체화면 스탠바이 시계 / 티켓팅 ════════════ -->
+<div id="standby" class="standby hidden" aria-hidden="true">
+  <div class="sb-top">
+    <span class="sb-wake" id="sbWake"></span>
+    <button class="sb-close" onclick="App.closeStandby()" aria-label="닫기"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div class="sb-inner">
+    <div class="sb-tklabel hidden" id="sbTkLabel"></div>
+    <div class="sb-date" id="sbDate"></div>
+    <div class="sb-clock" id="sbClock">00:00:00</div>
+    <div class="sb-sub" id="sbSub"></div>
+    <a class="sb-tkbtn hidden" id="sbTkBtn" target="_blank" rel="noopener">예매처 바로가기 <svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a>
+  </div>
+  <div class="sb-foot">
+    <div class="sb-offset" id="sbOffset">
+      <span class="sb-off-title">시간 보정</span>
+      <button data-off="-1000">−1초</button>
+      <button data-off="-100">−0.1</button>
+      <span class="sb-off-val" id="sbOffVal">+0.0초</span>
+      <button data-off="100">+0.1</button>
+      <button data-off="1000">+1초</button>
+      <button class="sb-off-reset" id="sbOffReset">초기화</button>
+    </div>
+    <p class="sb-hint">네이비즘·네이버 시계와 초를 맞춰 보정하면 예매 오차를 줄일 수 있어요</p>
   </div>
 </div>
 

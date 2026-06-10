@@ -61,6 +61,11 @@
   const EXP_COLORS = ["#ff7aa2", "#7a86ff", "#ff5c5c", "#ffb13d", "#3dbdff", "#2ecc9a", "#9b9b9b"];
   const PAY_METHODS = ["카드", "현금", "계좌이체", "기타"];
   const STICKERS = ["🎂","🎤","🎟️","💚","💜","💙","🩷","⭐","✨","🐰","🐻","🦁","📸","🎧","✈️","🍰","🔥","🏟️"];
+  // 데코용 — 앱과 통일된 라인아이콘 스티커 + 텍스트 색상 팔레트
+  const DECO_ICONS = ["heart", "sparkles", "music", "camera", "cake", "flag", "bell", "play", "bookmark", "tag"];
+  const DECO_COLORS = [["w", "#ffffff"], ["b", "#1f1f1f"], ["pink", "#f25c8f"], ["purple", "#9b6bff"], ["mint", "#1fc4a8"]];
+  // 멤버십 카드 디자인 프리셋
+  const MEMBERSHIP_STYLES = [["gradient", "기본"], ["midnight", "미드나잇"], ["holo", "홀로그램"], ["blossom", "블라썸"], ["ivory", "아이보리"]];
   const SWATCHES = [
     ["블랙 (기본)", "#141414"], ["그레이", "#8E9199"], ["모카", "#A07855"],
     ["라임", "#B7D532"], ["그린", "#7AD692"], ["민트", "#5CD6C0"], ["틸", "#1F8A8A"],
@@ -94,7 +99,7 @@
     ["browser", "브라우저"], ["phone", "폰"], ["msgr", "메신저"],
     ["note", "메모장"], ["retropc", "레트로 윈도우"],
   ];
-  const BGS = [["none", "기본"], ["dot", "땡땡이"], ["star", "별"], ["stripe", "사선"], ["zigzag", "지그재그"], ["grid", "격자"], ["check", "체크"]];
+  const BGS = [["none", "기본"], ["dot", "땡땡이"], ["heart", "하트"], ["sparkle", "반짝이"], ["star", "별"], ["flower", "꽃"], ["cloud", "구름"], ["wave", "물결"], ["diamond", "마름모"], ["stripe", "사선"], ["zigzag", "지그재그"], ["grid", "격자"], ["check", "체크"]];
   const ALIGNS = [["left", "왼쪽"], ["center", "가운데"]];
   const TEMPLATES = [
     { id: "classic", name: "클래식" },
@@ -136,6 +141,7 @@
   let binderAlbum = "all";
   let binderPage = 0; // 바인더 현재 페이지 (9칸=3×3 단위)
   let ledgerCatFilter = "all"; // 가계부 지출 내역 카테고리 필터
+  let ledgerChartMode = "recent"; // 월별 그래프: recent(최근 6개월) | h1(상반기) | h2(하반기)
   let linkFilter = "all"; // 링크 보관함 필터: all | unread | p:<platform>
   let calMode = "all";    // 캘린더 멀티: all | offline | online
   let activeCats = new Set();
@@ -182,10 +188,98 @@
     heart: '<path d="M12 20S4.5 15.3 4.5 10A4.4 4.4 0 0 1 12 7a4.4 4.4 0 0 1 7.5 3c0 5.3-7.5 10-7.5 10Z"/>',
     check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
     clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    grip: '<circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>',
+    eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/>',
+    eyeOff: '<path d="M9.6 5.8A8.8 8.8 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a15.4 15.4 0 0 1-3 3.6M6.2 6.3A15.3 15.3 0 0 0 2.5 12S6 18.5 12 18.5a8.7 8.7 0 0 0 3.3-.6"/><path d="M4 4l16 16"/>',
+    chevUp: '<path d="M6 14l6-6 6 6"/>',
+    chevDown: '<path d="M6 10l6 6 6-6"/>',
+    grid: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
     bookmark: '<path d="M6.5 4.5h11A1 1 0 0 1 18.5 5.5V20l-6.5-4-6.5 4V5.5A1 1 0 0 1 6.5 4.5Z"/>',
     tag: '<path d="M3.5 11.6V6A2.5 2.5 0 0 1 6 3.5h5.6a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8l-5.6 5.6a2 2 0 0 1-2.8 0l-7-7a2 2 0 0 1-.6-1.4Z"/><circle cx="8.2" cy="8.2" r="1.3"/>',
   };
   const I = (n, cls) => `<svg class="li${cls ? " " + cls : ""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]}</svg>`;
+
+  /* 년/월/일 커스텀 드롭다운 날짜 선택기 — 네이티브 select는 펼친 목록 높이를 못 줄여서 직접 구현(높이 제한+스크롤) */
+  function dateSelectHTML(id, value, opts) {
+    opts = opts || {};
+    const curY = new Date().getFullYear();
+    const yBack = opts.yearsBack != null ? opts.yearsBack : 100;
+    const yFwd = opts.yearsFwd != null ? opts.yearsFwd : 1;
+    const p = (value || "").split("-");
+    const vy = +p[0] || "", vm = +p[1] || "", vd = +p[2] || "";
+    const dsel = (cls, ph, val, items) => {
+      const sel = items.find((it) => it.v === val);
+      return `<div class="dsel ${cls}" data-val="${val === "" ? "" : val}">
+        <button type="button" class="dsel-btn${sel ? "" : " ph"}">${sel ? sel.t : ph}</button>
+        <div class="dsel-list hidden">${items.map((it) => `<button type="button" data-v="${it.v}"${it.v === val ? ' class="on"' : ""}>${it.t}</button>`).join("")}</div>
+      </div>`;
+    };
+    const years = [], months = [], days = [];
+    for (let y = curY + yFwd; y >= curY - yBack; y--) years.push({ v: y, t: y + "년" });
+    for (let m = 1; m <= 12; m++) months.push({ v: m, t: m + "월" });
+    for (let d = 1; d <= 31; d++) days.push({ v: d, t: d + "일" });
+    return `<div class="date-sel" id="${id}">
+      ${dsel("ds-y", "년", vy, years)}
+      ${dsel("ds-m", "월", vm, months)}
+      ${opts.noDay ? "" : dsel("ds-d", "일", vd, days)}
+    </div>`;
+  }
+  function dateSelectVal(id) {
+    const el = $(id);
+    if (!el) return "";
+    const y = el.querySelector(".ds-y").dataset.val, m = el.querySelector(".ds-m").dataset.val;
+    const dEl = el.querySelector(".ds-d");
+    const d = dEl ? dEl.dataset.val : "1"; // 일 드롭다운이 없으면(월 점프 등) 1일로
+    if (!y || !m || !d) return "";
+    return `${y}-${pad(+m)}-${pad(+d)}`;
+  }
+  // 펼친 목록을 화면 기준(fixed)으로 띄워 모달 overflow에 안 잘리게. 공간 보고 아래/위로.
+  function positionDselList(btn, list) {
+    const r = btn.getBoundingClientRect();
+    const vh = window.innerHeight, maxH = 208;
+    const below = vh - r.bottom - 8, above = r.top - 8;
+    const up = below < 180 && above > below;
+    list.style.position = "fixed";
+    list.style.left = r.left + "px";
+    list.style.width = r.width + "px";
+    list.style.right = "auto";
+    list.style.maxHeight = Math.min(maxH, up ? above : below) + "px";
+    if (up) { list.style.bottom = (vh - r.top + 4) + "px"; list.style.top = "auto"; }
+    else { list.style.top = (r.bottom + 4) + "px"; list.style.bottom = "auto"; }
+  }
+  function closeDselList(list) {
+    list.classList.add("hidden");
+    list.style.position = ""; list.style.left = ""; list.style.width = "";
+    list.style.right = ""; list.style.maxHeight = ""; list.style.top = ""; list.style.bottom = "";
+  }
+  // 커스텀 드롭다운 열기/선택/닫기 — 위임 처리 (동적 생성 대응)
+  function handleDselClick(e) {
+    const opt = e.target.closest(".dsel-list button[data-v]");
+    if (opt) {
+      const dsel = opt.closest(".dsel");
+      dsel.dataset.val = opt.dataset.v;
+      const btn = dsel.querySelector(".dsel-btn");
+      btn.textContent = opt.textContent; btn.classList.remove("ph");
+      dsel.querySelectorAll(".dsel-list .on").forEach((x) => x.classList.remove("on"));
+      opt.classList.add("on");
+      closeDselList(dsel.querySelector(".dsel-list"));
+      return;
+    }
+    const btn = e.target.closest(".dsel-btn");
+    if (btn) {
+      const list = btn.nextElementSibling;
+      const willOpen = list.classList.contains("hidden");
+      document.querySelectorAll(".dsel-list").forEach((l) => closeDselList(l));
+      if (willOpen) {
+        list.classList.remove("hidden");
+        positionDselList(btn, list);
+        const on = list.querySelector(".on");
+        if (on) on.scrollIntoView({ block: "center" });
+      }
+      return;
+    }
+    document.querySelectorAll(".dsel-list").forEach((l) => closeDselList(l));
+  }
 
   function toast(msg) {
     const t = $("toast");
@@ -401,7 +495,7 @@
       if (!$("obName").value.trim()) return toast("최애 이름을 입력해 주세요!");
     }
     if (obStep === 2) {
-      if (!$("obStart").value) return toast("덕질 시작일을 골라주세요!");
+      if (!dateSelectVal("obStart")) return toast("덕질 시작일을 골라주세요!");
     }
     obShowStep(obStep + 1);
     if (obStep === 4) obRenderTpl();
@@ -413,9 +507,9 @@
       name: $("obName").value.trim(),
       group: $("obGroup").value.trim(),
       photo: obPhotoData,
-      startDate: $("obStart").value,
-      birthday: $("obBirthday").value || null,
-      debutDate: $("obDebut").value || null,
+      startDate: dateSelectVal("obStart"),
+      birthday: dateSelectVal("obBirthday") || null,
+      debutDate: dateSelectVal("obDebut") || null,
     };
     S.biases.push(bias);
     S.currentBias = bias.id;
@@ -456,7 +550,9 @@
 
   function initOnboarding() {
     $("onboarding").classList.remove("hidden");
-    $("obStart").value = todayKey();
+    $("obStartWrap").innerHTML = dateSelectHTML("obStart", todayKey(), { yearsFwd: 1 });
+    $("obBirthdayWrap").innerHTML = dateSelectHTML("obBirthday", "", { yearsFwd: 1 });
+    $("obDebutWrap").innerHTML = dateSelectHTML("obDebut", "", { yearsFwd: 1 });
     obRenderPreset();
     // 스와치
     const grid = $("obSwatches");
@@ -1135,6 +1231,8 @@
     renderMemberCard();
     // 티켓팅
     tickClock();
+    // 홈 블록 순서·숨김 적용
+    applyHomeLayout();
   }
 
   function renderHomeExtras(b) {
@@ -1219,6 +1317,159 @@
     }
   }
 
+  /* ───────── 홈 편집 (위젯처럼 자유 배치 · 빼기/되살리기 · 드래그 이동) ───────── */
+  const HOME_BLOCKS = [
+    ["cheer", "응원·요약"], ["dday", "D-DAY"], ["week", "이번 주"], ["today", "TODAY"],
+    ["ticket", "시계"], ["spend", "이번 달 비용"], ["upcoming", "다가오는 일정"],
+    ["membership", "나만의 멤버십"], ["recent", "최근 기록"],
+  ];
+  const HOME_LABEL = Object.fromEntries(HOME_BLOCKS);
+  const HOME_DEFAULT = HOME_BLOCKS.map(([id]) => id);
+  let editHome = false;
+
+  function homeOrder() {
+    let o = (Array.isArray(S.homeOrder) ? S.homeOrder : []).filter((id) => HOME_DEFAULT.includes(id));
+    HOME_DEFAULT.forEach((id) => { if (!o.includes(id)) o.push(id); });
+    return o;
+  }
+  function homeHiddenSet() { return new Set(Array.isArray(S.homeHidden) ? S.homeHidden : []); }
+
+  // 저장된 순서·표시 상태를 실제 DOM에 반영
+  function applyHomeLayout() {
+    const wrap = $("homeBlocks");
+    if (!wrap) return;
+    homeOrder().forEach((id) => {
+      const el = wrap.querySelector('.home-block[data-block="' + id + '"]');
+      if (el) wrap.appendChild(el);
+    });
+    const hidden = homeHiddenSet();
+    wrap.querySelectorAll(".home-block").forEach((el) => {
+      el.classList.toggle("hidden", hidden.has(el.dataset.block));
+    });
+  }
+
+  function toggleEditHome() {
+    editHome = !editHome;
+    const home = $("page-home");
+    if (home) home.classList.toggle("home-editing", editHome);
+    const btn = $("homeEditBtn");
+    if (btn) btn.innerHTML = editHome ? I("check") + " 완료" : I("grid") + " 홈 편집";
+    if (editHome) buildHomeEdit(); else clearHomeEdit();
+    applyHomeLayout();
+    if (!editHome) { save(); toast("홈 배치를 저장했어요"); }
+  }
+
+  // 편집용 손잡이(⠿)·빼기(✕) 배지 + 숨긴 블록 트레이
+  function buildHomeEdit() {
+    const wrap = $("homeBlocks");
+    if (!wrap) return;
+    clearHomeEdit();
+    wrap.querySelectorAll(".home-block").forEach((el) => {
+      const grip = document.createElement("span");
+      grip.className = "hb-grip"; grip.title = "끌어서 이동"; grip.innerHTML = I("grip");
+      grip.addEventListener("pointerdown", (e) => startBlockDrag(e, grip, el, wrap));
+      const x = document.createElement("button");
+      x.className = "hb-x"; x.title = "홈에서 빼기"; x.setAttribute("aria-label", "홈에서 빼기"); x.innerHTML = I("x");
+      x.addEventListener("pointerdown", (e) => e.stopPropagation());
+      x.addEventListener("click", (e) => { e.stopPropagation(); hideBlock(el.dataset.block); });
+      el.appendChild(grip);
+      el.appendChild(x);
+    });
+    renderEditTray();
+  }
+  function clearHomeEdit() {
+    const wrap = $("homeBlocks");
+    if (wrap) wrap.querySelectorAll(".hb-grip, .hb-x").forEach((b) => b.remove());
+    const tray = $("homeAddTray");
+    if (tray) tray.remove();
+  }
+  function commitHomeOrder(wrap) {
+    S.homeOrder = [...wrap.querySelectorAll(".home-block")].map((el) => el.dataset.block);
+    save();
+  }
+  function hideBlock(id) {
+    const set = homeHiddenSet(); set.add(id); S.homeHidden = [...set];
+    const wrap = $("homeBlocks");
+    if (wrap) commitHomeOrder(wrap); else save();
+    applyHomeLayout(); renderEditTray(); buzz(10);
+  }
+  function showBlock(id) {
+    const set = homeHiddenSet(); set.delete(id); S.homeHidden = [...set];
+    const wrap = $("homeBlocks");
+    const el = wrap && wrap.querySelector('.home-block[data-block="' + id + '"]');
+    if (el && wrap) wrap.appendChild(el); // 되살리면 맨 아래로
+    if (wrap) commitHomeOrder(wrap); else save();
+    applyHomeLayout(); renderEditTray(); buzz(10);
+  }
+  function renderEditTray() {
+    const wrap = $("homeBlocks");
+    if (!wrap) return;
+    let tray = $("homeAddTray");
+    if (!tray) { tray = document.createElement("div"); tray.id = "homeAddTray"; tray.className = "home-add-tray"; wrap.after(tray); }
+    const hidden = homeOrder().filter((id) => homeHiddenSet().has(id));
+    tray.innerHTML = hidden.length
+      ? '<p class="hat-title">숨긴 블록 — 탭하면 다시 추가</p><div class="hat-chips">' +
+        hidden.map((id) => '<button class="hat-chip" data-add="' + id + '">+ ' + (HOME_LABEL[id] || id) + "</button>").join("") + "</div>"
+      : '<p class="hat-empty">모든 블록이 표시 중이에요. 블록의 ✕로 빼면 여기에 모여요.</p>';
+    tray.querySelectorAll("[data-add]").forEach((b) => { b.onclick = () => showBlock(b.dataset.add); });
+  }
+
+  // 위젯 보드와 동일한 포인터 드래그 — 캡처·리스너를 손잡이에 함께 걸어 어긋남 방지 + 가장자리 자동 스크롤
+  function startBlockDrag(e, grip, block, wrap) {
+    if (!editHome) return;
+    e.preventDefault();
+    const rect = block.getBoundingClientRect();
+    const offX = e.clientX - rect.left, offY = e.clientY - rect.top;
+    try { grip.setPointerCapture(e.pointerId); } catch (_) {}
+    block.classList.add("hb-dragging");
+    Object.assign(block.style, {
+      width: rect.width + "px", height: rect.height + "px",
+      position: "fixed", left: rect.left + "px", top: rect.top + "px", zIndex: "210", margin: "0",
+    });
+    const ph = document.createElement("div");
+    ph.className = "hb-ph"; ph.style.height = rect.height + "px";
+    block.after(ph);
+    const scroller = document.querySelector(".main");
+    let lastX = e.clientX, lastY = e.clientY;
+    const reflow = () => {
+      const cx = Math.min(window.innerWidth - 2, Math.max(2, lastX));
+      const cy = Math.min(window.innerHeight - 2, Math.max(2, lastY));
+      block.style.visibility = "hidden";
+      const under = document.elementFromPoint(cx, cy);
+      block.style.visibility = "";
+      const over = under && under.closest(".home-block");
+      if (over && over !== block && over.parentNode === wrap) {
+        const r = over.getBoundingClientRect();
+        wrap.insertBefore(ph, lastY < r.top + r.height / 2 ? over : over.nextSibling);
+      }
+    };
+    const timer = setInterval(() => {
+      const vh = window.innerHeight, d = lastY < vh * 0.16 ? -14 : lastY > vh * 0.84 ? 14 : 0;
+      if (d) { window.scrollBy(0, d); if (scroller) scroller.scrollTop += d; reflow(); }
+    }, 16);
+    const move = (ev) => {
+      lastX = ev.clientX; lastY = ev.clientY;
+      block.style.left = (ev.clientX - offX) + "px";
+      block.style.top = (ev.clientY - offY) + "px";
+      reflow();
+    };
+    const up = () => {
+      clearInterval(timer);
+      grip.removeEventListener("pointermove", move);
+      grip.removeEventListener("pointerup", up);
+      grip.removeEventListener("pointercancel", up);
+      try { grip.releasePointerCapture(e.pointerId); } catch (_) {}
+      ph.replaceWith(block);
+      block.classList.remove("hb-dragging");
+      ["width", "height", "position", "left", "top", "zIndex", "margin", "visibility"].forEach((p) => { block.style[p] = ""; });
+      commitHomeOrder(wrap); buzz(10);
+    };
+    grip.addEventListener("pointermove", move);
+    grip.addEventListener("pointerup", up);
+    grip.addEventListener("pointercancel", up);
+    move(e);
+  }
+
   function isAnnivToday(dateStr) {
     const d = new Date(dateStr), n = new Date();
     return d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
@@ -1226,6 +1477,13 @@
 
   function renderMemberCard() {
     const m = S.membership;
+    const card = $("memberCard");
+    if (card) {
+      card.className = "member-card mc-style-" + (m.style || "gradient") + (m.photo ? " has-photo" : "");
+      card.style.backgroundImage = m.photo ? `linear-gradient(135deg, rgba(0,0,0,.55), rgba(0,0,0,.2)), url(${m.photo})` : "";
+      card.style.backgroundSize = m.photo ? "cover" : "";
+      card.style.backgroundPosition = m.photo ? "center" : "";
+    }
     $("mcTitle").textContent = m.title || "MY STAR PASS";
     $("mcName").textContent = m.name || "MY NAME";
     $("mcIcon").textContent = m.icon || "✦";
@@ -1435,14 +1693,44 @@
   /* ═══ 배경 사진 꾸미기 (스티커 데코) ═══ */
   let decoMode = false;
 
+  // 기념일까지 남은 일수 (매년 돌아오는 날짜 기준 D-)
+  function ddayCountTo(ds) {
+    const today = new Date(todayKey());
+    const d = new Date(ds); d.setFullYear(today.getFullYear());
+    if (d < today) d.setFullYear(today.getFullYear() + 1);
+    return Math.round((d - today) / 86400000);
+  }
+  // 데코용 기념일 D-day 문구 (라이브로 계산)
+  function decoDdayText(b, key) {
+    if (!b) return "";
+    if (key === "start") { const n = dPlus(b.startDate); return `덕질 D+${n != null ? n : 0}`; }
+    if (key === "birthday" && b.birthday) { const n = ddayCountTo(b.birthday); return `생일 ${n === 0 ? "D-DAY" : "D-" + n}`; }
+    if (key === "debut" && b.debutDate) { const n = ddayCountTo(b.debutDate); return `데뷔 ${n === 0 ? "D-DAY" : "D-" + n}`; }
+    const a = (b.annivs || []).find((x) => x.id === key);
+    if (a) { const n = ddayCountTo(a.date); return `${a.title} ${n === 0 ? "D-DAY" : "D-" + n}`; }
+    return "";
+  }
+
   function renderDeco() {
     const layer = $("heroDeco");
     if (!layer) return;
     const b = curBias();
     const deco = (b && b.deco) || [];
-    layer.innerHTML = deco.map((d, i) =>
-      `<span class="hero-sticker" data-i="${i}" style="left:${d.x}%;top:${d.y}%">${d.s}</span>`).join("");
-    layer.querySelectorAll(".hero-sticker").forEach((el) => {
+    layer.innerHTML = deco.map((d, i) => {
+      if (d.t === "dday") {
+        const txt = decoDdayText(b, d.key);
+        if (!txt) return ""; // 원본 기념일이 사라졌으면 표시 안 함
+        return `<span class="hero-deco-text dt-${d.c || "w"} dt-${d.sz || "m"}" data-i="${i}" style="left:${d.x}%;top:${d.y}%">${esc(txt)}</span>`;
+      }
+      if (d.t === "text") {
+        return `<span class="hero-deco-text dt-${d.c || "w"} dt-${d.sz || "m"}" data-i="${i}" style="left:${d.x}%;top:${d.y}%">${esc(d.s)}</span>`;
+      }
+      if (d.icon) { // 앱 라인아이콘 스티커
+        return `<span class="hero-sticker hero-icon-sticker" data-i="${i}" style="left:${d.x}%;top:${d.y}%">${I(d.icon)}</span>`;
+      }
+      return `<span class="hero-sticker" data-i="${i}" style="left:${d.x}%;top:${d.y}%">${d.s}</span>`;
+    }).join("");
+    layer.querySelectorAll(".hero-sticker, .hero-deco-text").forEach((el) => {
       el.onpointerdown = (e) => decoDrag(e, +el.dataset.i, el);
     });
   }
@@ -1468,12 +1756,113 @@
       el.onpointermove = null;
       el.onpointerup = null;
       if (!moved) {
+        // 텍스트·기념일은 탭하면 편집, 스티커는 탭하면 떼기
+        if (b.deco[i] && b.deco[i].t === "text") { addDecoText(i); return; }
+        if (b.deco[i] && b.deco[i].t === "dday") { addDecoDday(i); return; }
         b.deco.splice(i, 1);
         renderDeco();
         toast("스티커를 뗐어요");
       }
       save();
     };
+  }
+
+  // 데코 색상 선택 줄 (텍스트·기념일 공용)
+  function decoColorRowHTML() {
+    return `<div class="dt-color-row" id="dtColors">${DECO_COLORS.map(([k]) => `<button class="dt-c dt-cc-${k}" data-c="${k}" aria-label="${k}"></button>`).join("")}</div>`;
+  }
+
+  // 배경 위 텍스트(문구) 올리기·편집 — 카카오톡 프로필식 자유 배치
+  function addDecoText(editIndex) {
+    const b = curBias();
+    if (!b) return;
+    const editing = typeof editIndex === "number";
+    const cur = editing ? b.deco[editIndex] : null;
+    const startYear = b.startDate ? b.startDate.slice(0, 4) : String(new Date().getFullYear());
+    const nm = b.name || "내 최애";
+    const fills = [`${nm} ♥`, `since ${startYear}`, "♥", "내 최애 ♥", "D-DAY ♡"];
+    openModalRaw(editing ? "텍스트 편집" : "텍스트 올리기", `
+      <div class="field"><input type="text" id="dtText" placeholder="예) ${esc(nm)} ♥ · since ${startYear}" maxlength="40" value="${editing ? esc(cur.s) : ""}"></div>
+      <div class="dt-chips" id="dtChips">${fills.map((f) => `<button data-fill="${esc(f)}">${esc(f)}</button>`).join("")}</div>
+      <p class="dt-label">색상</p>
+      ${decoColorRowHTML()}
+      <p class="dt-label">크기</p>
+      <div class="dt-opts" id="dtSizes">
+        <button data-sz="s">작게</button><button data-sz="m">보통</button><button data-sz="l">크게</button>
+      </div>
+      <button class="btn btn-primary btn-lg" id="dtSave">${editing ? "저장" : "올리기"}</button>
+      ${editing ? '<button class="btn btn-ghost btn-lg slim" id="dtDel">텍스트 떼기</button>' : ""}
+    `);
+    let c = editing ? (cur.c || "w") : "w";
+    let sz = editing ? (cur.sz || "m") : "m";
+    const sync = () => {
+      $("dtColors").querySelectorAll("[data-c]").forEach((x) => x.classList.toggle("on", x.dataset.c === c));
+      $("dtSizes").querySelectorAll("[data-sz]").forEach((x) => x.classList.toggle("on", x.dataset.sz === sz));
+    };
+    sync();
+    $("dtChips").querySelectorAll("[data-fill]").forEach((x) => { x.onclick = () => { $("dtText").value = x.dataset.fill; $("dtText").focus(); }; });
+    $("dtColors").querySelectorAll("[data-c]").forEach((x) => { x.onclick = () => { c = x.dataset.c; sync(); }; });
+    $("dtSizes").querySelectorAll("[data-sz]").forEach((x) => { x.onclick = () => { sz = x.dataset.sz; sync(); }; });
+    $("dtSave").onclick = () => {
+      const s = $("dtText").value.trim();
+      if (!s) return toast("문구를 입력해 주세요");
+      if (!b.deco) b.deco = [];
+      if (editing) { b.deco[editIndex].s = s; b.deco[editIndex].c = c; b.deco[editIndex].sz = sz; }
+      else {
+        if (b.deco.length >= 20) return toast("꾸미기는 최대 20개까지!");
+        b.deco.push({ t: "text", s, c, sz, x: 50, y: 50 });
+      }
+      save(); renderDeco(); closeModal();
+    };
+    if (editing) $("dtDel").onclick = () => { b.deco.splice(editIndex, 1); save(); renderDeco(); closeModal(); toast("텍스트를 뗐어요"); };
+  }
+
+  // 등록한 기념일을 D-day 카운트로 배경에 올리기·편집 (라이브 갱신)
+  function addDecoDday(editIndex) {
+    const b = curBias();
+    if (!b) return;
+    const editing = typeof editIndex === "number";
+    const cur = editing ? b.deco[editIndex] : null;
+    const opts = [["start", "덕질 D+"]];
+    if (b.birthday) opts.push(["birthday", "생일 D-"]);
+    if (b.debutDate) opts.push(["debut", "데뷔일 D-"]);
+    (b.annivs || []).forEach((a) => opts.push([a.id, a.title + " D-"]));
+    openModalRaw(editing ? "기념일 D-day 편집" : "기념일 D-day 올리기", `
+      <p class="dt-label">어떤 기념일을 올릴까요?</p>
+      <div class="dt-chips" id="ddKeys">${opts.map(([k, l]) => `<button data-k="${esc(String(k))}">${esc(l)}</button>`).join("")}</div>
+      <p class="dt-hint-mini">설정한 기념일이 더 필요하면 아래 '기념일'에서 추가할 수 있어요</p>
+      <p class="dt-label">색상</p>
+      ${decoColorRowHTML()}
+      <p class="dt-label">크기</p>
+      <div class="dt-opts" id="dtSizes">
+        <button data-sz="s">작게</button><button data-sz="m">보통</button><button data-sz="l">크게</button>
+      </div>
+      <button class="btn btn-primary btn-lg" id="ddSave">${editing ? "저장" : "올리기"}</button>
+      ${editing ? '<button class="btn btn-ghost btn-lg slim" id="ddDel">떼기</button>' : ""}
+    `);
+    let key = editing ? cur.key : opts[0][0];
+    let c = editing ? (cur.c || "w") : "w";
+    let sz = editing ? (cur.sz || "m") : "m";
+    const sync = () => {
+      $("ddKeys").querySelectorAll("[data-k]").forEach((x) => x.classList.toggle("on", x.dataset.k === String(key)));
+      $("dtColors").querySelectorAll("[data-c]").forEach((x) => x.classList.toggle("on", x.dataset.c === c));
+      $("dtSizes").querySelectorAll("[data-sz]").forEach((x) => x.classList.toggle("on", x.dataset.sz === sz));
+    };
+    sync();
+    $("ddKeys").querySelectorAll("[data-k]").forEach((x) => { x.onclick = () => { key = x.dataset.k; sync(); }; });
+    $("dtColors").querySelectorAll("[data-c]").forEach((x) => { x.onclick = () => { c = x.dataset.c; sync(); }; });
+    $("dtSizes").querySelectorAll("[data-sz]").forEach((x) => { x.onclick = () => { sz = x.dataset.sz; sync(); }; });
+    $("ddSave").onclick = () => {
+      if (!key) return toast("기념일을 골라주세요");
+      if (!b.deco) b.deco = [];
+      if (editing) { b.deco[editIndex].key = key; b.deco[editIndex].c = c; b.deco[editIndex].sz = sz; }
+      else {
+        if (b.deco.length >= 20) return toast("꾸미기는 최대 20개까지!");
+        b.deco.push({ t: "dday", key, c, sz, x: 50, y: 50 });
+      }
+      save(); renderDeco(); closeModal();
+    };
+    if (editing) $("ddDel").onclick = () => { b.deco.splice(editIndex, 1); save(); renderDeco(); closeModal(); toast("기념일을 뗐어요"); };
   }
 
   function toggleDeco() {
@@ -1484,28 +1873,24 @@
     btn.innerHTML = decoMode ? I("check") : I("sparkles");
     btn.title = decoMode ? "꾸미기 완료" : "스티커 꾸미기";
     if (decoMode) {
-      pal.innerHTML = STICKERS.map((st) => `<button data-ds="${st}">${st}</button>`).join("");
-      pal.querySelectorAll("[data-ds]").forEach((bn) => {
-        bn.onclick = () => {
-          const b = curBias();
-          if (!b) return;
-          if (!b.deco) b.deco = [];
-          if (b.deco.length >= 20) return toast("스티커는 최대 20개까지!");
-          b.deco.push({ s: bn.dataset.ds, x: +(18 + Math.random() * 64).toFixed(1), y: +(12 + Math.random() * 50).toFixed(1) });
-          save(); renderDeco();
-        };
-      });
-      toast("스티커를 골라 붙이고 드래그로 옮겨요. 톡 치면 떼어져요!");
+      pal.innerHTML = '<button class="deco-text-btn" id="decoAddText">✏️ 글자</button>'
+        + '<button class="deco-text-btn" id="decoAddDday">🗓 기념일</button>';
+      const addTextBtn = pal.querySelector("#decoAddText");
+      if (addTextBtn) addTextBtn.onclick = () => addDecoText();
+      const addDdayBtn = pal.querySelector("#decoAddDday");
+      if (addDdayBtn) addDdayBtn.onclick = () => addDecoDday();
+      toast("'글자'로 문구를, '기념일'로 D-day를 올려요. 드래그로 이동 · 탭하면 편집");
     }
   }
 
   /* 티켓팅 타이머 */
   function nextTicket() {
-    const now = new Date();
+    const now = nowCorrected();
+    // 오픈 직후 60초는 "지금 예매!" 상태로 남겨둠 (오픈 순간을 놓치지 않게)
     return byBias(S.schedules)
       .filter((s) => s.cat === "ticket")
       .map((s) => ({ ...s, dt: new Date(s.date + "T" + (s.time || "00:00")) }))
-      .filter((s) => s.dt > now)
+      .filter((s) => s.dt > now - 60000)
       .sort((a, b) => a.dt - b.dt)[0] || null;
   }
 
@@ -1560,37 +1945,149 @@
     });
   }
 
+  // 보정된 현재 시각 (기기 시간 + 사용자가 맞춘 보정값)
+  function nowCorrected() { return new Date(Date.now() + ((S && S.clockOffset) || 0)); }
+
+  function fmtCountdown(diff) {
+    if (diff < 0) diff = 0;
+    const dd = Math.floor(diff / 86400000);
+    const hh = Math.floor((diff % 86400000) / 3600000);
+    const mm = Math.floor((diff % 3600000) / 60000);
+    const ss = Math.floor((diff % 60000) / 1000);
+    return dd > 0 ? `D-${dd} ${pad(hh)}:${pad(mm)}:${pad(ss)}` : `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
+  }
+
   function tickClock() {
-    const now = new Date();
+    const now = nowCorrected();
     if (S && S.retro && S.retroSkin === "phone") updPhoneTime();
     const lc = $("liveClock");
     if (lc) lc.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
     const t = nextTicket();
     const tn = $("ticketNext"), btn = $("ticketLinkBtn"), card = $("ticketCard");
     const mw = $("wTick");
-    if (!tn) return;
-    if (!t) {
-      if (card) card.classList.add("hidden");
-      return;
-    }
+    let diff = 0;
+    if (t) { diff = t.dt - now; maybeNotifyTicket(t, diff); }
+    // 제목: 티켓팅이 잡혀 있으면 '티켓팅 타이머', 평소엔 '시계'
+    const titleEl = $("ticketTitle");
+    if (titleEl) titleEl.textContent = t ? "티켓팅 타이머" : "시계";
+    // 시계는 티켓팅 예정이 없어도 항상 보이게
     if (card) card.classList.remove("hidden");
-    const diff = t.dt - now;
-    maybeNotifyTicket(t, diff);
-    const dd = Math.floor(diff / 86400000);
-    const hh = Math.floor((diff % 86400000) / 3600000);
-    const mm = Math.floor((diff % 3600000) / 60000);
-    const ss = Math.floor((diff % 60000) / 1000);
-    const cnt = dd > 0 ? `D-${dd} ${pad(hh)}:${pad(mm)}:${pad(ss)}` : `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
-    tn.innerHTML = `${esc(t.title)}까지 <strong>${cnt}</strong>` + (diff <= 600000 ? ` ${I("bell")} 10분 전!` : "");
-    if (mw) mw.textContent = cnt;
-    if (t.link) { btn.href = safeUrl(t.link); btn.classList.remove("hidden"); }
-    else btn.classList.add("hidden");
+    if (tn) {
+      if (!t) {
+        tn.innerHTML = "예정된 티켓팅이 없어요";
+        if (btn) btn.classList.add("hidden");
+        if (mw) mw.textContent = "--:--:--";
+      } else {
+        const cnt = fmtCountdown(diff);
+        tn.innerHTML = `${esc(t.title)}까지 <strong>${cnt}</strong>` + (diff <= 600000 ? ` ${I("bell")} 10분 전!` : "");
+        if (mw) mw.textContent = cnt;
+        if (t.link && btn) { btn.href = safeUrl(t.link); btn.classList.remove("hidden"); }
+        else if (btn) btn.classList.add("hidden");
+      }
+    }
+    if (standbyOpen) renderStandby(now, t, diff);
+  }
+
+  /* ───────── 전체화면 스탠바이 시계 / 티켓팅 ───────── */
+  const SB_WEEK = ["일", "월", "화", "수", "목", "금", "토"];
+  const SB_TK_WINDOW = 3600000; // 오픈 1시간 전부터 티켓팅 모드
+  let standbyOpen = false;
+  let standbyFired = false;
+  let wakeLock = null;
+
+  function renderStandby(now, t, diff) {
+    const dEl = $("sbDate");
+    if (dEl) dEl.textContent = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 ${SB_WEEK[now.getDay()]}요일`;
+    const sb = $("standby"), clk = $("sbClock"), sub = $("sbSub"), tkLabel = $("sbTkLabel"), tkBtn = $("sbTkBtn");
+    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const ticketing = !!t && diff <= SB_TK_WINDOW; // 오픈 1시간 이내
+    if (sb) sb.classList.toggle("ticketing", ticketing);
+
+    if (ticketing) {
+      const fire = diff <= 0; // 오픈 시각 도달
+      if (sb) sb.classList.toggle("fire", fire);
+      if (tkLabel) { tkLabel.classList.remove("hidden"); tkLabel.textContent = fire ? "지금 예매하세요!" : `${t.title} 오픈까지`; }
+      if (clk) clk.textContent = fire ? timeStr : fmtCountdown(diff);
+      if (sub) sub.textContent = fire ? `오픈 시각 ${t.time || ""} · 현재 ${timeStr}` : `오픈 ${t.date}${t.time ? " " + t.time : ""}`;
+      if (tkBtn) {
+        if (t.link) { tkBtn.href = safeUrl(t.link); tkBtn.classList.remove("hidden"); }
+        else tkBtn.classList.add("hidden");
+      }
+      if (fire && !standbyFired) { standbyFired = true; buzz([200, 100, 200, 100, 400]); }
+      if (!fire) standbyFired = false;
+    } else {
+      if (sb) sb.classList.remove("fire");
+      if (tkLabel) tkLabel.classList.add("hidden");
+      if (tkBtn) tkBtn.classList.add("hidden");
+      if (clk) clk.textContent = timeStr;
+      const b = curBias();
+      if (sub) sub.textContent = t ? `${esc(t.title)} D-${Math.ceil(diff / 86400000)}` : (b ? esc(b.name) : "");
+    }
+
+    const ov = $("sbOffVal");
+    if (ov) { const s = ((S && S.clockOffset) || 0) / 1000; ov.textContent = `${s > 0 ? "+" : ""}${s.toFixed(1)}초`; }
+  }
+
+  async function reqWake() {
+    try { if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); } catch (_) {}
+    const w = $("sbWake");
+    if (w) w.textContent = wakeLock ? "화면 켜짐 유지 중" : "";
+  }
+  function relWake() { try { wakeLock && wakeLock.release(); } catch (_) {} wakeLock = null; }
+
+  function openStandby() {
+    standbyOpen = true;
+    const sb = $("standby");
+    if (sb) { sb.classList.remove("hidden"); sb.setAttribute("aria-hidden", "false"); }
+    document.body.style.overflow = "hidden";
+    reqWake();
+    tickClock();
+  }
+  function closeStandby() {
+    standbyOpen = false;
+    const sb = $("standby");
+    if (sb) { sb.classList.add("hidden"); sb.classList.remove("ticketing", "fire"); sb.setAttribute("aria-hidden", "true"); }
+    document.body.style.overflow = "";
+    relWake();
+  }
+  function adjustOffset(ms) {
+    S.clockOffset = Math.max(-300000, Math.min(300000, ((S.clockOffset) || 0) + ms));
+    save();
+    tickClock();
+    buzz(8);
+  }
+  function resetOffset() {
+    S.clockOffset = 0;
+    save();
+    tickClock();
+    toast("시간 보정을 초기화했어요");
   }
 
   /* ═══════════ 캘린더 ═══════════ */
   function calMove(n) {
     calCur = new Date(calCur.getFullYear(), calCur.getMonth() + n, 1);
     renderCalendar();
+  }
+  // 오늘이 있는 달로 즉시 이동 + 오늘 선택
+  function calToday() {
+    const now = new Date();
+    calCur = new Date(now.getFullYear(), now.getMonth(), 1);
+    selDate = todayKey();
+    renderCalendar();
+  }
+  // 제목을 눌러 원하는 연·월로 점프
+  function calJump() {
+    openModalRaw("다른 달로 이동", `
+      <div class="field"><label>연·월 선택</label>${dateSelectHTML("calJumpSel", `${calCur.getFullYear()}-${pad(calCur.getMonth() + 1)}-01`, { yearsBack: 15, yearsFwd: 10, noDay: true })}</div>
+      <button class="btn btn-primary btn-lg" id="calJumpGo">이동</button>
+    `);
+    $("calJumpGo").onclick = () => {
+      const v = dateSelectVal("calJumpSel");
+      if (!v) return toast("연·월을 골라주세요");
+      const parts = v.split("-");
+      calCur = new Date(+parts[0], +parts[1] - 1, 1);
+      closeModal(); renderCalendar();
+    };
   }
 
   function renderCalendar() {
@@ -1833,14 +2330,27 @@
     const gap = 10;
     let availW = grid.clientWidth;
     if (!availW || availW < 80) availW = Math.min(940, window.innerWidth - (window.innerWidth >= 980 ? 300 : 36));
-    let cols = Math.max(3, Math.min(8, Math.floor((availW + gap) / (150 + gap))));
-    const cardW = (availW - gap * (cols - 1)) / cols;
-    const cardH = cardW * 8.5 / 5.5;
-    let rows;
-    if (cols <= 3) rows = 3; // 모바일: 3×3 고정
-    else rows = Math.max(2, Math.min(4, Math.floor((window.innerHeight - 250) / (cardH + gap))));
+    const vw = window.innerWidth;
+    let cols, rows;
+    if (vw < 640) { cols = 2; rows = 3; }        // 모바일: 2×3 = 6
+    else if (vw < 980) { cols = 4; rows = 2; }   // 태블릿: 4×2 = 8
+    else { cols = 6; rows = 2; }                 // 데스크톱: 6×2 = 12
     const PER_PAGE = cols * rows;
-    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    // 카드는 포카 비율(5.5:8.5) 고정 (CSS aspect-ratio).
+    if (vw < 980) {
+      // 모바일·태블릿: 카드가 칸 폭을 꽉 채우고 균일한 간격. 길면 스크롤 허용.
+      grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+      grid.style.justifyContent = "";
+    } else {
+      // 데스크톱: 한 화면에 맞춰 무스크롤 — 카드 크기를 높이에 맞춰 줄이고, 남는 가로는 양옆 여백으로
+      const gtop = grid.getBoundingClientRect().top;
+      const availH = Math.max(150, window.innerHeight - gtop - 64);
+      const cardWByWidth = (availW - gap * (cols - 1)) / cols;
+      const cardWByHeight = ((availH - gap * (rows - 1)) / rows) * 5.5 / 8.5;
+      const cardW = Math.max(60, Math.floor(Math.min(cardWByWidth, cardWByHeight)));
+      grid.style.gridTemplateColumns = `repeat(${cols}, ${cardW}px)`;
+      grid.style.justifyContent = "center";
+    }
 
     const totalPages = Math.max(1, Math.ceil((cards.length + 1) / PER_PAGE)); // 마지막 페이지엔 항상 빈칸 1개 이상
     if (binderPage > totalPages - 1) binderPage = totalPages - 1;
@@ -1851,13 +2361,29 @@
         ${p.img ? `<img src="${p.img}" alt="" draggable="false">` : esc(p.name)}
         ${p.img && p.name ? `<span class="pc-label">${esc(p.name)}</span>` : ""}
       </div>`).join("");
-    const emptyCount = PER_PAGE - pageCards.length; // 이 페이지를 9칸으로 채움
+    const emptyCount = PER_PAGE - pageCards.length; // 남은 칸을 빈 포켓으로 채움 (모두 동일하게)
     for (let i = 0; i < emptyCount; i++) {
-      html += `<div class="poca-slot empty" data-add="1">${i === 0 ? `<span class="plus">+</span>포카 등록` : `<span class="plus">+</span>`}</div>`;
+      html += `<div class="poca-slot empty" data-add="1"><span class="plus">+</span></div>`;
     }
     grid.innerHTML = html;
     grid.querySelectorAll("[data-add]").forEach((el) => { el.onclick = () => openModal("poca"); });
     bindPocaCards(grid);
+    const bHint = $("binderHint");
+    if (bHint) {
+      if (cards.length === 0) { bHint.textContent = "빈 칸을 눌러 첫 포카를 등록해 보세요"; bHint.classList.remove("hidden"); }
+      else if (cards.length >= 2) { bHint.textContent = "포카를 꾹 눌러 끌면 순서를 바꿀 수 있어요"; bHint.classList.remove("hidden"); }
+      else bHint.classList.add("hidden");
+    }
+    // 첫 진입 등에서 그리드 너비가 늦게 잡혀 보유/위시 탭 칸 수가 달라 보이는 문제 보정:
+    // 다음 프레임에 실제 너비를 재확인해 달라졌으면 한 번만 다시 그려 항상 같은 배치로 통일
+    const pageBinder = $("page-binder");
+    if (pageBinder && pageBinder.classList.contains("active")) {
+      requestAnimationFrame(() => {
+        if (!pageBinder.classList.contains("active")) return;
+        const w2 = grid.clientWidth;
+        if (w2 && Math.abs(w2 - availW) > 24) renderBinder();
+      });
+    }
 
     // 페이지 넘김 + 현재/전체 표시
     const pager = $("binderPager");
@@ -1942,7 +2468,7 @@
     const reordered = S.photocards.filter((p) => inView.has(p.id)).sort((a, b) => pos[a.id] - pos[b.id]);
     let vi = 0;
     S.photocards = S.photocards.map((p) => (inView.has(p.id) ? reordered[vi++] : p));
-    save(); renderBinder();
+    save(); renderBinder(); renderHome();
   }
 
   function openPocaView(id) {
@@ -1961,18 +2487,18 @@
     `);
     $("pcTrade").onclick = () => {
       p.status = p.status === "trade" ? "own" : "trade";
-      save(); closeModal(); binderTab(p.status); renderBinder();
+      save(); closeModal(); binderTab(p.status); renderHome();
       toast(p.status === "trade" ? "교환 중으로 옮겼어요" : "교환 완료! 보유 포카로");
     };
     $("pcEdit").onclick = () => openModal("poca", id);
     $("pcMove").onclick = () => {
       p.status = p.status === "own" ? "wish" : "own";
-      save(); closeModal(); renderBinder(); toast(p.status === "own" ? "보유 포카로 옮겼어요" : "위시로 옮겼어요");
+      save(); closeModal(); renderBinder(); renderHome(); toast(p.status === "own" ? "보유 포카로 옮겼어요" : "위시로 옮겼어요");
     };
     $("pcDel").onclick = () => {
       if (!confirm("이 포카를 삭제할까요?")) return;
       S.photocards = S.photocards.filter((x) => x.id !== id);
-      save(); closeModal(); renderBinder();
+      save(); closeModal(); renderBinder(); renderHome();
     };
   }
 
@@ -2074,19 +2600,46 @@
         : "";
     }
 
-    // 6개월 그래프
+    // 월별 그래프 (최근 6개월=당월 중심 / 상반기 1~6월 / 하반기 7~12월)
     const months = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(y, m - i, 1);
-      months.push({ ym: `${d.getFullYear()}-${pad(d.getMonth() + 1)}`, label: `${d.getMonth() + 1}월` });
+    if (ledgerChartMode === "h1" || ledgerChartMode === "h2") {
+      const startM = ledgerChartMode === "h1" ? 0 : 6; // 0=1월, 6=7월
+      for (let i = 0; i < 6; i++) {
+        const d = new Date(y, startM + i, 1);
+        months.push({ ym: `${d.getFullYear()}-${pad(d.getMonth() + 1)}`, label: `${d.getMonth() + 1}월`, date: d });
+      }
+    } else {
+      // 선택한 달을 가운데(4번째 칸)에: 앞 3개월 + 당월 + 뒤 2개월
+      for (let i = -3; i <= 2; i++) {
+        const d = new Date(y, m + i, 1);
+        months.push({ ym: `${d.getFullYear()}-${pad(d.getMonth() + 1)}`, label: `${d.getMonth() + 1}월`, date: d });
+      }
     }
     const sums = months.map((mo) => byBias(S.expenses).filter((e) => e.date && e.date.startsWith(mo.ym)).reduce((a, e) => a + +e.amount, 0));
     const max = Math.max(...sums, 1);
-    $("ledgerChart").innerHTML = months.map((mo, i) => `
-      <div class="bc-col ${mo.ym === ym ? "cur" : ""}">
+    const nowMonth = new Date(); nowMonth.setDate(1); nowMonth.setHours(0, 0, 0, 0);
+    $("ledgerChart").innerHTML = months.map((mo, i) => {
+      const isCur = mo.ym === ym;
+      // 아직 오지 않은 달만 흐리게. 단, 지금 보고 있는(선택한) 달은 미래여도 또렷하게.
+      const isFuture = mo.date > nowMonth && !isCur;
+      return `<div class="bc-col ${isCur ? "cur" : ""} ${isFuture ? "future" : ""}">
         <div class="bc-bar" style="height:${Math.max(3, (sums[i] / max) * 100)}%"></div>
         <span class="bc-label">${mo.label}</span>
-      </div>`).join("");
+      </div>`;
+    }).join("");
+
+    // 그래프 모드 라벨 · 토글 칩
+    const chartSub = $("ledgerChartSub");
+    if (chartSub) chartSub.textContent =
+      ledgerChartMode === "h1" ? `(${y} 상반기)` :
+      ledgerChartMode === "h2" ? `(${y} 하반기)` : "(선택 월 중심 6개월)";
+    const chartTabs = $("ledgerChartTabs");
+    if (chartTabs) {
+      chartTabs.querySelectorAll("[data-cmode]").forEach((b) => {
+        b.classList.toggle("active", b.dataset.cmode === ledgerChartMode);
+        b.onclick = () => { ledgerChartMode = b.dataset.cmode; renderLedger(); };
+      });
+    }
 
     // 카테고리 필터 칩
     const cf = $("ledgerCatFilter");
@@ -2433,6 +2986,11 @@
     const vr = $("veilRange"), vv = $("veilVal");
     if (vr) vr.value = S.veil || 0;
     if (vv) vv.textContent = (S.veil || 0) + "%";
+    // 콘텐츠 배경 농도는 '기본 모드 + 배경패턴 선택 + 창모드 아님'일 때만 효과 있음 → 그 외엔 비활성화
+    const veilOn = !S.mode && S.bg && S.bg !== "none" && !S.retro;
+    const vf = $("veilField");
+    if (vf) vf.classList.toggle("dim", !veilOn);
+    if (vr) vr.disabled = !veilOn;
     const bt = $("bgTabs");
     if (bt) {
       bt.innerHTML = BGS.map(([id, name]) =>
@@ -2793,15 +3351,15 @@
     if (type === "anniv") {
       openModalRaw("기념일 추가", `
         <div class="field"><label>이름 *</label><input type="text" id="mTitle" placeholder="예) 첫 팬미팅, 입덕일 1주년"></div>
-        <div class="field"><label>날짜 * <small>(매년 돌아와요)</small></label><input type="date" id="mDate"></div>
+        <div class="field"><label>날짜 * <small>(매년 돌아와요)</small></label>${dateSelectHTML("mDate", "", { yearsFwd: 1 })}</div>
         <button class="btn btn-primary btn-lg" id="mSave">추가</button>`);
       $("mSave").onclick = () => {
         const title = $("mTitle").value.trim();
-        if (!title || !$("mDate").value) return toast("이름과 날짜를 입력해 주세요!");
+        if (!title || !dateSelectVal("mDate")) return toast("이름과 날짜를 입력해 주세요!");
         const b = curBias();
         if (!b) return toast("먼저 최애를 등록해 주세요!");
         if (!b.annivs) b.annivs = [];
-        b.annivs.push({ id: uid(), title, date: $("mDate").value });
+        b.annivs.push({ id: uid(), title, date: dateSelectVal("mDate") });
         save(); closeModal(); renderProfile(); renderHome(); renderCalendar();
         toast("기념일을 추가했어요");
       };
@@ -2841,7 +3399,7 @@
         } else {
           S.photocards.push({ id: uid(), biasId: S.currentBias, name, album, img: modalPhotoData, memo: $("mMemo").value.trim(), status });
         }
-        save(); closeModal(); binderTab(status); go("binder");
+        save(); closeModal(); renderHome(); binderTab(status); go("binder");
         toast(edit ? "포카 정보를 수정했어요" : "바인더에 쏙 넣었어요");
       };
       return;
@@ -2903,24 +3461,69 @@
     /* 멤버십 카드 */
     if (type === "membership") {
       const m = S.membership;
+      let mcStyle = m.style || "gradient";
+      let mcPhoto = m.photo || null;
       openModalRaw("나만의 멤버십 카드", `
+        <div class="mc-preview-wrap"><div class="member-card" id="mcPreview"></div></div>
+        <p class="dt-label">카드 디자인</p>
+        <div class="mc-presets" id="mcPresets">${MEMBERSHIP_STYLES.map(([k, l]) => `<button type="button" class="mc-preset mc-style-${k}" data-mcs="${k}">${l}</button>`).join("")}</div>
+        <div class="field"><label>배경 사진 <small>(선택 · 넣으면 디자인 위에 덮여요)</small></label>${photoPickHtml("+ 카드 배경 사진")}</div>
+        <button type="button" class="btn btn-ghost btn-sm${mcPhoto ? "" : " hidden"}" id="mcPhotoClear" style="margin:-4px 0 10px">사진 빼기</button>
         <div class="field"><label>카드 이름</label><input type="text" id="mTitle" value="${esc(m.title)}" maxlength="20"></div>
         <div class="field"><label>내 이름 (영문 추천)</label><input type="text" id="mName" value="${esc(m.name)}" maxlength="24"></div>
         <div class="field"><label>아이콘 (이모지 1개)</label><input type="text" id="mIcon" value="${esc(m.icon)}" maxlength="2"></div>
         <div class="field"><label>멤버 번호</label><input type="text" id="mNo" value="${esc(m.no)}" maxlength="10"></div>
-        <div class="field"><label>멤버십 만료일 <small>(팬클럽 기간 관리)</small></label><input type="date" id="mExpiry" value="${m.expiry || ""}"></div>
+        <div class="field"><label>멤버십 만료일 <small>(팬클럽 기간 관리)</small></label>${dateSelectHTML("mExpiry", m.expiry || "", { yearsBack: 2, yearsFwd: 8 })}</div>
         <button class="btn btn-primary btn-lg" id="mSave">카드 발급</button>
       `);
+      const prev = $("mcPreview");
+      const updatePreview = () => {
+        const b = curBias();
+        const since = b && b.startDate ? b.startDate.slice(0, 4) : "—";
+        prev.className = "member-card mc-style-" + mcStyle + (mcPhoto ? " has-photo" : "");
+        prev.style.backgroundImage = mcPhoto ? `linear-gradient(135deg, rgba(0,0,0,.55), rgba(0,0,0,.2)), url(${mcPhoto})` : "";
+        prev.style.backgroundSize = mcPhoto ? "cover" : "";
+        prev.style.backgroundPosition = mcPhoto ? "center" : "";
+        prev.innerHTML =
+          `<div class="mc-top"><span class="mc-logo">${esc($("mIcon").value || "✦")}</span><span class="mc-title">${esc($("mTitle").value || "MY STAR PASS")}</span></div>`
+          + `<div class="mc-name">${esc($("mName").value || "MY NAME")}</div>`
+          + `<div class="mc-foot"><span>SINCE ${since}</span><span>NO. ${esc($("mNo").value || "0001")}</span></div>`;
+        $("mcPresets").querySelectorAll("[data-mcs]").forEach((x) => x.classList.toggle("on", x.dataset.mcs === mcStyle));
+      };
+      ["mTitle", "mName", "mIcon", "mNo"].forEach((id) => { $(id).oninput = updatePreview; });
+      $("mcPresets").querySelectorAll("[data-mcs]").forEach((x) => { x.onclick = () => { mcStyle = x.dataset.mcs; updatePreview(); }; });
+      // 배경 사진 업로드 (미리보기 즉시 반영)
+      $("mpBox").onclick = () => $("mpInput").click();
+      $("mpInput").onchange = (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        fileToData(f, 900, (data) => {
+          mcPhoto = data;
+          $("mpPreview").src = data; $("mpPreview").classList.remove("hidden"); $("mpHint").classList.add("hidden");
+          $("mcPhotoClear").classList.remove("hidden");
+          updatePreview();
+        });
+      };
+      $("mcPhotoClear").onclick = () => {
+        mcPhoto = null;
+        $("mpPreview").classList.add("hidden"); $("mpHint").classList.remove("hidden");
+        $("mcPhotoClear").classList.add("hidden");
+        updatePreview();
+      };
+      if (mcPhoto) { $("mpPreview").src = mcPhoto; $("mpPreview").classList.remove("hidden"); $("mpHint").classList.add("hidden"); }
+      updatePreview();
       $("mSave").onclick = () => {
         S.membership = {
           title: $("mTitle").value.trim() || "MY STAR PASS",
           name: $("mName").value.trim() || "MY NAME",
           icon: $("mIcon").value.trim() || "✦",
           no: $("mNo").value.trim() || "0001",
-          expiry: $("mExpiry").value || "",
+          expiry: dateSelectVal("mExpiry") || "",
+          style: mcStyle,
+          photo: mcPhoto || null,
         };
         save(); closeModal(); renderMemberCard();
-        toast("나만의 멤버십 카드 발급 완료 ▥");
+        toast("나만의 멤버십 카드 저장 완료 ▥");
       };
       return;
     }
@@ -2932,9 +3535,9 @@
         ${photoPickHtml(edit && edit.photo ? "사진 변경하려면 누르세요" : "+ 최애 사진")}
         <div class="field"><label>이름 *</label><input type="text" id="mTitle" value="${edit ? esc(edit.name) : ""}"></div>
         <div class="field"><label>그룹 / 소속</label><input type="text" id="mGroup" value="${edit ? esc(edit.group || "") : ""}"></div>
-        <div class="field"><label>덕질 시작일 *</label><input type="date" id="mStart" value="${edit ? edit.startDate : todayKey()}"></div>
-        <div class="field"><label>생일</label><input type="date" id="mBirth" value="${edit && edit.birthday ? edit.birthday : ""}"></div>
-        <div class="field"><label>데뷔일</label><input type="date" id="mDebut" value="${edit && edit.debutDate ? edit.debutDate : ""}"></div>
+        <div class="field"><label>덕질 시작일 *</label>${dateSelectHTML("mStart", edit ? edit.startDate : todayKey(), { yearsFwd: 1 })}</div>
+        <div class="field"><label>생일</label>${dateSelectHTML("mBirth", edit && edit.birthday ? edit.birthday : "", { yearsFwd: 1 })}</div>
+        <div class="field"><label>데뷔일</label>${dateSelectHTML("mDebut", edit && edit.debutDate ? edit.debutDate : "", { yearsFwd: 1 })}</div>
         <button class="btn btn-primary btn-lg" id="mSave">${edit ? "수정 완료" : "추가"}</button>
         ${edit && S.biases.length > 1 ? `<button class="btn btn-danger btn-lg" id="mDel">이 최애 삭제</button>` : ""}
       `);
@@ -2947,12 +3550,12 @@
       $("mSave").onclick = () => {
         const name = $("mTitle").value.trim();
         if (!name) return toast("이름을 입력해 주세요!");
-        if (!$("mStart").value) return toast("덕질 시작일을 골라주세요!");
+        if (!dateSelectVal("mStart")) return toast("덕질 시작일을 골라주세요!");
         const data = {
           name, group: $("mGroup").value.trim(),
-          startDate: $("mStart").value,
-          birthday: $("mBirth").value || null,
-          debutDate: $("mDebut").value || null,
+          startDate: dateSelectVal("mStart"),
+          birthday: dateSelectVal("mBirth") || null,
+          debutDate: dateSelectVal("mDebut") || null,
         };
         if (edit) {
           Object.assign(edit, data);
@@ -2994,6 +3597,12 @@
   function init() {
     load();
     applyTheme();
+    // 온보딩 세로 중앙 정렬용: 인앱 브라우저 실제 보이는 높이를 px로 고정
+    const setAppH = () =>
+      document.documentElement.style.setProperty("--app-h", window.innerHeight + "px");
+    setAppH();
+    window.addEventListener("resize", setAppH);
+    window.addEventListener("orientationchange", setAppH);
     if (!S.onboarded || !S.biases.length) {
       initOnboarding();
     } else {
@@ -3048,6 +3657,24 @@
     if (hw) hw.addEventListener("wheel", wheelZoom, { passive: false });
     if (hcv) hcv.addEventListener("wheel", wheelZoom, { passive: false });
     clockTimer = setInterval(tickClock, 1000);
+
+    // 전체화면 스탠바이 시계 진입점 · 보정 컨트롤
+    const liveClk = $("liveClock");
+    if (liveClk) {
+      liveClk.addEventListener("click", openStandby);
+      liveClk.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openStandby(); } });
+    }
+    const sbOpenBtn = $("sbOpenBtn");
+    if (sbOpenBtn) sbOpenBtn.addEventListener("click", openStandby);
+    const offRow = $("sbOffset");
+    if (offRow) offRow.querySelectorAll("[data-off]").forEach((b) => { b.onclick = () => adjustOffset(+b.dataset.off); });
+    const offReset = $("sbOffReset");
+    if (offReset) offReset.onclick = resetOffset;
+    // 화면 복귀 시 화면 꺼짐 방지 재요청 (Wake Lock은 탭 전환 시 해제됨)
+    document.addEventListener("visibilitychange", () => { if (standbyOpen && document.visibilityState === "visible") reqWake(); });
+    // 커스텀 날짜 드롭다운 (열기/선택/바깥클릭 닫기)
+    document.addEventListener("click", handleDselClick);
+
     // 모바일 전용 '더보기' 페이지를 보던 중 PC 폭으로 바뀌면 설정으로 이동 (빈 화면 방지)
     if (window.matchMedia) {
       const mqDesk = window.matchMedia("(min-width: 980px)");
@@ -3066,10 +3693,12 @@
   window.App = {
     obNext, obFinish, obSkip, extractFromPhoto,
     go, toggleFab, toggleDark, toggleRetro, setRetroSkin, setRetroPos, setBg, setAlign, openFramePicker, openColorPicker, openBudget, openYearReview, toggleNotifyTicket, toggleHaptics, setVeil, setPreset, retroMin, retroMax, toggleDeco, toggleCoverPos, cardGo, coverDragStart, editCurrentBias, setTemplate, setMode,
-    calMove, openStickerPicker, shareDay,
+    calMove, calToday, calJump, openStickerPicker, shareDay,
     binderTab, ledgerMove, archiveTab, styleTab,
     addLink, openModal, closeModal, backdropClose,
     exportData, resetAll,
+    openStandby, closeStandby,
+    toggleEditHome,
   };
 
   document.addEventListener("DOMContentLoaded", init);
