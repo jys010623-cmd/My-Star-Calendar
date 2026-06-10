@@ -3,8 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#ffffff">
+<meta name="description" content="최애 덕질을 한 곳에 — 멀티 캘린더, 티켓팅 타이머, 덕질 가계부, 포카 바인더, 기록 아카이브까지. 내 최애에 맞게 꾸미는 나만의 덕질 기록 앱.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" id="metaTheme">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="스타캘린더">
+<meta property="og:title" content="마이 스타 캘린더 (My Star Calendar)">
+<meta property="og:description" content="최애 덕질을 한 곳에 — 캘린더·티켓팅·가계부·포카 바인더·기록.">
+<meta property="og:type" content="website">
 <title>마이 스타 캘린더 (My Star Calendar)</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="apple-touch-icon" href="favicon.svg">
+<link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -28,6 +41,9 @@
       </div>
       <h1 class="ob-title">나의 덕질을<br>한 곳에 기록하는<br>아카이브</h1>
       <p class="ob-desc">스케줄, 티켓팅, 가계부, 포카 바인더까지.<br>최애를 등록하고 나만의 공간을 만들어 보세요.</p>
+      <p class="ob-eyebrow" style="margin-top:8px">무엇을 덕질하나요?</p>
+      <div class="tab-row" id="obPresetRow" style="flex-wrap:wrap;margin-bottom:8px"></div>
+      <p class="hint" style="margin-bottom:18px">유형에 따라 캘린더와 아카이브가 맞춰져요. '자유'를 고르면 아이돌 전용 항목 없이 깔끔하게 시작해요. 나중에 설정에서 바꿀 수 있어요.</p>
       <button class="btn btn-primary btn-lg" onclick="App.obNext()">시작하기</button>
     </section>
     <!-- step 1 : 최애 등록 -->
@@ -179,7 +195,7 @@
         <span class="mh-name" id="mhName">최애</span>
         <span class="mh-dday badge-accent" id="mhDday">D+0</span>
       </div>
-      <button class="mh-dark" onclick="App.toggleDark()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14A8.5 8.5 0 1 1 10 3.5a7 7 0 0 0 10.5 10.5Z"/></svg></button>
+      <button class="mh-dark" onclick="App.toggleDark()" title="다크 모드 전환" aria-label="다크 모드 전환"><svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14A8.5 8.5 0 1 1 10 3.5a7 7 0 0 0 10.5 10.5Z"/></svg><svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M4.4 4.4l1.85 1.85M17.75 17.75l1.85 1.85M2.5 12h2.6M18.9 12h2.6M4.4 19.6l1.85-1.85M17.75 6.25l1.85-1.85"/></svg></button>
     </header>
 
     <!-- ──────── 메인(홈) ──────── -->
@@ -200,6 +216,15 @@
           <span class="pc-go">›</span>
         </div>
       </div>
+
+      <p class="home-cheer" id="homeCheer"></p>
+      <div class="home-stats" id="homeStats"></div>
+
+      <div class="section-head"><h3>D-DAY</h3></div>
+      <div class="dday-scroll" id="homeDday"></div>
+
+      <div class="section-head"><h3>이번 주</h3></div>
+      <div class="week-strip" id="homeWeek"></div>
 
       <div class="section-head"><h3>TODAY</h3><span class="section-sub" id="todayDateLabel"></span></div>
       <div class="today-scroll" id="todayScroll"></div>
@@ -232,6 +257,9 @@
           <p class="hint">카드를 누르면 수정할 수 있어요</p>
         </div>
       </div>
+
+      <div class="section-head"><h3>최근 기록</h3></div>
+      <div class="recent-scroll" id="homeRecent"></div>
     </section>
 
     <!-- ──────── 프로필 상세 (카톡식: 커버+아바타+꾸미기) ──────── -->
@@ -271,6 +299,7 @@
         <h2 class="cal-title" id="calTitle">2026.06</h2>
         <button class="cal-arrow" onclick="App.calMove(1)">›</button>
       </div>
+      <div class="mode-tabs cal-mode" id="calModeSeg"></div>
       <div class="filter-row" id="catFilters"></div>
       <div class="cal-grid-head">
         <span class="sun">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="sat">토</span>
@@ -301,6 +330,7 @@
       </div>
       <div class="filter-row" id="albumRow"></div>
       <div class="binder-grid" id="binderGrid"></div>
+      <div class="binder-pager" id="binderPager"></div>
     </section>
 
     <!-- ──────── 덕질 가계부 ──────── -->
@@ -317,8 +347,10 @@
       <div class="card ledger-total-card">
         <div class="card-title">총 지출</div>
         <div class="stat-big" id="ledgerTotal">₩0</div>
+        <div class="ledger-insight" id="ledgerInsight"></div>
         <div class="budget-row" id="budgetRow"></div>
         <div class="ledger-cats" id="ledgerCats"></div>
+        <div class="ledger-pay" id="ledgerPay"></div>
       </div>
       <div class="card">
         <div class="card-title">월별 그래프 <small>(최근 6개월)</small></div>
@@ -330,6 +362,7 @@
         <button class="btn btn-ghost btn-sm" onclick="App.openYearReview()" style="margin-top:10px"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.85-4.25 4.14 1 5.86L12 16.4l-5.25 2.75 1-5.86L3.5 9.15l5.9-.85Z"/></svg> 올해의 덕질 결산 보기</button>
       </div>
       <div class="section-head"><h3>지출 내역</h3></div>
+      <div class="filter-row" id="ledgerCatFilter"></div>
       <ul class="expense-list" id="expenseList"></ul>
     </section>
 
@@ -350,7 +383,7 @@
         </div>
       </div>
       <div class="arch-search" id="archSearchWrap">
-        <input type="search" id="archSearch" placeholder="제목·내용·장소 검색">
+        <input type="search" id="archSearch" placeholder="제목·내용·장소 검색" aria-label="기록 검색">
       </div>
       <div class="arch-controls" id="archControls">
         <div class="mode-tabs" id="archModeSeg">
@@ -362,10 +395,11 @@
       <div id="archiveDiary" class="diary-grid"></div>
       <div id="archiveLinks" class="hidden">
         <div class="link-add-row">
-          <input type="url" id="linkInput" placeholder="https://x.com/… 링크 붙여넣기">
-          <input type="text" id="linkLabel" placeholder="메모 (예: 콘서트 직캠)">
+          <input type="url" id="linkInput" placeholder="https://x.com/… 링크 붙여넣기" aria-label="저장할 링크 주소">
+          <input type="text" id="linkLabel" placeholder="메모 (예: 콘서트 직캠)" aria-label="링크 메모">
           <button class="btn btn-primary btn-sm" onclick="App.addLink()">저장</button>
         </div>
+        <div class="filter-row" id="linkFilters"></div>
         <ul class="link-list" id="linkList"></ul>
       </div>
     </section>
@@ -388,6 +422,12 @@
     <!-- ──────── 설정 ──────── -->
     <section class="page" id="page-settings">
       <div class="page-head"><h2>설정</h2></div>
+
+      <div class="card">
+        <div class="card-title">덕질 유형 <small>(캘린더 카테고리 프리셋)</small></div>
+        <div class="tab-row" id="presetTabs" style="flex-wrap:wrap;margin-bottom:0"></div>
+        <p class="hint">주제에 맞게 캘린더와 아카이브가 함께 바뀌어요. 아이돌·배우·버추얼·뮤지컬·스포츠·e스포츠·애니·게임·취미, 또는 '자유'. 등록한 기록은 그대로 남아요.</p>
+      </div>
 
       <div class="card">
         <div class="card-title">최애 관리</div>
@@ -414,7 +454,11 @@
           <label>배경 패턴 <small>(응원봉·스타더스트 제외)</small></label>
           <div class="tab-row" id="bgTabs" style="margin-bottom:0;flex-wrap:wrap"></div>
         </div>
-        <p class="hint">미니홈피 모드와는 동시에 쓸 수 있어요. 배경 패턴은 어떤 모드에서든 화면 배경과 미니홈피 벽지에 적용돼요. (응원봉·스타더스트 제외)</p>
+        <div class="field" id="veilField" style="margin-top:14px">
+          <label>콘텐츠 배경 농도 <small>(패턴 위 글씨 가독성)</small> <span id="veilVal" class="veil-val">0%</span></label>
+          <input type="range" id="veilRange" class="veil-range" min="0" max="100" step="5" value="0" oninput="App.setVeil(this.value)">
+        </div>
+        <p class="hint">미니홈피 모드와는 동시에 쓸 수 있어요. 배경 패턴은 어떤 모드에서든 화면 배경과 미니홈피 벽지에 적용돼요. (응원봉·스타더스트 제외)<br>콘텐츠 배경 농도를 높이면 콘텐츠 뒤에 불투명한 막이 생겨 패턴 위에서도 글씨가 잘 보여요. 0%면 패턴 그대로예요.</p>
       </div>
 
       <div class="card">
@@ -457,6 +501,10 @@
           <label>티켓팅 10분 전 알림 <small>(탭이 열려 있을 때)</small></label>
           <button class="switch" id="notifySwitch" onclick="App.toggleNotifyTicket()"><span class="knob"></span></button>
         </div>
+        <div class="field row-field">
+          <label>햅틱 진동 <small>(위젯 길게 누르기 등)</small></label>
+          <button class="switch" id="hapticSwitch" onclick="App.toggleHaptics()"><span class="knob"></span></button>
+        </div>
       </div>
 
       <div class="card">
@@ -497,7 +545,7 @@
       <button onclick="App.openModal('poca')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7.5" y="3.5" width="13" height="17" rx="2"/><path d="M3.5 7.5v11a2 2 0 0 0 2 2H14"/></svg> 포카 추가</button>
       <button onclick="App.openModal('styleItem')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 11.6V6A2.5 2.5 0 0 1 6 3.5h5.6a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8l-5.6 5.6a2 2 0 0 1-2.8 0l-7-7a2 2 0 0 1-.6-1.4Z"/><circle cx="8.2" cy="8.2" r="1.3"/></svg> 스타일 아이템</button>
     </div>
-    <button class="fab" id="fabBtn" onclick="App.toggleFab()">+</button>
+    <button class="fab" id="fabBtn" onclick="App.toggleFab()" aria-label="빠른 추가 메뉴 열기" aria-haspopup="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13"/></svg></button>
   </div>
 
   <!-- 모바일 하단 탭 -->
@@ -512,8 +560,8 @@
 
 <!-- ════════════ 모달 ════════════ -->
 <div class="modal-backdrop hidden" id="modalBackdrop" onclick="App.backdropClose(event)">
-  <div class="modal" id="modalBox" role="dialog" aria-modal="true">
-    <div class="modal-head"><h3 id="modalTitle"></h3><button class="modal-x" onclick="App.closeModal()"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <div class="modal" id="modalBox" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-head"><h3 id="modalTitle"></h3><button class="modal-x" onclick="App.closeModal()" aria-label="닫기"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     <div class="modal-body" id="modalBody"></div>
   </div>
 </div>

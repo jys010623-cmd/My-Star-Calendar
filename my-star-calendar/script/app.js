@@ -8,17 +8,58 @@
   const LS_KEY = "myStarCalendar.v1";
 
   /* ── 카테고리 정의 ── */
-  const CATS = {
-    comeback:  { name: "컴백",       v: "--c-comeback" },
-    concert:   { name: "콘서트",     v: "--c-concert" },
-    ticket:    { name: "티켓팅",     v: "--c-ticket" },
-    birthday:  { name: "생일·생카",  v: "--c-birthday" },
-    broadcast: { name: "방송·버블",  v: "--c-broadcast" },
-    release:   { name: "발매·굿즈",  v: "--c-release" },
-    personal:  { name: "개인",       v: "--c-personal" },
+  // 덕질 유형 프리셋 — 캘린더 카테고리가 주제에 맞게 바뀜 (색은 위치순 팔레트 재사용)
+  const PALETTE = ["--c-comeback", "--c-concert", "--c-ticket", "--c-birthday", "--c-broadcast", "--c-release", "--c-personal"];
+  // cats=캘린더 카테고리 / arch=아카이브 오프라인 기록 유형 / archOn=온라인 기록 유형
+  const PRESETS = {
+    idol:    { name: "아이돌", cats: [["comeback", "컴백"], ["concert", "콘서트"], ["ticket", "티켓팅"], ["birthday", "생일·생카"], ["broadcast", "방송·버블"], ["release", "발매·굿즈"], ["personal", "개인"]],
+               arch: ["생카", "콘서트", "팝업", "전시", "팬싸", "기타"], archOn: ["영통 팬싸", "온라인 콘서트", "라이브 방송", "스트리밍 파티", "기타"] },
+    actor:   { name: "배우", cats: [["airing", "방영·개봉"], ["stage", "무대인사·시사회"], ["award", "시상식"], ["fanmeet", "팬미팅"], ["abday", "생일"], ["press", "화보·인터뷰"], ["personal", "개인"]],
+               arch: ["무대인사", "시사회", "팬미팅", "전시·팝업", "기타"], archOn: ["온라인 팬미팅", "라이브 방송", "VOD·다시보기", "기타"] },
+    vtuber:  { name: "버추얼", cats: [["stream", "방송·합방"], ["vconcert", "콘서트·행사"], ["vcontent", "신곡·컨텐츠"], ["vbday", "생일·기념일"], ["vgoods", "굿즈"], ["clip", "클립·다시보기"], ["personal", "개인"]],
+               arch: ["오프 콘서트", "팝업", "팬미팅", "기타"], archOn: ["방송·합방 시청", "콘서트 스밍", "기념 방송", "클립 정주행", "기타"] },
+    musical: { name: "뮤지컬", cats: [["show", "공연"], ["ticket", "티켓팅"], ["casting", "캐스팅"], ["curtain", "커튼콜·이벤트"], ["mbday", "생일"], ["goods", "MD·굿즈"], ["personal", "개인"]],
+               arch: ["공연 관람", "커튼콜", "굿즈·전시", "기타"], archOn: ["온라인 중계", "라이브 방송", "기타"] },
+    sports:  { name: "스포츠", cats: [["match", "경기"], ["ticket", "직관·예매"], ["sevent", "이벤트·팬싸"], ["sbday", "선수 생일"], ["broadcast", "중계·하이라이트"], ["uniform", "굿즈·유니폼"], ["personal", "개인"]],
+               arch: ["직관", "팬미팅·사인회", "이벤트", "기타"], archOn: ["중계 시청", "하이라이트", "온라인 이벤트", "기타"] },
+    esports: { name: "e스포츠", cats: [["match", "경기·대회"], ["ticket", "직관·예매"], ["onair", "방송·중계"], ["ebday", "선수 생일"], ["eevent", "이벤트·팬미팅"], ["egoods", "굿즈"], ["personal", "개인"]],
+               arch: ["직관·현장", "팬미팅", "이벤트", "기타"], archOn: ["경기 시청", "방송·중계", "온라인 이벤트", "기타"] },
+    content: { name: "애니", cats: [["release", "발매·연재"], ["cevent", "이벤트"], ["collab", "콜라보"], ["cbday", "캐릭터 생일"], ["cgoods", "굿즈"], ["media", "영상·자료"], ["personal", "개인"]],
+               arch: ["전시·팝업", "행사", "상영회", "기타"], archOn: ["스트리밍·정주행", "발매 감상", "온라인 이벤트", "기타"] },
+    game:    { name: "게임", cats: [["update", "업데이트"], ["gevent", "이벤트"], ["gacha", "픽업·가챠"], ["gbday", "캐릭터 생일"], ["ggoods", "굿즈"], ["gstream", "방송·생중계"], ["personal", "개인"]],
+               arch: ["오프 이벤트", "팝업", "대회·행사", "기타"], archOn: ["인게임 이벤트", "생방송 시청", "업데이트", "기타"] },
+    hobby:   { name: "취미", cats: [["practice", "연습·활동"], ["lesson", "레슨·클래스"], ["recital", "발표·대회"], ["anniv", "기념일"], ["gear", "장비·자료"], ["personal", "개인"]],
+               arch: ["연습·활동", "레슨", "발표·대회", "기타"], archOn: ["온라인 클래스", "영상 학습", "기타"] },
+    free:    { name: "자유", cats: [["plan", "일정"], ["important", "중요"], ["fanniv", "기념일"], ["personal", "개인"]],
+               arch: ["기록", "방문", "기타"], archOn: ["온라인", "시청", "기타"] },
   };
+  let CATS = {}; // 활성 프리셋 카테고리 — buildCats()로 채움
+  function buildCats() {
+    const p = PRESETS[(S && S.preset) || "idol"] || PRESETS.idol;
+    CATS = {};
+    p.cats.forEach(([k, n], i) => { CATS[k] = { name: n, v: PALETTE[i % PALETTE.length] }; });
+    ARCH_TYPES = (p.arch || PRESETS.idol.arch).slice();
+    ARCH_TYPES_ON = (p.archOn || PRESETS.idol.archOn).slice();
+  }
+  function renderPresetButtons(container, current, onPick) {
+    if (!container) return;
+    container.innerHTML = Object.entries(PRESETS).map(([id, p]) =>
+      `<button class="tab ${id === current ? "active" : ""}" data-preset="${id}">${p.name}</button>`).join("");
+    container.querySelectorAll("[data-preset]").forEach((b) => { b.onclick = () => onPick(b.dataset.preset); });
+  }
+  function setPreset(id) {
+    if (!PRESETS[id]) return;
+    S.preset = id;
+    buildCats();
+    activeCats = new Set(Object.keys(CATS));
+    diaryType = "all"; // 아카이브 유형 필터 초기화 (캘린더와 한 세트로 함께 바뀜)
+    save();
+    renderSettings(); renderCalendar(); renderHome(); renderArchive();
+    toast(`'${PRESETS[id].name}' 프리셋으로 바꿨어요`);
+  }
   const EXP_CATS = ["앨범", "굿즈·MD", "콘서트·티켓", "생카·이벤트", "교통·숙박", "구독·멤버십", "기타"];
   const EXP_COLORS = ["#ff7aa2", "#7a86ff", "#ff5c5c", "#ffb13d", "#3dbdff", "#2ecc9a", "#9b9b9b"];
+  const PAY_METHODS = ["카드", "현금", "계좌이체", "기타"];
   const STICKERS = ["🎂","🎤","🎟️","💚","💜","💙","🩷","⭐","✨","🐰","🐻","🦁","📸","🎧","✈️","🍰","🔥","🏟️"];
   const SWATCHES = [
     ["블랙 (기본)", "#141414"], ["그레이", "#8E9199"], ["모카", "#A07855"],
@@ -29,9 +70,19 @@
     ["레드", "#F0383F"], ["와인", "#9B2242"], ["피치", "#FFA98A"], ["옐로", "#FFD84D"],
   ];
   const ST_CATS = ["의류", "신발", "액세서리", "모자", "가방", "음식·카페", "기타"];
-  const ARCH_TYPES = ["생카", "콘서트", "팝업", "전시", "팬싸", "기타"];
-  const ARCH_TYPES_ON = ["영통 팬싸", "온라인 콘서트", "라이브 방송", "스트리밍 파티", "기타"];
+  // 아카이브 기록 유형 — 프리셋에 맞춰 buildCats()에서 채움 (캘린더와 한 세트)
+  let ARCH_TYPES = ["생카", "콘서트", "팝업", "전시", "팬싸", "기타"];
+  let ARCH_TYPES_ON = ["영통 팬싸", "온라인 콘서트", "라이브 방송", "스트리밍 파티", "기타"];
   const archTypes = (m) => (m === "online" ? ARCH_TYPES_ON : ARCH_TYPES);
+  // 프리셋 유형 + 사용자가 추가한 유형(S.customArchTypes) 병합 — '기타'는 항상 마지막
+  const effArchTypes = (m) => {
+    const base = archTypes(m).filter((t) => t !== "기타");
+    const custom = (S && S.customArchTypes && S.customArchTypes[m]) || [];
+    const merged = base.slice();
+    custom.forEach((t) => { if (!merged.includes(t)) merged.push(t); });
+    merged.push("기타");
+    return merged;
+  };
   const MODES = [
     ["", "기본"], ["y2k", "키치"], ["jelly", "젤리"], ["ballet", "발레코어"],
     ["dream", "드림"], ["y3k", "실버"], ["stardust", "스타더스트"], ["glow", "응원봉"],
@@ -83,7 +134,12 @@
   let archMode = "offline";
   let archSearch = "";
   let binderAlbum = "all";
-  let activeCats = new Set(Object.keys(CATS));
+  let binderPage = 0; // 바인더 현재 페이지 (9칸=3×3 단위)
+  let ledgerCatFilter = "all"; // 가계부 지출 내역 카테고리 필터
+  let linkFilter = "all"; // 링크 보관함 필터: all | unread | p:<platform>
+  let calMode = "all";    // 캘린더 멀티: all | offline | online
+  let activeCats = new Set();
+  let showRecords = true; // 캘린더에 아카이브 기록(후기) 표시 토글
   let clockTimer = null;
 
   /* ── 유틸 ── */
@@ -94,6 +150,13 @@
   const todayKey = () => fmtDate(new Date());
   const won = (n) => "₩" + Number(n || 0).toLocaleString("ko-KR");
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // http/https(+mailto/tel)만 허용 — javascript: 등 위험 스킴 차단 (자가 XSS 방지)
+  const safeUrl = (u) => {
+    try {
+      const p = new URL(u, location.href);
+      return ["http:", "https:", "mailto:", "tel:"].includes(p.protocol) ? u : "#";
+    } catch (e) { return "#"; }
+  };
 
   /* ── 라인 아이콘 레지스트리 (1.8px stroke · currentColor) ── */
   const ICONS = {
@@ -118,6 +181,8 @@
     globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.3 3.7 5.2 3.7 8.5s-1.3 6.2-3.7 8.5c-2.4-2.3-3.7-5.2-3.7-8.5s1.3-6.2 3.7-8.5Z"/>',
     heart: '<path d="M12 20S4.5 15.3 4.5 10A4.4 4.4 0 0 1 12 7a4.4 4.4 0 0 1 7.5 3c0 5.3-7.5 10-7.5 10Z"/>',
     check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+    clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    bookmark: '<path d="M6.5 4.5h11A1 1 0 0 1 18.5 5.5V20l-6.5-4-6.5 4V5.5A1 1 0 0 1 6.5 4.5Z"/>',
     tag: '<path d="M3.5 11.6V6A2.5 2.5 0 0 1 6 3.5h5.6a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8l-5.6 5.6a2 2 0 0 1-2.8 0l-7-7a2 2 0 0 1-.6-1.4Z"/><circle cx="8.2" cy="8.2" r="1.3"/>',
   };
   const I = (n, cls) => `<svg class="li${cls ? " " + cls : ""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]}</svg>`;
@@ -132,8 +197,9 @@
 
   function defaults() {
     return {
-      onboarded: false, dark: false, retro: false, retroSkin: "browser", retroPos: "float", bg: "none", align: "left", widgets: {}, budget: 0, notifyTicket: false, mode: "", template: "profile", archView: "card", accent: "#141414",
+      onboarded: false, preset: "idol", dark: false, retro: false, retroSkin: "browser", retroPos: "float", bg: "none", align: "left", widgets: {}, budget: 0, notifyTicket: false, haptics: true, veil: 0, mode: "", template: "profile", archView: "card", accent: "#141414",
       biases: [], currentBias: null,
+      customArchTypes: { offline: [], online: [] },
       schedules: [], stickers: {}, photocards: [],
       expenses: [], archives: [], links: [], styles: [],
       membership: { title: "MY STAR PASS", name: "", icon: "✦", no: "0001" },
@@ -161,6 +227,10 @@
     if (S.retroAlign) { S.align = S.retroAlign; delete S.retroAlign; } // 구버전 (구버전엔 align 키가 없었음)
     if (!ALIGNS.some(([id]) => id === S.align)) S.align = "left";
     if (!S.widgets || typeof S.widgets !== "object") S.widgets = {};
+    if (!Array.isArray(S.widgetOrder)) S.widgetOrder = [];
+    S.veil = Math.max(0, Math.min(100, +S.veil || 0));
+    // 기존 일정에 오프/온라인 구분 기본값 부여 (방송·버블=온라인, 나머지=오프라인)
+    (S.schedules || []).forEach((s) => { if (!s.mode) s.mode = s.cat === "broadcast" ? "online" : "offline"; });
     // 구버전 라벨(이모지 접두) → 텍스트 라벨 마이그레이션
     const deEmo = (v) => typeof v === "string" ? v.replace(/^[^\uAC00-\uD7A3A-Za-z0-9]+\s*/, "") : v;
     (S.archives || []).forEach((d) => {
@@ -168,6 +238,12 @@
       if (d.img && !d.imgs) { d.imgs = [d.img]; delete d.img; }
     });
     (S.styles || []).forEach((st) => { if (st.category) st.category = deEmo(st.category); });
+    if (!PRESETS[S.preset]) S.preset = "idol";
+    if (!S.customArchTypes || typeof S.customArchTypes !== "object") S.customArchTypes = { offline: [], online: [] };
+    if (!Array.isArray(S.customArchTypes.offline)) S.customArchTypes.offline = [];
+    if (!Array.isArray(S.customArchTypes.online)) S.customArchTypes.online = [];
+    buildCats();
+    activeCats = new Set(Object.keys(CATS));
   }
 
   const curBias = () => S.biases.find((b) => b.id === S.currentBias) || S.biases[0] || null;
@@ -243,7 +319,14 @@
     root.setAttribute("data-align", S.align || "left");
     root.setAttribute("data-template", S.template || "profile");
     root.setAttribute("data-mode", S.mode || "none");
+    root.style.setProperty("--veil", (S.veil || 0) + "%"); // 콘텐츠 배경 불투명 막 농도
     if (!S.retro) { root.removeAttribute("data-retro-min"); root.removeAttribute("data-retro-max"); }
+    // 상태바/주소창 색을 현재 테마 배경에 맞춤 (수동 다크 토글·감성 모드 반영)
+    const mt = $("metaTheme");
+    if (mt) {
+      const bg = getComputedStyle(root).getPropertyValue("--bg").trim();
+      if (bg) mt.setAttribute("content", bg);
+    }
     const glow = S.mode === "glow";
     const sw = $("darkSwitch");
     if (sw) { sw.classList.toggle("on", S.dark || glow); sw.classList.toggle("dim", glow); }
@@ -295,6 +378,10 @@
   let obPhotoData = null;
   let obColor = "#141414";
   let obTpl = "profile";
+  let obPreset = "idol";
+  function obRenderPreset() {
+    renderPresetButtons($("obPresetRow"), obPreset, (id) => { obPreset = id; obRenderPreset(); });
+  }
 
   function obRenderTpl() {
     $("tplPreview").innerHTML = TPL_WF[obTpl];
@@ -334,6 +421,9 @@
     S.currentBias = bias.id;
     S.accent = obColor;
     S.template = obTpl;
+    S.preset = obPreset;
+    buildCats();
+    activeCats = new Set(Object.keys(CATS));
     S.membership.name = bias.name.toUpperCase() + "'S FAN";
     S.onboarded = true;
     save();
@@ -352,6 +442,9 @@
     };
     S.biases.push(bias);
     S.currentBias = bias.id;
+    S.preset = obPreset;
+    buildCats();
+    activeCats = new Set(Object.keys(CATS));
     S.onboarded = true;
     save();
     $("onboarding").classList.add("hidden");
@@ -364,6 +457,7 @@
   function initOnboarding() {
     $("onboarding").classList.remove("hidden");
     $("obStart").value = todayKey();
+    obRenderPreset();
     // 스와치
     const grid = $("obSwatches");
     grid.innerHTML = "";
@@ -443,6 +537,16 @@
   }
 
   function toggleFab() {
+    // 카테고리 페이지에선 해당 글쓰기 모달을 바로 열고, 메인 등에선 전체 메뉴를 펼침
+    const active = document.querySelector(".page.active");
+    const direct = active && {
+      "page-calendar": "schedule",
+      "page-archive": "diary",
+      "page-binder": "poca",
+      "page-ledger": "expense",
+      "page-style": "styleItem",
+    }[active.id];
+    if (direct) { closeFab(); openModal(direct); return; }
     $("fabMenu").classList.toggle("open");
     $("fabBtn").classList.toggle("open");
   }
@@ -762,6 +866,62 @@
   ];
   let widgetEdit = false;
   const wOn = (id) => S.widgets[id] !== false;
+  // 저장된 순서대로 정렬하되, 새로 추가된 위젯은 뒤에 자동 편입
+  function widgetOrder() {
+    const all = WIDGETS.map(([id]) => id);
+    const ord = (S.widgetOrder || []).filter((id) => all.includes(id));
+    all.forEach((id) => { if (!ord.includes(id)) ord.push(id); });
+    return ord;
+  }
+  function commitWidgetOrder(grid) {
+    const vis = [...grid.querySelectorAll(".wtile")].map((t) => t.dataset.wid);
+    const hidden = widgetOrder().filter((id) => !vis.includes(id));
+    S.widgetOrder = [...vis, ...hidden];
+    save(); renderMiniWidget();
+  }
+  // 편집 모드에서 타일을 꾹 눌러 드래그 → 재배치
+  function startTileDrag(e, tile, grid) {
+    const rect = tile.getBoundingClientRect();
+    const offX = e.clientX - rect.left, offY = e.clientY - rect.top;
+    try { tile.setPointerCapture(e.pointerId); } catch (_) {}
+    tile.classList.add("wt-dragging");
+    Object.assign(tile.style, {
+      width: rect.width + "px", height: rect.height + "px",
+      position: "fixed", left: rect.left + "px", top: rect.top + "px",
+      zIndex: "60", margin: "0",
+    });
+    const ph = document.createElement("div");
+    ph.className = "wt-ph";
+    if (tile.classList.contains("w2")) { ph.style.gridColumn = "span 2"; ph.style.aspectRatio = "2.08 / 1"; }
+    else { ph.style.aspectRatio = "1"; }
+    tile.after(ph);
+    const move = (ev) => {
+      tile.style.left = (ev.clientX - offX) + "px";
+      tile.style.top = (ev.clientY - offY) + "px";
+      tile.style.visibility = "hidden";
+      const under = document.elementFromPoint(ev.clientX, ev.clientY);
+      tile.style.visibility = "";
+      const over = under && under.closest(".wtile");
+      if (over && over !== tile && over.parentNode === grid) {
+        const r = over.getBoundingClientRect();
+        const before = ev.clientX < r.left + r.width / 2;
+        grid.insertBefore(ph, before ? over : over.nextSibling);
+      }
+    };
+    const up = () => {
+      tile.removeEventListener("pointermove", move);
+      tile.removeEventListener("pointerup", up);
+      try { tile.releasePointerCapture(e.pointerId); } catch (_) {}
+      ph.replaceWith(tile);
+      tile.classList.remove("wt-dragging");
+      ["width", "height", "position", "left", "top", "zIndex", "margin", "visibility"]
+        .forEach((p) => { tile.style[p] = ""; });
+      commitWidgetOrder(grid);
+    };
+    tile.addEventListener("pointermove", move);
+    tile.addEventListener("pointerup", up);
+    move(e);
+  }
 
   function renderMiniWidget() {
     const el = $("miniWidget");
@@ -800,7 +960,8 @@
         : `<span class="wt-empty">미등록</span>`}`,
       binder: `<small>포카 수집</small><b>${own}장</b><span>위시 ${wish}장</span>`,
     };
-    const grid = WIDGETS.filter(([id]) => wOn(id)).map(([id, name, page]) => `
+    const ordered = widgetOrder().map((id) => WIDGETS.find((w) => w[0] === id)).filter(Boolean);
+    const grid = ordered.filter(([id]) => wOn(id)).map(([id, name, page]) => `
       <button class="wtile ${id === "profile" ? "w2 wt-profile" : ""}" data-wid="${id}" data-wgo="${page}"
         ${id === "profile" && b && (b.cover || b.photo) ? `style="background-image:url(${b.cover || b.photo})"` : ""}>
         ${tiles[id]}
@@ -813,18 +974,56 @@
         <button class="chip-btn" id="wbEdit">${widgetEdit ? "완료" : "위젯 편집"}</button>
       </div>
       <div class="widget-grid ${widgetEdit ? "editing" : ""}">${grid || ""}</div>
+      ${widgetEdit ? `<p class="wb-hint">끌어서 위치 이동 · ✕ 눌러 삭제 · 완료를 누르면 끝나요</p>` : ""}
       ${widgetEdit && hidden.length ? `<div class="wb-add">${hidden.map(([id, name]) =>
         `<button class="chip-btn" data-wadd="${id}">+ ${name}</button>`).join("")}</div>` : ""}`;
     $("wbEdit").onclick = () => { widgetEdit = !widgetEdit; renderMiniWidget(); };
+    const gridEl = el.querySelector(".widget-grid");
     el.querySelectorAll(".wtile").forEach((tl) => {
-      tl.onclick = () => {
-        if (widgetEdit) {
-          S.widgets[tl.dataset.wid] = false;
-          save(); renderMiniWidget();
-        } else {
-          retroMin(); go(tl.dataset.wgo);
+      // 제거 배지(✕)는 별도 처리 — 드래그/탭과 충돌 방지
+      const xb = tl.querySelector(".wt-x");
+      if (xb) {
+        xb.addEventListener("pointerdown", (e) => e.stopPropagation());
+        xb.addEventListener("click", (e) => {
+          e.stopPropagation();
+          S.widgets[tl.dataset.wid] = false; save(); renderMiniWidget();
+        });
+      }
+      let down = null, lp = null;
+      tl.addEventListener("pointerdown", (e) => {
+        if (e.button && e.button !== 0) return;
+        if (e.target.closest(".wt-x")) return;
+        down = { x: e.clientX, y: e.clientY };
+        if (!widgetEdit) {
+          // 꾹 누르면(롱프레스) 편집 모드 진입
+          lp = setTimeout(() => {
+            lp = null; down = null; widgetEdit = true;
+            buzz(15);
+            renderMiniWidget();
+          }, 430);
         }
-      };
+      });
+      tl.addEventListener("pointermove", (e) => {
+        if (!down) return;
+        const far = Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8;
+        if (far && lp) { clearTimeout(lp); lp = null; }
+        if (far && widgetEdit && !tl.classList.contains("wt-dragging")) {
+          down = null;
+          startTileDrag(e, tl, gridEl);
+        }
+      });
+      tl.addEventListener("pointerup", (e) => {
+        if (lp) { clearTimeout(lp); lp = null; }
+        if (down && !widgetEdit) {
+          const near = Math.hypot(e.clientX - down.x, e.clientY - down.y) <= 8;
+          if (near) { retroMin(); go(tl.dataset.wgo); }
+        }
+        down = null;
+      });
+      tl.addEventListener("pointercancel", () => {
+        if (lp) { clearTimeout(lp); lp = null; }
+        down = null;
+      });
     });
     el.querySelectorAll("[data-wadd]").forEach((bn) => {
       bn.onclick = () => { S.widgets[bn.dataset.wadd] = true; save(); renderMiniWidget(); };
@@ -930,10 +1129,94 @@
         }).join("")
       : `<li class="up-empty">예정된 일정이 없어요</li>`;
 
+    // 홈 추가 섹션 (응원 라인·스탯·D-day·이번 주·최근)
+    renderHomeExtras(b);
     // 멤버십 카드
     renderMemberCard();
     // 티켓팅
     tickClock();
+  }
+
+  function renderHomeExtras(b) {
+    const today = todayKey();
+    const dd = dPlus(b.startDate);
+
+    // 응원 라인
+    const cheer = $("homeCheer");
+    if (cheer) cheer.innerHTML = `${I("sparkles", "ch-ic")}<span><b>${esc(b.name)}</b> 덕질 <b>${dd != null ? dd : 0}</b>일째 ♥ 오늘도 행복한 덕질!</span>`;
+
+    // 덕질 요약 스탯
+    const own = byBias(S.photocards).filter((p) => p.status === "own").length;
+    const recCnt = byBias(S.archives).length;
+    const offCnt = byBias(S.archives).filter((d) => (d.mode || "offline") === "offline").length;
+    const statEl = $("homeStats");
+    if (statEl) {
+      const stats = [
+        [I("heart"), dd != null ? `D+${dd}` : "D-DAY", "덕질", "home"],
+        [I("camera"), own + "장", "모은 포카", "binder"],
+        [I("pencil"), recCnt + "개", "남긴 기록", "archive"],
+        [I("pin"), offCnt + "회", "다녀온 곳", "archive"],
+      ];
+      statEl.innerHTML = stats.map(([ic, v, l, pg]) =>
+        `<button class="hstat" data-pg="${pg}">${ic}<b>${v}</b><span>${l}</span></button>`).join("");
+      statEl.querySelectorAll("[data-pg]").forEach((btn) => { btn.onclick = () => go(btn.dataset.pg); });
+    }
+
+    // D-DAY 카운트다운
+    const dTo = (ds) => {
+      if (!ds) return null;
+      const t0 = new Date(today), d = new Date(ds);
+      d.setFullYear(t0.getFullYear());
+      if (d < t0) d.setFullYear(t0.getFullYear() + 1);
+      return Math.round((d - t0) / 86400000);
+    };
+    const ddays = [];
+    if (b.birthday) ddays.push({ ic: I("cake"), label: `${b.name} 생일`, n: dTo(b.birthday), v: "--c-birthday" });
+    if (b.debutDate) ddays.push({ ic: I("flag"), label: "데뷔 기념일", n: dTo(b.debutDate), v: "--c-comeback" });
+    (b.annivs || []).forEach((a) => ddays.push({ ic: I("heart"), label: a.title, n: dTo(a.date), v: "--c-concert" }));
+    const nextSch = byBias(S.schedules).filter((s) => s.date && s.date >= today).sort((a, c) => a.date.localeCompare(c.date))[0];
+    if (nextSch) {
+      const n = Math.round((stripTime(new Date(nextSch.date)) - stripTime(new Date())) / 86400000);
+      ddays.push({ ic: I("bell"), label: nextSch.title, n, v: (CATS[nextSch.cat] || CATS.personal).v });
+    }
+    ddays.sort((a, c) => a.n - c.n);
+    const ddEl = $("homeDday");
+    if (ddEl) ddEl.innerHTML = ddays.length
+      ? ddays.map((d) => `<div class="dday-card" style="--cat:var(${d.v})"><span class="dd-ic">${d.ic}</span><b>${d.n === 0 ? "D-DAY" : "D-" + d.n}</b><span class="dd-label">${esc(d.label)}</span></div>`).join("")
+      : `<div class="dday-empty">생일·데뷔일을 등록하면 카운트다운이 떠요 (설정 → 최애 관리)</div>`;
+
+    // 이번 주 스트립
+    const wkEl = $("homeWeek");
+    if (wkEl) {
+      const now = new Date();
+      const start = new Date(now); start.setDate(now.getDate() - now.getDay());
+      const schedDates = new Set(byBias(S.schedules).map((s) => s.date));
+      const names = ["일", "월", "화", "수", "목", "금", "토"];
+      let wk = "";
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(start); d.setDate(start.getDate() + i);
+        const key = fmtDate(d);
+        wk += `<button class="wk-day ${key === today ? "today" : ""}" data-date="${key}"><span class="wk-name ${i === 0 ? "sun" : i === 6 ? "sat" : ""}">${names[i]}</span><span class="wk-num">${d.getDate()}</span><i class="wk-dot ${schedDates.has(key) ? "on" : ""}"></i></button>`;
+      }
+      wkEl.innerHTML = wk;
+      wkEl.querySelectorAll("[data-date]").forEach((btn) => { btn.onclick = () => { selDate = btn.dataset.date; go("calendar"); }; });
+    }
+
+    // 최근 기록·포카
+    const recEl = $("homeRecent");
+    if (recEl) {
+      const recs = byBias(S.archives).slice().sort((a, c) => (c.date || "").localeCompare(a.date || "")).slice(0, 6);
+      const pocas = byBias(S.photocards).filter((p) => p.img).slice(-6).reverse();
+      const items = [];
+      recs.forEach((r) => items.push({ img: (r.imgs && r.imgs[0]) || null, label: r.title || "기록", type: "기록", id: r.id, kind: "rec" }));
+      pocas.forEach((p) => items.push({ img: p.img, label: p.name || "포카", type: "포카", id: p.id, kind: "poca" }));
+      recEl.innerHTML = items.length
+        ? items.slice(0, 10).map((it) => `<button class="recent-card ${it.img ? "" : "noimg"}" data-kind="${it.kind}" data-rid="${it.id}" ${it.img ? `style="background-image:url(${it.img})"` : ""}><span class="rc-type">${it.type}</span>${it.img ? "" : `<span class="rc-noimg">${esc(it.label)}</span>`}</button>`).join("")
+        : `<div class="recent-empty">${I("sparkles")} 후기·포카를 남기면 여기에 모여요</div>`;
+      recEl.querySelectorAll("[data-kind]").forEach((btn) => {
+        btn.onclick = () => { if (btn.dataset.kind === "rec") openDiaryView(btn.dataset.rid); else openPocaView(btn.dataset.rid); };
+      });
+    }
   }
 
   function isAnnivToday(dateStr) {
@@ -1241,6 +1524,27 @@
       } catch (e) { toast(`티켓팅 10분 전! ${t.title}`); }
     }
   }
+  // 햅틱 진동 — 설정에서 꺼져 있으면 울리지 않음
+  function buzz(ms) {
+    if (S.haptics === false) return;
+    try { navigator.vibrate && navigator.vibrate(ms); } catch (_) {}
+  }
+  function toggleHaptics() {
+    S.haptics = (S.haptics === false) ? true : false;
+    save();
+    const hsw = $("hapticSwitch");
+    if (hsw) hsw.classList.toggle("on", S.haptics !== false);
+    if (S.haptics !== false) buzz(12);
+    toast(S.haptics !== false ? "진동을 켰어요" : "진동을 껐어요");
+  }
+  // 콘텐츠 배경 막 농도(0~100) 조절
+  function setVeil(v) {
+    S.veil = Math.max(0, Math.min(100, +v || 0));
+    document.documentElement.style.setProperty("--veil", S.veil + "%");
+    const vv = $("veilVal");
+    if (vv) vv.textContent = S.veil + "%";
+    save();
+  }
   function toggleNotifyTicket() {
     if (S.notifyTicket) {
       S.notifyTicket = false;
@@ -1279,7 +1583,7 @@
     const cnt = dd > 0 ? `D-${dd} ${pad(hh)}:${pad(mm)}:${pad(ss)}` : `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
     tn.innerHTML = `${esc(t.title)}까지 <strong>${cnt}</strong>` + (diff <= 600000 ? ` ${I("bell")} 10분 전!` : "");
     if (mw) mw.textContent = cnt;
-    if (t.link) { btn.href = t.link; btn.classList.remove("hidden"); }
+    if (t.link) { btn.href = safeUrl(t.link); btn.classList.remove("hidden"); }
     else btn.classList.add("hidden");
   }
 
@@ -1297,14 +1601,26 @@
     const fr = $("catFilters");
     fr.innerHTML = Object.entries(CATS).map(([k, c]) =>
       `<button class="f-chip ${activeCats.has(k) ? "active" : ""}" data-cat="${k}">
-        <span class="dot" style="background:var(${c.v})"></span>${c.name}</button>`).join("");
-    fr.querySelectorAll(".f-chip").forEach((ch) => {
+        <span class="dot" style="background:var(${c.v})"></span>${c.name}</button>`).join("")
+      + `<button class="f-chip rec-chip ${showRecords ? "active" : ""}" data-rec="1" title="아카이브 기록(후기)을 캘린더에 함께 표시">
+          <span class="dot rec-dot"></span>기록</button>`;
+    fr.querySelectorAll(".f-chip[data-cat]").forEach((ch) => {
       ch.onclick = () => {
         const k = ch.dataset.cat;
         activeCats.has(k) ? activeCats.delete(k) : activeCats.add(k);
         renderCalendar();
       };
     });
+    const recChip = fr.querySelector(".f-chip[data-rec]");
+    if (recChip) recChip.onclick = () => { showRecords = !showRecords; renderCalendar(); };
+
+    // 멀티캘린더 구분: 전체 / 오프라인 / 온라인
+    const cm = $("calModeSeg");
+    if (cm) {
+      cm.innerHTML = [["all", "전체", ""], ["offline", "오프라인", I("pin")], ["online", "온라인", I("monitor")]]
+        .map(([k, n, ic]) => `<button class="${calMode === k ? "active" : ""}" data-cm="${k}">${ic} ${n}</button>`).join("");
+      cm.querySelectorAll("[data-cm]").forEach((b) => { b.onclick = () => { calMode = b.dataset.cm; renderCalendar(); }; });
+    }
 
     const first = new Date(y, m, 1);
     const startDow = first.getDay();
@@ -1314,7 +1630,15 @@
     const tk = todayKey();
     const schedByDate = {};
     byBias(S.schedules).forEach((s) => {
-      if (activeCats.has(s.cat)) (schedByDate[s.date] = schedByDate[s.date] || []).push(s);
+      // 현재 프리셋에 없는 카테고리(프리셋 변경 후 남은 기존 일정)는 항상 표시
+      const catVisible = activeCats.has(s.cat) || !CATS[s.cat];
+      if (catVisible && (calMode === "all" || (s.mode || "offline") === calMode))
+        (schedByDate[s.date] = schedByDate[s.date] || []).push(s);
+    });
+    const archByDate = {};
+    if (showRecords) byBias(S.archives).forEach((a) => {
+      if (a.date && (calMode === "all" || (a.mode || "offline") === calMode))
+        (archByDate[a.date] = archByDate[a.date] || []).push(a);
     });
 
     let html = "";
@@ -1332,7 +1656,9 @@
       if (key === selDate) classes.push("selected");
       const st = S.stickers[key] ? `<span class="sticker">${S.stickers[key]}</span>` : "";
       const dots = (schedByDate[key] || []).slice(0, 5)
-        .map((s) => `<i style="background:var(${(CATS[s.cat] || CATS.personal).v})"></i>`).join("");
+        .map((s) => `<i style="background:var(${(CATS[s.cat] || CATS.personal).v})"></i>`).join("")
+        + (archByDate[key] || []).slice(0, 3)
+          .map((a) => `<i class="rec ${(a.mode || "offline") === "online" ? "on" : "off"}"></i>`).join("");
       let anniv = "";
       if (b) {
         if (b.birthday && sameMD(b.birthday, m, dayNum)) anniv = `<span class="anniv">${I("cake")} 생일</span>`;
@@ -1370,33 +1696,59 @@
     title.textContent = `${d.getMonth() + 1}월 ${d.getDate()}일 ${["일","월","화","수","목","금","토"][d.getDay()]}요일` + (S.stickers[selDate] ? " " + S.stickers[selDate] : "");
     const items = byBias(S.schedules).filter((s) => s.date === selDate)
       .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
-    list.innerHTML = items.length
-      ? items.map((s) => {
-          const c = CATS[s.cat] || CATS.personal;
-          return `<li>
-            <span class="bar" style="background:var(${c.v})"></span>
-            <div class="dl-main">
-              <div class="dl-cat" style="color:var(${c.v})">${c.name}${s.time ? " · " + esc(s.time) : ""}</div>
-              <div class="dl-title">${esc(s.title)}</div>
-              ${s.place ? `<div class="dl-sub">${I("pin")} ${esc(s.place)}</div>` : ""}
-              ${s.memo ? `<div class="dl-sub">${esc(s.memo)}</div>` : ""}
-              ${s.link ? `<a class="dl-link" href="${esc(s.link)}" target="_blank" rel="noopener">링크 바로가기 ${I("arrowUR")}</a>` : ""}
-            </div>
-            <button class="dl-del" data-esch="${s.id}">${I("pencil")}</button>
-            <button class="dl-del" data-id="${s.id}">${I("x")}</button>
-          </li>`;
-        }).join("")
-      : `<li class="day-empty">등록된 일정이 없어요. + 버튼으로 추가해 보세요!</li>`;
+    const recs = byBias(S.archives).filter((a) => a.date === selDate)
+      .sort((a, b) => (a.mode || "").localeCompare(b.mode || ""));
+
+    const schedHtml = items.map((s) => {
+      const c = CATS[s.cat] || CATS.personal;
+      return `<li>
+        <span class="bar" style="background:var(${c.v})"></span>
+        <div class="dl-main">
+          <div class="dl-cat" style="color:var(${c.v})">${c.name}${s.time ? " · " + esc(s.time) : ""}</div>
+          <div class="dl-title">${esc(s.title)}</div>
+          ${s.place ? `<div class="dl-sub">${I("pin")} ${esc(s.place)}</div>` : ""}
+          ${s.memo ? `<div class="dl-sub">${esc(s.memo)}</div>` : ""}
+          ${s.link ? `<a class="dl-link" href="${esc(safeUrl(s.link))}" target="_blank" rel="noopener">링크 바로가기 ${I("arrowUR")}</a>` : ""}
+        </div>
+        <button class="dl-del" data-esch="${s.id}">${I("pencil")}</button>
+        <button class="dl-del" data-id="${s.id}">${I("x")}</button>
+      </li>`;
+    }).join("");
+
+    // 아카이브 기록(후기) — 캘린더와 연동
+    const recHtml = recs.map((a) => {
+      const on = (a.mode || "offline") === "online";
+      return `<li class="day-rec" data-rview="${a.id}">
+        <span class="bar rec-bar ${on ? "on" : "off"}"></span>
+        <div class="dl-main">
+          <div class="dl-cat rec-cat">${on ? I("monitor") : I("pin")} 기록 · ${esc(a.etype || "기타")}${a.place ? " · " + esc(a.place) : ""}</div>
+          <div class="dl-title">${esc(a.title)}</div>
+          ${a.content ? `<div class="dl-sub">${esc(a.content.length > 40 ? a.content.slice(0, 40) + "…" : a.content)}</div>` : ""}
+        </div>
+        ${(a.imgs && a.imgs.length) ? `<img class="dl-rec-thumb" src="${a.imgs[0]}" alt="">` : ""}
+      </li>`;
+    }).join("");
+
+    const body = schedHtml + recHtml;
+    list.innerHTML = (body || `<li class="day-empty">이 날의 일정·기록이 없어요. + 버튼이나 아래에서 추가해 보세요!</li>`)
+      + `<li class="day-add-rec"><button class="btn btn-ghost btn-sm" id="dayAddRec">${I("pencil")} 이 날 후기·기록 쓰기</button></li>`;
+
     list.querySelectorAll(".dl-del[data-id]").forEach((btn) => {
-      btn.onclick = () => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
         if (!confirm("이 일정을 삭제할까요?")) return;
         S.schedules = S.schedules.filter((s) => s.id !== btn.dataset.id);
         save(); renderCalendar(); toast("일정을 삭제했어요");
       };
     });
     list.querySelectorAll("[data-esch]").forEach((btn) => {
-      btn.onclick = () => openModal("schedule", btn.dataset.esch);
+      btn.onclick = (e) => { e.stopPropagation(); openModal("schedule", btn.dataset.esch); };
     });
+    list.querySelectorAll(".day-rec[data-rview]").forEach((li) => {
+      li.onclick = () => openDiaryView(li.dataset.rview);
+    });
+    const addRec = $("dayAddRec");
+    if (addRec) addRec.onclick = () => openModal("diary");
   }
 
   function openStickerPicker() {
@@ -1443,36 +1795,154 @@
   /* ═══════════ 포카 바인더 ═══════════ */
   function binderTab(mode) {
     binderMode = mode;
+    binderPage = 0;
     document.querySelectorAll("[data-btab]").forEach((t) => t.classList.toggle("active", t.dataset.btab === mode));
     renderBinder();
   }
 
   function renderBinder() {
-    let cards = byBias(S.photocards).filter((p) => p.status === binderMode);
-    // 앨범 필터 칩
+    // 탭별 장수 표시 (보유/위시/교환)
+    const allCards = byBias(S.photocards);
+    const counts = { own: 0, wish: 0, trade: 0 };
+    allCards.forEach((p) => { if (counts[p.status] != null) counts[p.status]++; });
+    document.querySelectorAll("[data-btab]").forEach((t) => {
+      const base = { own: "보유", wish: "위시", trade: "교환 중" }[t.dataset.btab];
+      t.textContent = `${base} ${counts[t.dataset.btab] || 0}`;
+    });
+
+    let cards = allCards.filter((p) => p.status === binderMode);
+    // 앨범 필터 칩 (장수 포함)
     const albums = [...new Set(cards.map((p) => p.album).filter(Boolean))];
     const ar = $("albumRow");
     if (ar) {
       if (binderAlbum !== "all" && !albums.includes(binderAlbum)) binderAlbum = "all";
       ar.innerHTML = albums.length
-        ? [["all", "전체"], ...albums.map((a) => [a, a])].map(([v, n]) =>
-            `<button class="f-chip ${binderAlbum === v ? "active" : ""}" data-album="${esc(v)}">${esc(n)}</button>`).join("")
+        ? [["all", "전체"], ...albums.map((a) => [a, a])].map(([v, n]) => {
+            const cnt = v === "all" ? cards.length : cards.filter((p) => p.album === v).length;
+            return `<button class="f-chip ${binderAlbum === v ? "active" : ""}" data-album="${esc(v)}">${esc(n)} ${cnt}</button>`;
+          }).join("")
         : "";
       ar.querySelectorAll("[data-album]").forEach((b) => {
-        b.onclick = () => { binderAlbum = b.dataset.album; renderBinder(); };
+        b.onclick = () => { binderAlbum = b.dataset.album; binderPage = 0; renderBinder(); };
       });
     }
     if (binderAlbum !== "all") cards = cards.filter((p) => p.album === binderAlbum);
-    let html = `<div class="poca-slot empty" onclick="App.openModal('poca')"><span class="plus">+</span>포카 등록</div>`;
-    html += cards.map((p) => `
-      <div class="poca-slot ${p.img ? "" : "noimg"}" data-id="${p.id}">
-        ${p.img ? `<img src="${p.img}" alt="">` : esc(p.name)}
+
+    // ── 페이지 단위 바인더: 열 수는 화면 폭을 채우고(모바일 3×3, PC 다열), 한 페이지가 한 화면에 들어오게 ──
+    const grid = $("binderGrid");
+    const gap = 10;
+    let availW = grid.clientWidth;
+    if (!availW || availW < 80) availW = Math.min(940, window.innerWidth - (window.innerWidth >= 980 ? 300 : 36));
+    let cols = Math.max(3, Math.min(8, Math.floor((availW + gap) / (150 + gap))));
+    const cardW = (availW - gap * (cols - 1)) / cols;
+    const cardH = cardW * 8.5 / 5.5;
+    let rows;
+    if (cols <= 3) rows = 3; // 모바일: 3×3 고정
+    else rows = Math.max(2, Math.min(4, Math.floor((window.innerHeight - 250) / (cardH + gap))));
+    const PER_PAGE = cols * rows;
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+    const totalPages = Math.max(1, Math.ceil((cards.length + 1) / PER_PAGE)); // 마지막 페이지엔 항상 빈칸 1개 이상
+    if (binderPage > totalPages - 1) binderPage = totalPages - 1;
+    if (binderPage < 0) binderPage = 0;
+    const pageCards = cards.slice(binderPage * PER_PAGE, binderPage * PER_PAGE + PER_PAGE);
+    let html = pageCards.map((p) => `
+      <div class="poca-slot ${p.img ? "" : "noimg"}" data-pid="${p.id}">
+        ${p.img ? `<img src="${p.img}" alt="" draggable="false">` : esc(p.name)}
         ${p.img && p.name ? `<span class="pc-label">${esc(p.name)}</span>` : ""}
       </div>`).join("");
-    $("binderGrid").innerHTML = html;
-    $("binderGrid").querySelectorAll("[data-id]").forEach((el) => {
-      el.onclick = () => openPocaView(el.dataset.id);
+    const emptyCount = PER_PAGE - pageCards.length; // 이 페이지를 9칸으로 채움
+    for (let i = 0; i < emptyCount; i++) {
+      html += `<div class="poca-slot empty" data-add="1">${i === 0 ? `<span class="plus">+</span>포카 등록` : `<span class="plus">+</span>`}</div>`;
+    }
+    grid.innerHTML = html;
+    grid.querySelectorAll("[data-add]").forEach((el) => { el.onclick = () => openModal("poca"); });
+    bindPocaCards(grid);
+
+    // 페이지 넘김 + 현재/전체 표시
+    const pager = $("binderPager");
+    if (pager) {
+      pager.innerHTML = `
+        <button class="bp-arrow" id="bpPrev" ${binderPage === 0 ? "disabled" : ""} aria-label="이전 페이지">‹</button>
+        <span class="bp-info"><b>${binderPage + 1}</b><span class="bp-sep">/</span>${totalPages}</span>
+        <button class="bp-arrow" id="bpNext" ${binderPage >= totalPages - 1 ? "disabled" : ""} aria-label="다음 페이지">›</button>`;
+      const pv = $("bpPrev"), nx = $("bpNext");
+      if (pv) pv.onclick = () => { if (binderPage > 0) { binderPage--; renderBinder(); } };
+      if (nx) nx.onclick = () => { if (binderPage < totalPages - 1) { binderPage++; renderBinder(); } };
+    }
+  }
+
+  // 포카 카드: 탭=상세보기 / 꾹 눌러 드래그=순서 변경
+  function bindPocaCards(grid) {
+    grid.querySelectorAll(".poca-slot[data-pid]").forEach((el) => {
+      let down = null, lp = null;
+      el.addEventListener("pointerdown", (e) => {
+        if (e.button && e.button !== 0) return;
+        down = { x: e.clientX, y: e.clientY };
+        lp = setTimeout(() => { lp = null; down = null; startPocaDrag(e, el, grid); }, 380);
+      });
+      el.addEventListener("pointermove", (e) => {
+        if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 10) {
+          if (lp) { clearTimeout(lp); lp = null; }
+          down = null; // 움직이면 스크롤로 보고 취소
+        }
+      });
+      el.addEventListener("pointerup", (e) => {
+        if (lp) { clearTimeout(lp); lp = null; }
+        if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) <= 10) openPocaView(el.dataset.pid);
+        down = null;
+      });
+      el.addEventListener("pointercancel", () => { if (lp) { clearTimeout(lp); lp = null; } down = null; });
     });
+  }
+  function startPocaDrag(e, slot, grid) {
+    const rect = slot.getBoundingClientRect();
+    const offX = e.clientX - rect.left, offY = e.clientY - rect.top;
+    try { slot.setPointerCapture(e.pointerId); } catch (_) {}
+    slot.classList.add("poca-dragging");
+    if (S.haptics !== false) { try { navigator.vibrate && navigator.vibrate(12); } catch (_) {} }
+    Object.assign(slot.style, {
+      width: rect.width + "px", height: rect.height + "px", position: "fixed",
+      left: rect.left + "px", top: rect.top + "px", zIndex: "60", margin: "0", touchAction: "none",
+    });
+    const ph = document.createElement("div");
+    ph.className = "poca-slot poca-ph";
+    slot.after(ph);
+    const move = (ev) => {
+      slot.style.left = (ev.clientX - offX) + "px";
+      slot.style.top = (ev.clientY - offY) + "px";
+      slot.style.visibility = "hidden";
+      const under = document.elementFromPoint(ev.clientX, ev.clientY);
+      slot.style.visibility = "";
+      const over = under && under.closest(".poca-slot[data-pid]");
+      if (over && over !== slot && over.parentNode === grid) {
+        const r = over.getBoundingClientRect();
+        const before = ev.clientX < r.left + r.width / 2;
+        grid.insertBefore(ph, before ? over : over.nextSibling);
+      }
+    };
+    const up = () => {
+      slot.removeEventListener("pointermove", move);
+      slot.removeEventListener("pointerup", up);
+      try { slot.releasePointerCapture(e.pointerId); } catch (_) {}
+      ph.replaceWith(slot);
+      slot.classList.remove("poca-dragging");
+      ["width", "height", "position", "left", "top", "zIndex", "margin", "touchAction", "visibility"]
+        .forEach((p) => { slot.style[p] = ""; });
+      commitPocaOrder(grid);
+    };
+    slot.addEventListener("pointermove", move);
+    slot.addEventListener("pointerup", up);
+    move(e);
+  }
+  function commitPocaOrder(grid) {
+    const order = [...grid.querySelectorAll(".poca-slot[data-pid]")].map((el) => el.dataset.pid);
+    const pos = {}; order.forEach((id, i) => { pos[id] = i; });
+    const inView = new Set(order);
+    const reordered = S.photocards.filter((p) => inView.has(p.id)).sort((a, b) => pos[a.id] - pos[b.id]);
+    let vi = 0;
+    S.photocards = S.photocards.map((p) => (inView.has(p.id) ? reordered[vi++] : p));
+    save(); renderBinder();
   }
 
   function openPocaView(id) {
@@ -1538,6 +2008,32 @@
       }
     }
 
+    // 인사이트: 전월 대비 · 일평균 · 남은 예산 하루 가용액
+    const insEl = $("ledgerInsight");
+    if (insEl) {
+      const prev = new Date(y, m - 1, 1);
+      const prevYm = `${prev.getFullYear()}-${pad(prev.getMonth() + 1)}`;
+      const prevTotal = byBias(S.expenses).filter((e) => e.date && e.date.startsWith(prevYm)).reduce((a, e) => a + (+e.amount || 0), 0);
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      const now = new Date();
+      const isThisMonth = (y === now.getFullYear() && m === now.getMonth());
+      const elapsed = isThisMonth ? now.getDate() : daysInMonth;
+      const chips = [];
+      if (prevTotal > 0) {
+        const diff = total - prevTotal;
+        const pctd = Math.round(Math.abs(diff) / prevTotal * 100);
+        chips.push(diff === 0
+          ? `<span class="li-chip">전월과 같아요</span>`
+          : `<span class="li-chip ${diff > 0 ? "up" : "down"}">전월 대비 ${diff > 0 ? "▲" : "▼"} ${won(Math.abs(diff))} · ${pctd}%</span>`);
+      } else if (total > 0) chips.push(`<span class="li-chip">전월 지출 없음</span>`);
+      if (total > 0) chips.push(`<span class="li-chip">하루 평균 ${won(Math.round(total / Math.max(1, elapsed)))}</span>`);
+      if (S.budget > 0 && total <= S.budget && isThisMonth) {
+        const remainDays = Math.max(1, daysInMonth - now.getDate() + 1);
+        chips.push(`<span class="li-chip ok">남은 예산 하루 ${won(Math.floor((S.budget - total) / remainDays))}까지</span>`);
+      }
+      insEl.innerHTML = chips.join("");
+    }
+
     // 올해 통계
     const ys = $("yearStats");
     if (ys) {
@@ -1567,6 +2063,17 @@
       </div>`;
     }).join("") || `<p class="hint">이번 달 지출이 아직 없어요</p>`;
 
+    // 결제 수단 비중
+    const payEl = $("ledgerPay");
+    if (payEl) {
+      const byPay = {};
+      exps.forEach((e) => { const p = e.pay || "카드"; byPay[p] = (byPay[p] || 0) + (+e.amount || 0); });
+      const entries = Object.entries(byPay).sort((a, b2) => b2[1] - a[1]);
+      payEl.innerHTML = (total && entries.length)
+        ? `<div class="lpay-row">${entries.map(([p, v]) => `<span class="lpay">${esc(p)} <b>${Math.round(v / total * 100)}%</b></span>`).join("")}</div>`
+        : "";
+    }
+
     // 6개월 그래프
     const months = [];
     for (let i = 5; i >= 0; i--) {
@@ -1581,22 +2088,35 @@
         <span class="bc-label">${mo.label}</span>
       </div>`).join("");
 
+    // 카테고리 필터 칩
+    const cf = $("ledgerCatFilter");
+    if (cf) {
+      const usedCats = EXP_CATS.filter((c) => byCat[c]);
+      if (ledgerCatFilter !== "all" && !byCat[ledgerCatFilter]) ledgerCatFilter = "all";
+      cf.innerHTML = usedCats.length
+        ? [["all", "전체"], ...usedCats.map((c) => [c, c])].map(([v, n]) =>
+            `<button class="f-chip ${ledgerCatFilter === v ? "active" : ""}" data-lcat="${esc(v)}">${esc(n)}</button>`).join("")
+        : "";
+      cf.querySelectorAll("[data-lcat]").forEach((b) => { b.onclick = () => { ledgerCatFilter = b.dataset.lcat; renderLedger(); }; });
+    }
+
     // 내역
-    $("expenseList").innerHTML = exps.length
-      ? exps.map((e) => {
+    const listExps = ledgerCatFilter === "all" ? exps : exps.filter((e) => e.category === ledgerCatFilter);
+    $("expenseList").innerHTML = listExps.length
+      ? listExps.map((e) => {
           const i = Math.max(0, EXP_CATS.indexOf(e.category));
           return `<li>
             <span class="dot" style="background:${EXP_COLORS[i]}"></span>
             <div class="ex-main">
               <div class="ex-title">${esc(e.title)}</div>
-              <div class="ex-sub">${e.date} · ${esc(e.category)}${e.memo ? " · " + esc(e.memo) : ""}</div>
+              <div class="ex-sub">${e.date} · ${esc(e.category)}${e.pay ? " · " + esc(e.pay) : ""}${e.memo ? " · " + esc(e.memo) : ""}</div>
             </div>
             <span class="ex-amt">${won(e.amount)}</span>
             <button class="dl-del" data-eexp="${e.id}">${I("pencil")}</button>
             <button class="dl-del" data-id="${e.id}">${I("x")}</button>
           </li>`;
         }).join("")
-      : `<li class="day-empty">지출 내역이 없어요. 행복 비용을 기록해 보세요</li>`;
+      : `<li class="day-empty">${ledgerCatFilter === "all" ? "지출 내역이 없어요. 행복 비용을 기록해 보세요" : "이 카테고리 지출이 없어요"}</li>`;
     $("expenseList").querySelectorAll(".dl-del[data-id]").forEach((b) => {
       b.onclick = () => {
         if (!confirm("이 내역을 삭제할까요?")) return;
@@ -1639,12 +2159,20 @@
     // 유형 필터 칩
     const tr = $("diaryTypeRow");
     if (tr) {
-      const types = ["all", ...archTypes(archMode)];
-      tr.innerHTML = types.map((t) =>
-        `<button class="f-chip ${diaryType === t ? "active" : ""}" data-dt="${t}">${t === "all" ? "전체" : t}</button>`).join("");
+      const custom = (S.customArchTypes && S.customArchTypes[archMode]) || [];
+      const types = ["all", ...effArchTypes(archMode)];
+      tr.innerHTML = types.map((t) => {
+        const isCustom = custom.includes(t);
+        return `<button class="f-chip ${diaryType === t ? "active" : ""} ${isCustom ? "chip-custom" : ""}" data-dt="${esc(t)}">${t === "all" ? "전체" : esc(t)}${isCustom ? `<i class="chip-x" data-delt="${esc(t)}">✕</i>` : ""}</button>`;
+      }).join("") + `<button class="f-chip chip-add" id="archAddType" aria-label="유형 추가">+ 유형</button>`;
       tr.querySelectorAll("[data-dt]").forEach((b) => {
-        b.onclick = () => { diaryType = b.dataset.dt; renderArchive(); };
+        b.onclick = (e) => { if (e.target.closest(".chip-x")) return; diaryType = b.dataset.dt; renderArchive(); };
       });
+      tr.querySelectorAll("[data-delt]").forEach((x) => {
+        x.onclick = (e) => { e.stopPropagation(); removeArchType(archMode, x.dataset.delt); };
+      });
+      const ab = $("archAddType");
+      if (ab) ab.onclick = () => openAddArchType();
     }
     // 일기
     let diaries = byBias(S.archives).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
@@ -1677,12 +2205,40 @@
           </div>
         </div>`).join("")
       : `<div class="diary-empty">${archMode === "online"
-          ? "아직 온라인 기록이 없어요.<br>영통, 온라인 콘서트, 라이브 시청 후기를 남겨보세요"
-          : "아직 오프라인 기록이 없어요.<br>다녀온 콘서트, 팝업, 생카 후기를 남겨보세요"}</div>`;
+          ? "아직 온라인 기록이 없어요.<br>온라인으로 함께한 순간을 남겨보세요"
+          : "아직 오프라인 기록이 없어요.<br>다녀온 현장의 기록을 남겨보세요"}</div>`;
     $("archiveDiary").querySelectorAll("[data-id]").forEach((el) => {
       el.onclick = () => openDiaryView(el.dataset.id);
     });
     renderLinks();
+  }
+
+  // 아카이브 유형 직접 추가/삭제 (오프라인·온라인 각각)
+  function openAddArchType() {
+    const modeLabel = archMode === "online" ? "온라인" : "오프라인";
+    openModalRaw(`${modeLabel} 유형 추가`, `
+      <div class="field"><label>새 유형 이름 *</label><input type="text" id="mNewType" maxlength="14" placeholder="예) 시구, 오프모임, 콜라보 카페"></div>
+      <p class="hint">이 유형은 ${modeLabel} 기록에서 골라 쓸 수 있어요.</p>
+      <button class="btn btn-primary btn-lg" id="mSaveType">추가</button>
+    `);
+    const inp = $("mNewType");
+    if (inp) inp.focus();
+    $("mSaveType").onclick = () => {
+      const name = $("mNewType").value.trim();
+      if (!name) return toast("유형 이름을 입력해 주세요!");
+      const list = S.customArchTypes[archMode];
+      if (archTypes(archMode).includes(name) || list.includes(name)) return toast("이미 있는 유형이에요");
+      list.push(name);
+      save(); closeModal(); diaryType = name; renderArchive();
+      toast(`'${name}' 유형을 추가했어요`);
+    };
+  }
+  function removeArchType(mode, name) {
+    if (!confirm(`'${name}' 유형을 삭제할까요? (이 유형으로 쓴 기록은 그대로 남아요)`)) return;
+    S.customArchTypes[mode] = (S.customArchTypes[mode] || []).filter((t) => t !== name);
+    if (diaryType === name) diaryType = "all";
+    save(); renderArchive();
+    toast("유형을 삭제했어요");
   }
 
   function openDiaryView(id) {
@@ -1717,32 +2273,70 @@
     } catch (e) { return I("link"); }
   }
 
+  const PLATS = { x: "X", youtube: "유튜브", instagram: "인스타", tiktok: "틱톡", weverse: "위버스", other: "기타" };
+  function linkPlatform(url) {
+    try {
+      const h = new URL(url).hostname;
+      if (/x\.com|twitter/.test(h)) return "x";
+      if (/youtu/.test(h)) return "youtube";
+      if (/instagram/.test(h)) return "instagram";
+      if (/tiktok/.test(h)) return "tiktok";
+      if (/weverse/.test(h)) return "weverse";
+      return "other";
+    } catch (e) { return "other"; }
+  }
+
   function addLink() {
-    const url = $("linkInput").value.trim();
+    let url = $("linkInput").value.trim();
     if (!url) return toast("링크를 붙여넣어 주세요!");
-    try { new URL(url); } catch (e) { return toast("올바른 링크가 아니에요 (https://… 형식)"); }
-    S.links.unshift({ id: uid(), biasId: S.currentBias, url, label: $("linkLabel").value.trim(), date: todayKey() });
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(url)) url = "https://" + url; // 스킴 없으면 https 보정
+    let p;
+    try { p = new URL(url); } catch (e) { return toast("올바른 링크가 아니에요 (https://… 형식)"); }
+    if (p.protocol !== "http:" && p.protocol !== "https:") return toast("http/https 링크만 저장할 수 있어요");
+    S.links.unshift({ id: uid(), biasId: S.currentBias, url, label: $("linkLabel").value.trim(), date: todayKey(), read: false });
     $("linkInput").value = ""; $("linkLabel").value = "";
-    save(); renderLinks(); toast("링크를 보관함에 저장했어요");
+    save(); renderLinks(); toast("링크를 보관함에 저장했어요 (나중에 보기로 담김)");
   }
 
   function renderLinks() {
-    const links = byBias(S.links);
+    const all = byBias(S.links);
+    const unread = all.filter((l) => !l.read).length;
+    // 저장된 링크에 실제로 있는 플랫폼만 칩으로
+    const present = [];
+    all.forEach((l) => { const p = linkPlatform(l.url); if (!present.includes(p)) present.push(p); });
+    const fr = $("linkFilters");
+    if (fr) {
+      fr.innerHTML =
+        `<button class="f-chip ${linkFilter === "all" ? "active" : ""}" data-lf="all">전체 ${all.length}</button>`
+        + `<button class="f-chip lk-unread-chip ${linkFilter === "unread" ? "active" : ""}" data-lf="unread">${I("clock")} 나중에 보기 ${unread}</button>`
+        + present.map((p) => `<button class="f-chip ${linkFilter === "p:" + p ? "active" : ""}" data-lf="p:${p}">${PLATS[p]}</button>`).join("");
+      fr.querySelectorAll(".f-chip").forEach((ch) => { ch.onclick = () => { linkFilter = ch.dataset.lf; renderLinks(); }; });
+    }
+    let links = all;
+    if (linkFilter === "unread") links = all.filter((l) => !l.read);
+    else if (linkFilter.startsWith("p:")) { const p = linkFilter.slice(2); links = all.filter((l) => linkPlatform(l.url) === p); }
+
     $("linkList").innerHTML = links.length
       ? links.map((l) => `
-        <li>
+        <li class="${l.read ? "lk-read" : ""}">
           <span class="lk-ico">${linkIcon(l.url)}</span>
           <div class="lk-main">
-            <div class="lk-label">${esc(l.label) || "저장한 링크"}</div>
-            <a class="lk-url" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.url)}</a>
+            <div class="lk-label">${esc(l.label) || "저장한 링크"}<span class="lk-plat">${PLATS[linkPlatform(l.url)]}</span></div>
+            <a class="lk-url" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener">${esc(l.url)}</a>
           </div>
+          <button class="lk-read-btn ${l.read ? "done" : ""}" data-read="${l.id}" title="${l.read ? "안 본 것으로 되돌리기" : "다 봤어요"}">${l.read ? I("check") : I("clock")}</button>
           <button class="dl-del" data-id="${l.id}">${I("x")}</button>
         </li>`).join("")
-      : `<li class="day-empty">카톡 대신 여기에 모아두세요!<br>X 직캠, 유튜브 자컨, 인스타 링크 무엇이든</li>`;
+      : `<li class="day-empty">${linkFilter === "unread"
+          ? "나중에 볼 링크가 없어요! 다 봤네요 👏"
+          : "카톡 대신 여기에 모아두세요!<br>X 직캠, 유튜브 자컨, 인스타 링크 무엇이든"}</li>`;
     $("linkList").querySelectorAll(".dl-del").forEach((b) => {
+      b.onclick = () => { S.links = S.links.filter((l) => l.id !== b.dataset.id); save(); renderLinks(); };
+    });
+    $("linkList").querySelectorAll(".lk-read-btn").forEach((b) => {
       b.onclick = () => {
-        S.links = S.links.filter((l) => l.id !== b.dataset.id);
-        save(); renderLinks();
+        const l = S.links.find((x) => x.id === b.dataset.read);
+        if (l) { l.read = !l.read; save(); renderLinks(); toast(l.read ? "다 봤어요 표시했어요" : "다시 나중에 보기로"); }
       };
     });
   }
@@ -1771,6 +2365,7 @@
           <div class="st-body">
             <div class="st-name">${esc(s.name)}</div>
             <div class="st-info">${esc(s.category || "")}${s.info ? " · " + esc(s.info) : ""}</div>
+            ${s.link ? `<a class="st-link" href="${esc(safeUrl(s.link))}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${I("link")} 구매처</a>` : ""}
           </div>
         </div>`).join("")
       : `<div class="style-empty">최애가 입은 옷, 신발, 액세서리를 기록해 보세요 ✦<br>직접 구매하면 '겟!'으로 바꿀 수 있어요</div>`;
@@ -1790,6 +2385,8 @@
 
   /* ═══════════ 설정 ═══════════ */
   function renderSettings() {
+    // 덕질 유형 프리셋
+    renderPresetButtons($("presetTabs"), S.preset || "idol", setPreset);
     // 최애 목록
     $("biasList").innerHTML = S.biases.map((b) => `
       <li class="${b.id === S.currentBias ? "current" : ""}">
@@ -1831,6 +2428,11 @@
     }
     const ntsw = $("notifySwitch");
     if (ntsw) ntsw.classList.toggle("on", !!S.notifyTicket);
+    const hsw = $("hapticSwitch");
+    if (hsw) hsw.classList.toggle("on", S.haptics !== false);
+    const vr = $("veilRange"), vv = $("veilVal");
+    if (vr) vr.value = S.veil || 0;
+    if (vv) vv.textContent = (S.veil || 0) + "%";
     const bt = $("bgTabs");
     if (bt) {
       bt.innerHTML = BGS.map(([id, name]) =>
@@ -1904,9 +2506,21 @@
   /* ═══════════ 모달 ═══════════ */
   let modalPhotoData = null;
 
+  // 폼 라벨 연결: .field 안의 label ↔ 입력칸을 for/id로 자동 매칭 (접근성 표준)
+  function linkFieldLabels(root) {
+    (root || document).querySelectorAll(".field").forEach((f) => {
+      const label = f.querySelector("label");
+      const input = f.querySelector("input, select, textarea");
+      if (!label || !input || label.htmlFor) return;
+      if (!input.id) input.id = "fld-" + Math.random().toString(36).slice(2, 9);
+      label.htmlFor = input.id;
+    });
+  }
+
   function openModalRaw(title, bodyHtml) {
     $("modalTitle").textContent = title;
     $("modalBody").innerHTML = bodyHtml;
+    linkFieldLabels($("modalBody"));
     $("modalBackdrop").classList.remove("hidden");
     document.body.style.overflow = "hidden";
   }
@@ -1981,6 +2595,12 @@
       const edit = editId ? S.schedules.find((x) => x.id === editId) : null;
       openModalRaw(edit ? "일정 수정" : "일정 등록", `
         <div class="field"><label>제목 *</label><input type="text" id="mTitle" placeholder="예) 컴백 쇼케이스"></div>
+        <div class="field"><label>구분 <small>(오프라인 행사 / 온라인 활동)</small></label>
+          <div class="seg" id="mSchedMode">
+            <button type="button" data-sm="offline">${I("pin")} 오프라인</button>
+            <button type="button" data-sm="online">${I("monitor")} 온라인</button>
+          </div>
+        </div>
         <div class="field"><label>카테고리</label>
           <select id="mCat">${Object.entries(CATS).map(([k, c]) => `<option value="${k}">${c.name}</option>`).join("")}</select>
         </div>
@@ -2000,6 +2620,14 @@
         <button class="btn btn-primary btn-lg" id="mSave">저장</button>
         ${edit && edit.groupId ? `<button class="btn btn-danger btn-lg slim" id="mDelGroup">이 반복 일정 전체 삭제</button>` : ""}
       `);
+      let schedMode = edit ? (edit.mode || (edit.cat === "broadcast" ? "online" : "offline")) : "offline";
+      const syncSchedMode = () => {
+        $("mSchedMode").querySelectorAll("[data-sm]").forEach((b) => {
+          b.classList.toggle("active", b.dataset.sm === schedMode);
+          b.onclick = () => { schedMode = b.dataset.sm; syncSchedMode(); };
+        });
+      };
+      syncSchedMode();
       const mr = $("mRepeat");
       if (mr) mr.onchange = () => {
         $("mRepEndWrap").classList.toggle("hidden", !mr.value);
@@ -2031,7 +2659,7 @@
         if (!title) return toast("제목을 입력해 주세요!");
         if (!$("mDate").value) return toast("날짜를 골라주세요!");
         const data = {
-          title, cat: $("mCat").value, date: $("mDate").value, time: $("mTime").value,
+          title, cat: $("mCat").value, mode: schedMode, date: $("mDate").value, time: $("mTime").value,
           place: $("mPlace").value.trim(), link: $("mLink").value.trim(), memo: $("mMemo").value.trim(),
         };
         if (edit) Object.assign(edit, data);
@@ -2071,6 +2699,9 @@
         <div class="field"><label>카테고리</label>
           <select id="mCat">${EXP_CATS.map((c) => `<option>${c}</option>`).join("")}</select>
         </div>
+        <div class="field"><label>결제 수단</label>
+          <select id="mPay">${PAY_METHODS.map((p) => `<option>${p}</option>`).join("")}</select>
+        </div>
         <div class="field"><label>날짜</label><input type="date" id="mDate" value="${todayKey()}"></div>
         <div class="field"><label>메모 <small>(왜 샀는지, 어디가 이뻤는지)</small></label><input type="text" id="mMemo"></div>
         <button class="btn btn-primary btn-lg" id="mSave">저장</button>
@@ -2079,6 +2710,7 @@
         $("mTitle").value = edit.title;
         $("mAmount").value = edit.amount;
         $("mCat").value = edit.category;
+        $("mPay").value = edit.pay || PAY_METHODS[0];
         $("mDate").value = edit.date;
         $("mMemo").value = edit.memo || "";
         $("mSave").textContent = "수정 완료";
@@ -2088,7 +2720,7 @@
         const amount = +$("mAmount").value;
         if (!title || !amount) return toast("내용과 금액을 입력해 주세요!");
         const data = {
-          title, amount, category: $("mCat").value,
+          title, amount, category: $("mCat").value, pay: $("mPay").value,
           date: $("mDate").value || todayKey(), memo: $("mMemo").value.trim(),
         };
         if (edit) Object.assign(edit, data);
@@ -2111,7 +2743,7 @@
         <div class="field"><label>제목 *</label><input type="text" id="mTitle" placeholder="예) 첫 콘서트 다녀온 날"></div>
         <div class="field"><label>날짜</label><input type="date" id="mDate" value="${baseDate}"></div>
         <div class="field"><label>유형</label>
-          <select id="mEtype">${ARCH_TYPES.map((t) => `<option>${t}</option>`).join("")}</select>
+          <select id="mEtype">${effArchTypes("offline").map((t) => `<option>${esc(t)}</option>`).join("")}</select>
         </div>
         <div class="field"><label>장소</label><input type="text" id="mPlace" placeholder="예) 고척돔"></div>
         <div class="field"><label>오늘의 기록 *</label><textarea id="mContent" placeholder="현장의 공기, 최애의 표정, 잊고 싶지 않은 순간들…"></textarea></div>
@@ -2125,7 +2757,7 @@
           b.onclick = () => { dMode = b.dataset.mm; syncModeUI(); };
         });
         const keep = $("mEtype").value;
-        $("mEtype").innerHTML = archTypes(dMode).map((t) => `<option>${t}</option>`).join("");
+        $("mEtype").innerHTML = effArchTypes(dMode).map((t) => `<option>${esc(t)}</option>`).join("");
         if (archTypes(dMode).includes(keep)) $("mEtype").value = keep;
       };
       syncModeUI();
@@ -2148,7 +2780,10 @@
             date: $("mDate").value, place: $("mPlace").value.trim(), etype: $("mEtype").value, mode: dMode, imgs: modalPhotosData.slice(),
           });
         }
-        save(); closeModal(); archMode = dMode; renderArchive(); go("archive"); archiveTab("diary");
+        const onCal = document.querySelector(".page.active")?.id === "page-calendar";
+        save(); closeModal(); archMode = dMode; renderArchive();
+        if (onCal) { renderCalendar(); }
+        else { go("archive"); archiveTab("diary"); }
         toast(edit ? "기록을 수정했어요" : "소중한 기록을 남겼어요");
       };
       return;
@@ -2222,6 +2857,7 @@
           <select id="mCat">${ST_CATS.map((c) => `<option>${c}</option>`).join("")}</select>
         </div>
         <div class="field"><label>브랜드 / 정보</label><input type="text" id="mInfo" placeholder="예) ○○브랜드, 12만원대"></div>
+        <div class="field"><label>구매처 링크 <small>(선택 · 사고 싶은 곳 / 산 곳)</small></label><input type="url" id="mLink2" placeholder="https://"></div>
         <div class="field"><label>상태</label>
           <select id="mStatus"><option value="wish">위시</option><option value="bought">구매 완료</option></select>
         </div>
@@ -2233,6 +2869,7 @@
         $("mTitle").value = edit.name;
         $("mCat").value = edit.category || ST_CATS[0];
         $("mInfo").value = edit.info || "";
+        $("mLink2").value = edit.link || "";
         $("mStatus").value = edit.status;
         if (edit.img) { $("mpPreview").src = edit.img; $("mpPreview").classList.remove("hidden"); $("mpHint").classList.add("hidden"); }
         $("mSave").textContent = "수정 완료";
@@ -2241,7 +2878,8 @@
         const name = $("mTitle").value.trim();
         if (!name) return toast("아이템 이름을 입력해 주세요!");
         const data = {
-          name, category: $("mCat").value, info: $("mInfo").value.trim(), status: $("mStatus").value,
+          name, category: $("mCat").value, info: $("mInfo").value.trim(),
+          link: $("mLink2").value.trim(), status: $("mStatus").value,
         };
         if (edit) {
           Object.assign(edit, data);
@@ -2362,6 +3000,7 @@
       $("app").classList.remove("hidden");
       renderAll();
     }
+    linkFieldLabels(document); // 정적 폼(온보딩·설정·아카이브 등) 라벨 연결
     $("importFile").addEventListener("change", (e) => {
       if (e.target.files[0]) importData(e.target.files[0]);
       e.target.value = "";
@@ -2386,6 +3025,14 @@
     });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeModal();
+    });
+    // 창 크기 변경 시 바인더 열·행 다시 계산 (활성 페이지일 때만)
+    let _rsz;
+    window.addEventListener("resize", () => {
+      clearTimeout(_rsz);
+      _rsz = setTimeout(() => {
+        if (document.querySelector(".page.active") && document.querySelector(".page.active").id === "page-binder") renderBinder();
+      }, 200);
     });
     const hw = $("heroWrap");
     if (hw) hw.addEventListener("pointerdown", coverDragStart);
@@ -2418,7 +3065,7 @@
   /* 외부 공개 API */
   window.App = {
     obNext, obFinish, obSkip, extractFromPhoto,
-    go, toggleFab, toggleDark, toggleRetro, setRetroSkin, setRetroPos, setBg, setAlign, openFramePicker, openColorPicker, openBudget, openYearReview, toggleNotifyTicket, retroMin, retroMax, toggleDeco, toggleCoverPos, cardGo, coverDragStart, editCurrentBias, setTemplate, setMode,
+    go, toggleFab, toggleDark, toggleRetro, setRetroSkin, setRetroPos, setBg, setAlign, openFramePicker, openColorPicker, openBudget, openYearReview, toggleNotifyTicket, toggleHaptics, setVeil, setPreset, retroMin, retroMax, toggleDeco, toggleCoverPos, cardGo, coverDragStart, editCurrentBias, setTemplate, setMode,
     calMove, openStickerPicker, shareDay,
     binderTab, ledgerMove, archiveTab, styleTab,
     addLink, openModal, closeModal, backdropClose,

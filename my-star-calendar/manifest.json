@@ -1,0 +1,16 @@
+{
+  "name": "마이 스타 캘린더 (My Star Calendar)",
+  "short_name": "스타캘린더",
+  "description": "최애 덕질을 한 곳에 — 멀티 캘린더, 티켓팅, 가계부, 포카 바인더, 기록 아카이브.",
+  "lang": "ko",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    { "src": "favicon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
+    { "src": "favicon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "maskable" }
+  ]
+}
