@@ -570,10 +570,10 @@
       };
       grid.appendChild(b);
     });
-    // 사진
-    $("obPhotoBox").onclick = () => $("obPhotoInput").click();
+    // 사진 (라벨이 파일 입력을 자동으로 열기 때문에 onclick으로 또 열지 않음)
     $("obPhotoInput").onchange = (e) => {
       const f = e.target.files[0];
+      e.target.value = "";
       if (!f) return;
       fileToData(f, 800, (data) => {
         obPhotoData = data;
@@ -630,6 +630,9 @@
     if (page === "archive") renderArchive();
     if (page === "style") renderStyle();
     if (page === "settings") renderSettings();
+    // 페이지 이동 시 문서 제목 갱신 (SPA 접근성·브라우저 기록)
+    const titles = { home: "홈", profile: "최애 프로필", calendar: "캘린더", binder: "포카 바인더", ledger: "덕질 가계부", archive: "아카이브", style: "스타일북", settings: "설정" };
+    document.title = (titles[page] ? titles[page] + " · " : "") + "마이 스타 캘린더";
   }
 
   function toggleFab() {
@@ -1315,12 +1318,91 @@
         btn.onclick = () => { if (btn.dataset.kind === "rec") openDiaryView(btn.dataset.rid); else openPocaView(btn.dataset.rid); };
       });
     }
+
+    renderMusic(b);
+  }
+
+  /* ───────── 음악 위젯 (유튜브/스포티파이 플레이리스트 임베드) ───────── */
+  // 붙여넣은 링크를 임베드 가능한 형태로 해석. 인식 못 하면 null → '바로가기'로 처리.
+  function musicEmbed(url) {
+    if (!url) return null;
+    let u;
+    try { u = new URL(url); } catch (e) { return null; }
+    const host = u.hostname.replace(/^www\./, "");
+    const ok = (s) => s && /^[\w-]+$/.test(s);
+    if (host === "youtu.be") {
+      const id = u.pathname.slice(1).split("/")[0];
+      return ok(id) ? { platform: "YouTube", src: `https://www.youtube.com/embed/${encodeURIComponent(id)}` } : null;
+    }
+    if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com") {
+      const list = u.searchParams.get("list"), v = u.searchParams.get("v");
+      if (u.pathname.startsWith("/playlist") && ok(list)) return { platform: "YouTube", src: `https://www.youtube.com/embed/videoseries?list=${encodeURIComponent(list)}` };
+      if (ok(v) && ok(list)) return { platform: "YouTube", src: `https://www.youtube.com/embed/${encodeURIComponent(v)}?list=${encodeURIComponent(list)}` };
+      if (ok(v)) return { platform: "YouTube", src: `https://www.youtube.com/embed/${encodeURIComponent(v)}` };
+      if (ok(list)) return { platform: "YouTube", src: `https://www.youtube.com/embed/videoseries?list=${encodeURIComponent(list)}` };
+      return null;
+    }
+    if (host === "spotify.com" || host === "open.spotify.com") {
+      const m = u.pathname.match(/\/(playlist|track|album|artist|episode|show)\/([A-Za-z0-9]+)/);
+      if (m) return { platform: "Spotify", src: `https://open.spotify.com/embed/${m[1]}/${m[2]}` };
+      return null;
+    }
+    return null;
+  }
+
+  function renderMusic(b) {
+    const box = $("homeMusic");
+    if (!box) return;
+    const url = b && b.music;
+    const em = musicEmbed(url);
+    const bar = `<div class="music-bar">${em ? `<span class="music-plat">${em.platform}</span>` : ""}<button class="btn btn-ghost btn-sm" data-mus="edit">변경</button><button class="btn btn-ghost btn-sm" data-mus="clear">빼기</button></div>`;
+    if (em && em.platform === "Spotify") {
+      box.innerHTML = `<iframe class="music-spotify" src="${em.src}" width="100%" height="152" frameborder="0" loading="lazy" allow="encrypted-media; clipboard-write; fullscreen; picture-in-picture"></iframe>` + bar;
+    } else if (em) {
+      box.innerHTML = `<div class="music-embed"><iframe src="${em.src}" loading="lazy" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>` + bar;
+    } else if (url) {
+      box.innerHTML = `<a class="btn btn-dark btn-sm" href="${esc(safeUrl(url))}" target="_blank" rel="noopener">음악 바로가기 ${I("arrowUR")}</a>` + bar;
+    } else {
+      box.innerHTML = `<div class="music-empty">${I("sparkles")} 최애 플레이리스트를 추가해 들으면서 기록해요</div><button class="btn btn-ghost btn-sm" data-mus="edit">+ 음악 추가</button>`;
+    }
+    box.querySelectorAll("[data-mus]").forEach((bt) => {
+      bt.onclick = () => { if (bt.dataset.mus === "edit") openMusicModal(); else clearMusic(); };
+    });
+  }
+
+  function openMusicModal() {
+    const b = curBias();
+    if (!b) return toast("먼저 최애를 등록해 주세요!");
+    openModalRaw("음악 추가", `
+      <p class="fp-desc">유튜브 또는 스포티파이의 플레이리스트·영상 링크를 붙여넣어 주세요. 재생할 땐 인터넷이 필요해요.</p>
+      <div class="field"><label>링크</label><input type="url" id="musicInput" placeholder="https://open.spotify.com/playlist/… 또는 https://youtube.com/…" value="${esc(b.music || "")}"></div>
+      <button class="btn btn-primary btn-lg" id="musicSave">저장</button>
+      ${b.music ? `<button class="btn btn-ghost btn-lg slim" id="musicRemove">음악 빼기</button>` : ""}
+    `);
+    $("musicSave").onclick = () => {
+      let url = $("musicInput").value.trim();
+      if (!url) return toast("링크를 붙여넣어 주세요!");
+      if (!/^[a-z][a-z0-9+.-]*:/i.test(url)) url = "https://" + url;
+      try { new URL(url); } catch (e) { return toast("올바른 링크가 아니에요 (https://… 형식)"); }
+      b.music = url; save(); closeModal(); renderHome();
+      toast(musicEmbed(url) ? "음악을 추가했어요 ♪" : "링크를 저장했어요 (임베드 미지원 — 바로가기로 열려요)");
+    };
+    const rm = $("musicRemove");
+    if (rm) rm.onclick = clearMusic;
+  }
+
+  function clearMusic() {
+    const b = curBias();
+    if (b) { delete b.music; save(); }
+    closeModal();
+    renderHome();
+    toast("음악을 뺐어요");
   }
 
   /* ───────── 홈 편집 (위젯처럼 자유 배치 · 빼기/되살리기 · 드래그 이동) ───────── */
   const HOME_BLOCKS = [
-    ["cheer", "응원·요약"], ["dday", "D-DAY"], ["week", "이번 주"], ["today", "TODAY"],
-    ["ticket", "시계"], ["spend", "이번 달 비용"], ["upcoming", "다가오는 일정"],
+    ["cheer", "응원·요약"], ["week", "이번 주"], ["today", "TODAY"], ["ticket", "시계"],
+    ["music", "음악"], ["dday", "D-DAY"], ["spend", "이번 달 비용"], ["upcoming", "다가오는 일정"],
     ["membership", "나만의 멤버십"], ["recent", "최근 기록"],
   ];
   const HOME_LABEL = Object.fromEntries(HOME_BLOCKS);
@@ -1345,7 +1427,27 @@
     const hidden = homeHiddenSet();
     wrap.querySelectorAll(".home-block").forEach((el) => {
       el.classList.toggle("hidden", hidden.has(el.dataset.block));
+      // 1단/2단(전체폭/반폭) 적용
+      const span = homeSpan(el.dataset.block);
+      el.classList.toggle("hb-full", span === "full");
+      el.classList.toggle("hb-half", span === "half");
     });
+  }
+
+  /* 블록별 1단(전체폭)/2단(반폭) 너비 — 사용자가 홈 편집에서 직접 지정 */
+  const HOME_SPAN_DEFAULT = {
+    cheer: "full", week: "full", today: "full", recent: "full",
+    ticket: "half", music: "half", dday: "half", spend: "half", upcoming: "half", membership: "half",
+  };
+  function homeSpan(id) {
+    const s = S.homeSpan && S.homeSpan[id];
+    return s === "full" || s === "half" ? s : (HOME_SPAN_DEFAULT[id] || "half");
+  }
+  function setHomeSpan(id, span) {
+    if (!S.homeSpan || typeof S.homeSpan !== "object") S.homeSpan = {};
+    S.homeSpan[id] = span;
+    save();
+    applyHomeLayout();
   }
 
   function toggleEditHome() {
@@ -1372,14 +1474,32 @@
       x.className = "hb-x"; x.title = "홈에서 빼기"; x.setAttribute("aria-label", "홈에서 빼기"); x.innerHTML = I("x");
       x.addEventListener("pointerdown", (e) => e.stopPropagation());
       x.addEventListener("click", (e) => { e.stopPropagation(); hideBlock(el.dataset.block); });
+      // 1단/2단 너비 토글 (현재 상태를 글자로 표시하는 부드러운 칩)
+      const sp = document.createElement("button");
+      sp.className = "hb-span";
+      const setLbl = () => {
+        const full = homeSpan(el.dataset.block) === "full";
+        sp.textContent = full ? "1단" : "2단";
+        sp.classList.toggle("on", !full);
+        sp.title = full ? "지금 1단(전체폭) — 눌러서 2단(반폭)으로" : "지금 2단(반폭) — 눌러서 1단(전체폭)으로";
+        sp.setAttribute("aria-label", sp.title);
+      };
+      setLbl();
+      sp.addEventListener("pointerdown", (e) => e.stopPropagation());
+      sp.addEventListener("click", (e) => {
+        e.stopPropagation();
+        setHomeSpan(el.dataset.block, homeSpan(el.dataset.block) === "full" ? "half" : "full");
+        setLbl();
+      });
       el.appendChild(grip);
       el.appendChild(x);
+      el.appendChild(sp);
     });
     renderEditTray();
   }
   function clearHomeEdit() {
     const wrap = $("homeBlocks");
-    if (wrap) wrap.querySelectorAll(".hb-grip, .hb-x").forEach((b) => b.remove());
+    if (wrap) wrap.querySelectorAll(".hb-grip, .hb-x, .hb-span").forEach((b) => b.remove());
     const tray = $("homeAddTray");
     if (tray) tray.remove();
   }
@@ -1428,6 +1548,7 @@
     });
     const ph = document.createElement("div");
     ph.className = "hb-ph"; ph.style.height = rect.height + "px";
+    if (block.classList.contains("hb-full")) ph.classList.add("hb-full"); // 전체폭 블록 자리표시자도 전체폭
     block.after(ph);
     const scroller = document.querySelector(".main");
     let lastX = e.clientX, lastY = e.clientY;
@@ -2476,7 +2597,7 @@
     if (!p) return;
     const stName = { own: "보유", wish: "위시", trade: "교환 중" };
     openModalRaw(p.name || "포토카드", `
-      ${p.img ? `<img src="${p.img}" style="width:100%;max-height:50vh;object-fit:contain;border-radius:12px;margin-bottom:14px">` : ""}
+      ${p.img ? `<img src="${p.img}" alt="${esc(p.name) || "포토카드"} 사진" style="width:100%;max-height:50vh;object-fit:contain;border-radius:12px;margin-bottom:14px">` : ""}
       <p style="font-size:12px;color:var(--muted);margin-bottom:14px">${p.album ? esc(p.album) + " · " : ""}${stName[p.status] || ""}${p.memo ? " · " + esc(p.memo) : ""}</p>
       <div class="btn-row">
         <button class="btn btn-primary btn-sm" id="pcMove">${p.status === "own" ? "위시로 이동" : "보유로 이동 (겟 완료!)"}</button>
@@ -2798,7 +2919,7 @@
     const d = S.archives.find((x) => x.id === id);
     if (!d) return;
     openModalRaw(d.title, `
-      ${(d.imgs || []).map((im) => `<img src="${im}" style="width:100%;border-radius:12px;margin-bottom:12px">`).join("")}
+      ${(d.imgs || []).map((im) => `<img src="${im}" alt="${esc(d.title) || "기록"} 사진" style="width:100%;border-radius:12px;margin-bottom:12px">`).join("")}
       <p style="font-size:12px;color:var(--muted);margin-bottom:8px">${esc(d.etype || "기타")} · ${d.date || ""}${d.place ? " · " + esc(d.place) : ""}</p>
       <p style="font-size:14px;white-space:pre-wrap;margin-bottom:16px">${esc(d.content)}</p>
       <div class="btn-row">
@@ -3075,12 +3196,18 @@
     });
   }
 
+  let modalLastFocus = null;
   function openModalRaw(title, bodyHtml) {
+    modalLastFocus = document.activeElement; // 닫을 때 포커스 복원용
     $("modalTitle").textContent = title;
     $("modalBody").innerHTML = bodyHtml;
     linkFieldLabels($("modalBody"));
     $("modalBackdrop").classList.remove("hidden");
     document.body.style.overflow = "hidden";
+    // 접근성: 모달 열리면 다이얼로그로 포커스 이동(모바일 키보드 갑툭튀 방지 위해 입력란 대신 컨테이너에)
+    const box = $("modalBox");
+    box.tabIndex = -1;
+    box.focus();
   }
 
   function closeModal() {
@@ -3088,6 +3215,9 @@
     $("modalBackdrop").classList.add("hidden");
     document.body.style.overflow = "";
     modalPhotoData = null;
+    // 모달을 연 요소로 포커스 복원
+    if (modalLastFocus && modalLastFocus.focus) { try { modalLastFocus.focus(); } catch (_) {} }
+    modalLastFocus = null;
   }
 
   function backdropClose(e) {
@@ -3106,9 +3236,10 @@
     modalPhotoData = null;
     const box = $("mpBox");
     if (!box) return;
-    box.onclick = () => $("mpInput").click();
+    // 라벨(mpBox)이 파일 입력을 자동으로 열기 때문에 onclick으로 또 열지 않음
     $("mpInput").onchange = (e) => {
       const f = e.target.files[0];
+      e.target.value = "";
       if (!f) return;
       fileToData(f, maxW || 700, (data) => {
         modalPhotoData = data;
@@ -3137,6 +3268,7 @@
       [...e.target.files].slice(0, 5 - modalPhotosData.length).forEach((f) => {
         fileToData(f, 900, (data) => { modalPhotosData.push(data); renderPhotosGrid(); });
       });
+      e.target.value = "";
     };
   }
   function bindPhotosPick(existing) {
@@ -3492,10 +3624,10 @@
       };
       ["mTitle", "mName", "mIcon", "mNo"].forEach((id) => { $(id).oninput = updatePreview; });
       $("mcPresets").querySelectorAll("[data-mcs]").forEach((x) => { x.onclick = () => { mcStyle = x.dataset.mcs; updatePreview(); }; });
-      // 배경 사진 업로드 (미리보기 즉시 반영)
-      $("mpBox").onclick = () => $("mpInput").click();
+      // 배경 사진 업로드 (미리보기 즉시 반영) — 라벨이 입력을 자동으로 열므로 onclick 생략
       $("mpInput").onchange = (e) => {
         const f = e.target.files[0];
+        e.target.value = "";
         if (!f) return;
         fileToData(f, 900, (data) => {
           mcPhoto = data;
@@ -3634,6 +3766,41 @@
     });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeModal();
+    });
+    // 접근성: 모달이 열려 있는 동안 Tab 포커스를 모달 안에 가둠(포커스 트랩)
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Tab") return;
+      const backdrop = $("modalBackdrop");
+      if (!backdrop || backdrop.classList.contains("hidden")) return;
+      const sel = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+      const list = [...$("modalBox").querySelectorAll(sel)].filter((el) => el.offsetParent !== null);
+      if (!list.length) return;
+      const first = list[0], last = list[list.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+    // 접근성: onclick만 있는 비표준 인터랙티브 요소(div/span 등)를 키보드로도 조작 가능하게
+    const NATIVE_INTERACTIVE = ["button", "a", "input", "select", "textarea"];
+    document.querySelectorAll("[onclick]").forEach((el) => {
+      if (NATIVE_INTERACTIVE.includes(el.tagName.toLowerCase())) return;
+      if (el.classList.contains("modal-backdrop")) return; // 배경 클릭 닫기는 키보드 대상 아님(ESC로 닫힘)
+      if (!el.hasAttribute("tabindex")) el.tabIndex = 0;
+      if (!el.hasAttribute("role")) el.setAttribute("role", "button");
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const el = e.target;
+      if (!el || !el.getAttribute || !el.hasAttribute("onclick")) return;
+      if (NATIVE_INTERACTIVE.includes(el.tagName.toLowerCase())) return;
+      e.preventDefault();
+      el.click();
+    });
+    // 전역 오류 안전망: 예기치 못한 오류가 나도 앱이 조용히 멈추지 않도록 안내
+    window.addEventListener("error", (e) => {
+      if (e && (e.error || e.message)) { try { toast("일시적인 오류가 발생했어요. 화면을 새로고침해 주세요."); } catch (_) {} }
+    });
+    window.addEventListener("unhandledrejection", () => {
+      try { toast("일시적인 오류가 발생했어요. 화면을 새로고침해 주세요."); } catch (_) {}
     });
     // 창 크기 변경 시 바인더 열·행 다시 계산 (활성 페이지일 때만)
     let _rsz;

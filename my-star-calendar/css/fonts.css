@@ -3,10 +3,21 @@
 /* Gowun Batang — 발레코어 모드 제목용 한글 세리프 */
 @import url("https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap");
 
+/* OK 말랑 — 로고 전용(로컬 파일) */
+@font-face {
+  font-family: "OK Mallang";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("../fonts/Logo/OK_Mallang_Font/otf/Ok%20Mallang%20B.otf") format("opentype"),
+       url("../fonts/Logo/OK_Mallang_Font/ttf/Ok%20Mallang%20B.ttf") format("truetype");
+}
+
 :root {
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
     system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo",
     "Noto Sans KR", "Malgun Gothic", sans-serif;
   --font-serif: "Gowun Batang", Georgia, "Times New Roman", serif;
+  --font-logo: "OK Mallang", var(--font-sans);
 }
 

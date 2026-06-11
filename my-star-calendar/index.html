@@ -18,8 +18,8 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="apple-touch-icon" href="favicon.svg">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="css/fonts.css">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/fonts.css?v=3">
+<link rel="stylesheet" href="css/style.css?v=3">
 </head>
 <body>
 
@@ -203,8 +203,8 @@
       <div class="profile-card-main" onclick="App.cardGo()">
         <div class="pc-cover" id="homeCover">
           <i class="cz" id="homeCoverBg"></i>
-          <span class="zoom-btns hidden" id="zoomHome"><button type="button" title="확대" data-z="+">＋</button><button type="button" title="축소" data-z="-">−</button></span>
-          <button class="cover-pos-btn" id="homePosBtn" title="배경 위치 조정" onclick="event.stopPropagation();App.toggleCoverPos('home')"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></svg></button>
+          <span class="zoom-btns hidden" id="zoomHome"><button type="button" title="확대" aria-label="배경 확대" data-z="+">＋</button><button type="button" title="축소" aria-label="배경 축소" data-z="-">−</button></span>
+          <button class="cover-pos-btn" id="homePosBtn" title="배경 위치 조정" aria-label="배경 위치 조정" onclick="event.stopPropagation();App.toggleCoverPos('home')"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></svg></button>
         </div>
         <div class="pc-row">
           <div class="pc-avatar" id="heroPhoto"></div>
@@ -253,6 +253,13 @@
           </div>
         </div>
 
+        <div class="home-block" data-block="music">
+          <div class="card">
+            <div class="card-title">음악</div>
+            <div class="music-box" id="homeMusic"></div>
+          </div>
+        </div>
+
         <div class="home-block" data-block="spend">
           <div class="card">
             <div class="card-title">이번 달 행복 비용</div>
@@ -294,10 +301,10 @@
       <button class="back-btn" onclick="App.go('home')">‹ 메인으로</button>
       <div class="hero-wrap" id="heroWrap">
         <div class="hero-bg" id="profCover"></div>
-        <span class="zoom-btns hidden" id="zoomProf"><button type="button" title="확대" data-z="+">＋</button><button type="button" title="축소" data-z="-">−</button></span>
+        <span class="zoom-btns hidden" id="zoomProf"><button type="button" title="확대" aria-label="배경 확대" data-z="+">＋</button><button type="button" title="축소" aria-label="배경 축소" data-z="-">−</button></span>
         <div class="hero-deco-layer" id="heroDeco"></div>
-        <button class="hero-pos-btn chip-btn icon-only" id="posBtn" title="배경 위치 조정" onclick="App.toggleCoverPos()"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></svg></button>
-        <button class="hero-deco-btn chip-btn icon-only" id="decoBtn" title="스티커 꾸미기" onclick="App.toggleDeco()"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 4 1.7 4.3L18 10l-4.3 1.7L12 16l-1.7-4.3L6 10l4.3-1.7Z"/><path d="m18.7 15.5.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7Z"/></svg></button>
+        <button class="hero-pos-btn chip-btn icon-only" id="posBtn" title="배경 위치 조정" aria-label="배경 위치 조정" onclick="App.toggleCoverPos()"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></svg></button>
+        <button class="hero-deco-btn chip-btn icon-only" id="decoBtn" title="스티커 꾸미기" aria-label="스티커 꾸미기" onclick="App.toggleDeco()"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 4 1.7 4.3L18 10l-4.3 1.7L12 16l-1.7-4.3L6 10l4.3-1.7Z"/><path d="m18.7 15.5.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7Z"/></svg></button>
       </div>
       <div class="deco-palette hidden" id="decoPalette"></div>
       <div class="prof-id">
@@ -412,8 +419,8 @@
           <button class="tab" data-atab="links" onclick="App.archiveTab('links')">링크 보관함</button>
         </div>
         <div class="seg" id="archViewSeg">
-          <button class="active" data-av="card" title="카드형"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></button>
-          <button data-av="feed" title="피드형"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="14" width="16" height="7" rx="1.5"/></svg></button>
+          <button class="active" data-av="card" title="카드형" aria-label="카드형 보기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></button>
+          <button data-av="feed" title="피드형" aria-label="피드형 보기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="14" width="16" height="7" rx="1.5"/></svg></button>
         </div>
       </div>
       <div class="arch-search" id="archSearchWrap">
@@ -487,12 +494,13 @@
         <div class="field" style="margin-top:14px">
           <label>배경 패턴 <small>(응원봉·스타더스트 제외)</small></label>
           <div class="tab-row" id="bgTabs" style="margin-bottom:0;flex-wrap:wrap"></div>
+          <p class="hint" style="margin-top:8px">미니홈피 모드와는 동시에 쓸 수 있어요. 배경 패턴은 어떤 모드에서든 화면 배경과 미니홈피 벽지에 적용돼요. (응원봉·스타더스트 제외)</p>
         </div>
         <div class="field" id="veilField" style="margin-top:14px">
           <label>콘텐츠 배경 농도 <small>(패턴 위 글씨 가독성)</small> <span id="veilVal" class="veil-val">0%</span></label>
           <input type="range" id="veilRange" class="veil-range" min="0" max="100" step="5" value="0" oninput="App.setVeil(this.value)">
+          <p class="hint" style="margin-top:8px">콘텐츠 배경 농도를 높이면 콘텐츠 뒤에 불투명한 막이 생겨 패턴 위에서도 글씨가 잘 보여요. 0%면 패턴 그대로예요.</p>
         </div>
-        <p class="hint">미니홈피 모드와는 동시에 쓸 수 있어요. 배경 패턴은 어떤 모드에서든 화면 배경과 미니홈피 벽지에 적용돼요. (응원봉·스타더스트 제외)<br>콘텐츠 배경 농도를 높이면 콘텐츠 뒤에 불투명한 막이 생겨 패턴 위에서도 글씨가 잘 보여요. 0%면 패턴 그대로예요.</p>
       </div>
 
       <div class="card">
@@ -629,6 +637,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="script/app.js"></script>
+<script src="script/app.js?v=3"></script>
 </body>
 </html>
