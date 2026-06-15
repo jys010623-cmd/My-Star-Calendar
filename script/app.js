@@ -120,8 +120,9 @@
     ["browser", "브라우저"], ["phone", "폰"], ["msgr", "메신저"],
     ["note", "메모장"], ["retropc", "레트로 윈도우"],
   ];
-  const BGS = [["none", "기본"], ["dot", "땡땡이"], ["heart", "하트"], ["sparkle", "반짝이"], ["star", "별"], ["flower", "꽃"], ["cloud", "구름"], ["wave", "물결"], ["diamond", "마름모"], ["stripe", "사선"], ["zigzag", "지그재그"], ["grid", "격자"], ["check", "체크"]];
+  const BGS = [["none", "기본"], ["dot", "땡땡이"], ["heart", "하트"], ["sparkle", "반짝이"], ["star", "별"], ["flower", "꽃"], ["clover", "클로버"], ["ribbon", "리본"], ["cherry", "체리"], ["cloud", "구름"], ["wave", "물결"], ["diamond", "마름모"], ["stripe", "사선"], ["zigzag", "지그재그"], ["grid", "격자"], ["check", "체크"]];
   const ALIGNS = [["left", "왼쪽"], ["center", "가운데"]];
+  const PATSTYLES = [["scatter", "흩뿌림"], ["diag", "사선"]];
   const TEMPLATES = [
     { id: "classic", name: "클래식" },
     { id: "profile", name: "프로필형" },
@@ -431,6 +432,7 @@
     root.setAttribute("data-retro-skin", S.retroSkin || "browser");
     root.setAttribute("data-retro-pos", S.retroPos || "float");
     root.setAttribute("data-bg", S.bg || "none");
+    root.setAttribute("data-patstyle", S.patstyle || "scatter");
     root.setAttribute("data-hasbg", !NO_BG_MODES.includes(S.mode) ? "true" : "false");
     root.setAttribute("data-align", S.align || "left");
     root.setAttribute("data-template", S.template || "profile");
@@ -970,6 +972,12 @@
     save(); applyTheme(); renderSettings();
     const found = ALIGNS.find(([id]) => id === a);
     toast(`${found ? found[1] : ""} 정렬로 바꿨어요`);
+  }
+  function setPatStyle(p) {
+    S.patstyle = p;
+    save(); applyTheme(); renderSettings();
+    const found = PATSTYLES.find(([id]) => id === p);
+    toast(`패턴을 ${found ? found[1] : ""} 스타일로 바꿨어요`);
   }
   function retroMin() {
     const r = document.documentElement;
@@ -3161,6 +3169,15 @@
         b.onclick = () => setAlign(b.dataset.alignBtn);
       });
     }
+    const ps = $("patstyleTabs");
+    if (ps) {
+      ps.innerHTML = PATSTYLES.map(([id, name]) =>
+        `<button class="tab ${(S.patstyle || "scatter") === id ? "active" : ""}" data-patstyle-btn="${id}">${name}</button>`).join("");
+      ps.classList.toggle("dim", NO_BG_MODES.includes(S.mode) || !S.bg || S.bg === "none");
+      ps.querySelectorAll("[data-patstyle-btn]").forEach((b) => {
+        b.onclick = () => setPatStyle(b.dataset.patstyleBtn);
+      });
+    }
   }
 
   function renderSwatches() {
@@ -4015,7 +4032,7 @@
   /* 외부 공개 API */
   window.App = {
     obNext, obFinish, obSkip, extractFromPhoto,
-    go, toggleFab, toggleDark, toggleRetro, setRetroSkin, setRetroPos, setBg, setAlign, openFramePicker, openColorPicker, openBudget, openYearReview, toggleNotifyTicket, toggleHaptics, setVeil, setPreset, retroMin, retroMax, toggleDeco, toggleCoverPos, cardGo, coverDragStart, editCurrentBias, setTemplate, setMode,
+    go, toggleFab, toggleDark, toggleRetro, setRetroSkin, setRetroPos, setBg, setAlign, setPatStyle, openFramePicker, openColorPicker, openBudget, openYearReview, toggleNotifyTicket, toggleHaptics, setVeil, setPreset, retroMin, retroMax, toggleDeco, toggleCoverPos, cardGo, coverDragStart, editCurrentBias, setTemplate, setMode,
     calMove, calToday, calJump, openStickerPicker, shareDay,
     binderTab, ledgerMove, archiveTab, styleTab,
     addLink, openModal, closeModal, backdropClose,

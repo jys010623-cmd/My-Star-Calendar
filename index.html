@@ -516,6 +516,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <div class="tab-row" id="bgTabs" style="margin-bottom:0;flex-wrap:wrap"></div>
           <p class="hint" style="margin-top:8px">미니홈피 모드와는 동시에 쓸 수 있어요. 배경 패턴은 어떤 모드에서든 화면 배경과 미니홈피 벽지에 적용돼요. (응원봉·스타더스트 제외)</p>
         </div>
+        <div class="field" id="patstyleField" style="margin-top:14px">
+          <label>패턴 배치 <small>(모양 그림 패턴에만 적용)</small></label>
+          <div class="tab-row" id="patstyleTabs" style="margin-bottom:0"></div>
+          <p class="hint" style="margin-top:8px">'흩뿌림'은 큰 모양과 작은 모양을 엇갈려 흩뿌리고, '사선'은 같은 크기 모양만 사선으로 반복해요. 리본은 항상 사선으로 보여요. (땡땡이·격자·사선 같은 기하 패턴엔 영향 없어요)</p>
+        </div>
         <div class="field" id="veilField" style="margin-top:14px">
           <label>콘텐츠 배경 농도 <small>(패턴 위 글씨 가독성)</small> <span id="veilVal" class="veil-val">0%</span></label>
           <input type="range" id="veilRange" class="veil-range" min="0" max="100" step="5" value="0" oninput="App.setVeil(this.value)">
