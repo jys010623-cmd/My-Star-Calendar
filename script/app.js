@@ -15,6 +15,8 @@
      id가 사용자가 마지막으로 본 값보다 크면 메뉴에 빨간 점(배지)이 붙고,
      공지사항을 한 번 열어보면 사라집니다. (첫 사용자·전체 초기화 사용자는 안 뜸) */
   const NOTICES = [
+    { id: 3, cat: "update", date: "2026.06.15", title: "새 배경 패턴 4종 추가 🍎",
+      body: "배경 패턴에 클로버·리본·체리·사과 4종이 새로 생겼어요. 설정 > 배경 패턴에서 골라 내 최애 분위기에 맞게 꾸며보세요!" },
     { id: 2, cat: "update", date: "2026.06.15", title: "공지사항과 건의함 추가",
       body: "이제 공지사항과 건의함이 생겼어요. PC는 왼쪽 사이드바, 태블릿·모바일은 상단에서 들어갈 수 있어요. 건의함에 남겨주신 의견은 다음 업데이트에 반영됩니다. 🙇" },
     { id: 1, cat: "info", date: "2026.06.12", title: "오픈 베타 시작",
@@ -120,9 +122,11 @@
     ["browser", "브라우저"], ["phone", "폰"], ["msgr", "메신저"],
     ["note", "메모장"], ["retropc", "레트로 윈도우"],
   ];
-  const BGS = [["none", "기본"], ["dot", "땡땡이"], ["heart", "하트"], ["sparkle", "반짝이"], ["star", "별"], ["flower", "꽃"], ["clover", "클로버"], ["ribbon", "리본"], ["cherry", "체리"], ["cloud", "구름"], ["wave", "물결"], ["diamond", "마름모"], ["stripe", "사선"], ["zigzag", "지그재그"], ["grid", "격자"], ["check", "체크"]];
+  const BGS = [["none", "기본"], ["dot", "땡땡이"], ["heart", "하트"], ["sparkle", "반짝이"], ["star", "별"], ["flower", "꽃"], ["clover", "클로버"], ["ribbon", "리본"], ["cherry", "체리"], ["apple", "사과"], ["cloud", "구름"], ["wave", "물결"], ["diamond", "마름모"], ["stripe", "사선"], ["zigzag", "지그재그"], ["grid", "격자"], ["check", "체크"]];
   const ALIGNS = [["left", "왼쪽"], ["center", "가운데"]];
   const PATSTYLES = [["scatter", "흩뿌림"], ["diag", "사선"]];
+  // 패턴 배치(흩뿌림/사선)가 실제로 모양을 바꾸는 패턴만. 나머지(땡땡이·리본·물결·사선·지그재그·격자·체크)는 영향 없음 → 배치 토글 비활성화
+  const PATSTYLE_BGS = ["heart", "sparkle", "star", "flower", "clover", "cherry", "apple", "cloud", "diamond"];
   const TEMPLATES = [
     { id: "classic", name: "클래식" },
     { id: "profile", name: "프로필형" },
@@ -3173,7 +3177,7 @@
     if (ps) {
       ps.innerHTML = PATSTYLES.map(([id, name]) =>
         `<button class="tab ${(S.patstyle || "scatter") === id ? "active" : ""}" data-patstyle-btn="${id}">${name}</button>`).join("");
-      ps.classList.toggle("dim", NO_BG_MODES.includes(S.mode) || !S.bg || S.bg === "none");
+      ps.classList.toggle("dim", NO_BG_MODES.includes(S.mode) || !PATSTYLE_BGS.includes(S.bg));
       ps.querySelectorAll("[data-patstyle-btn]").forEach((b) => {
         b.onclick = () => setPatStyle(b.dataset.patstyleBtn);
       });
@@ -3189,7 +3193,15 @@
       b.className = "swatch" + (hex.toLowerCase() === S.accent.toLowerCase() ? " active" : "");
       b.title = name;
       b.style.background = hex;
-      b.onclick = () => { S.accent = hex; save(); applyTheme(); renderSwatches(); };
+      b.onclick = () => {
+        S.accent = hex; save(); applyTheme(); renderSwatches();
+        // 직접 선택 칩·코드도 같이 갱신 (설정·온보딩 둘 다)
+        [["setColorChip", "setColorHex"], ["obColorChip", "obColorHex"]].forEach(([c, h]) => {
+          const chip = $(c), hx = $(h);
+          if (chip) chip.style.background = S.accent;
+          if (hx) hx.textContent = S.accent.toUpperCase();
+        });
+      };
       grid.appendChild(b);
     });
   }
