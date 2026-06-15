@@ -1247,6 +1247,7 @@ input[type="color"] {
   font-size: 14.5px; font-weight: 700; color: var(--text);
 }
 .more-row span { color: var(--muted); }
+a.more-row { text-decoration: none; }
 
 /* ───────── FAB ───────── */
 .fab-wrap {
@@ -1413,6 +1414,35 @@ input[type="color"] {
     color: var(--text);
   }
   .mini-toggle.dim { cursor: default; }
+  /* 사이드바 ? 건의 버튼 + 호버 툴팁 (메뉴 영역 맨 아래, 왼쪽 정렬) */
+  .side-help {
+    position: relative;
+    margin-top: auto;        /* 메뉴 아래 구분선 바로 위로 밀착 */
+    margin-bottom: 12px;
+    margin-left: 3px;
+    align-self: flex-start;  /* 왼쪽 정렬 */
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; border: 1px solid var(--line);
+    background: none; color: var(--muted);
+    font-size: 14px; font-weight: 800; line-height: 1; text-decoration: none;
+    transition: background-color .15s, color .15s, border-color .15s;
+  }
+  .side-help:hover {
+    background: var(--accent-softer); border-color: var(--line-strong); color: var(--text);
+  }
+  .side-help::after {
+    content: attr(data-tip);
+    position: absolute; left: calc(100% + 10px); top: 50%;
+    transform: translateY(-50%) scale(.96);
+    background: var(--line-strong); color: var(--bg);
+    padding: 6px 10px; border-radius: 8px;
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+    opacity: 0; pointer-events: none;
+    transition: opacity .15s, transform .15s; z-index: 40;
+    box-shadow: var(--shadow);
+  }
+  .side-help:hover::after { opacity: 1; transform: translateY(-50%) scale(1); }
   .main { flex: 1; padding: 34px 40px 80px; max-width: none; }
   .page { max-width: 980px; }
   .home-grid { grid-template-columns: repeat(2, 1fr); }
