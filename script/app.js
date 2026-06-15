@@ -7,6 +7,27 @@
 
   const LS_KEY = "myStarCalendar.v1";
 
+  /* ═══════════ 공지사항 ═══════════
+     새 소식을 올리려면 아래 NOTICES 배열 맨 위에 항목을 추가하세요.
+     - id: 숫자(이전보다 큰 값이면 됨). 이 숫자로 '새 공지' 여부를 판단합니다.
+     - cat: "update"(업데이트) | "info"(안내) | "maint"(점검)
+     - date: 표시용 문자열, title: 제목, body: 내용
+     id가 사용자가 마지막으로 본 값보다 크면 메뉴에 빨간 점(배지)이 붙고,
+     공지사항을 한 번 열어보면 사라집니다. (첫 사용자·전체 초기화 사용자는 안 뜸) */
+  const NOTICES = [
+    { id: 2, cat: "update", date: "2026.06.15", title: "건의함(Q&A) 추가",
+      body: "써보고 느낀 점을 남길 수 있는 건의함이 생겼어요. 왼쪽 사이드바(PC) 또는 더보기(모바일)에서 들어갈 수 있어요. 보내주신 의견은 다음 업데이트에 반영됩니다. 🙇" },
+    { id: 1, cat: "info", date: "2026.06.12", title: "오픈 베타 시작",
+      body: "마이 스타 캘린더 오픈 베타가 시작됐어요. 최애를 등록하고 나만의 덕질 공간을 만들어 보세요. 많은 관심 부탁드려요! 🌟" },
+  ];
+  const NOTICE_CATS = {
+    update: { label: "업데이트", color: "--c-release" },
+    info:   { label: "안내",     color: "--c-broadcast" },
+    maint:  { label: "점검",     color: "--c-birthday" },
+  };
+  const latestNoticeId = () => NOTICES.reduce((m, n) => Math.max(m, n.id), 0);
+  const hasUnseenNotices = () => NOTICES.some((n) => n.id > (S.seenNotice || 0));
+
   /* ── 카테고리 정의 ── */
   // 덕질 유형 프리셋 — 캘린더 카테고리가 주제에 맞게 바뀜 (색은 위치순 팔레트 재사용)
   const PALETTE = ["--c-comeback", "--c-concert", "--c-ticket", "--c-birthday", "--c-broadcast", "--c-release", "--c-personal"];
@@ -297,6 +318,7 @@
       schedules: [], stickers: {}, photocards: [],
       expenses: [], archives: [], links: [], styles: [],
       membership: { title: "MY STAR PASS", name: "", icon: "✦", no: "0001" },
+      seenNotice: 0,
     };
   }
 
@@ -520,6 +542,7 @@
     activeCats = new Set(Object.keys(CATS));
     S.membership.name = bias.name.toUpperCase() + "'S FAN";
     S.onboarded = true;
+    S.seenNotice = latestNoticeId(); // 첫 사용자는 공지 배지 안 뜨게
     save();
     $("onboarding").classList.add("hidden");
     $("app").classList.remove("hidden");
@@ -540,6 +563,7 @@
     buildCats();
     activeCats = new Set(Object.keys(CATS));
     S.onboarded = true;
+    S.seenNotice = latestNoticeId(); // 첫 사용자는 공지 배지 안 뜨게
     save();
     $("onboarding").classList.add("hidden");
     $("app").classList.remove("hidden");
@@ -3203,7 +3227,9 @@
     $("modalBody").innerHTML = bodyHtml;
     linkFieldLabels($("modalBody"));
     $("modalBackdrop").classList.remove("hidden");
+    var _sbw = window.innerWidth - document.documentElement.clientWidth; // 스크롤바 폭
     document.body.style.overflow = "hidden";
+    if (_sbw > 0) document.body.style.paddingRight = _sbw + "px"; // 스크롤바 사라짐 보정(화면 밀림 방지)
     // 접근성: 모달 열리면 다이얼로그로 포커스 이동(모바일 키보드 갑툭튀 방지 위해 입력란 대신 컨테이너에)
     const box = $("modalBox");
     box.tabIndex = -1;
@@ -3214,6 +3240,7 @@
     $("modalBox").classList.remove("wide");
     $("modalBackdrop").classList.add("hidden");
     document.body.style.overflow = "";
+    document.body.style.paddingRight = "";
     modalPhotoData = null;
     // 모달을 연 요소로 포커스 복원
     if (modalLastFocus && modalLastFocus.focus) { try { modalLastFocus.focus(); } catch (_) {} }
@@ -3276,9 +3303,54 @@
     renderPhotosGrid();
   }
 
+  /* 공지사항 목록 HTML */
+  function noticesHtml() {
+    var head = "";
+    if (_updateAvailable) {
+      head = '<div style="display:flex;align-items:center;gap:10px;justify-content:space-between;background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px;padding:12px 14px;margin-bottom:14px">'
+        + '<div style="min-width:0"><b style="font-size:13.5px">✨ 새 버전이 나왔어요</b>'
+        + '<div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.45">저장된 기록은 그대로예요. 작성 중인 내용이 있으면 먼저 등록해 주세요.</div></div>'
+        + '<button id="noticeUpdateReload" class="btn btn-primary btn-sm" style="flex:0 0 auto">새로고침</button></div>';
+    }
+    if (!NOTICES.length) return head + `<p class="notice-empty">아직 공지가 없어요.</p>`;
+    return head + `<div class="notice-list">` + NOTICES.map((n) => {
+      const c = NOTICE_CATS[n.cat] || NOTICE_CATS.info;
+      const isNew = n.id > (S.seenNotice || 0);
+      return `<div class="notice-item">
+        <div class="notice-top">
+          <span class="notice-cat" style="background:var(${c.color})">${c.label}</span>
+          ${isNew ? `<span class="notice-new">NEW</span>` : ""}
+          <span class="notice-date">${n.date}</span>
+        </div>
+        <h4 class="notice-title">${esc(n.title)}</h4>
+        <p class="notice-body">${esc(n.body)}</p>
+      </div>`;
+    }).join("") + `</div>`;
+  }
+
+  /* 사이드바·더보기 공지 배지(빨간 점) 갱신 */
+  function updateNoticeBadge() {
+    const show = hasUnseenNotices() || _updateAvailable;
+    ["noticeDotSide", "noticeDotTop"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle("hidden", !show);
+    });
+  }
+
   function openModal(type, editId) {
     closeFab();
     const baseDate = selDate || todayKey();
+
+    /* 공지사항 */
+    if (type === "notices") {
+      openModalRaw("공지사항", noticesHtml());
+      S.seenNotice = latestNoticeId();
+      save();
+      updateNoticeBadge();
+      var _ub = document.getElementById("noticeUpdateReload");
+      if (_ub) _ub.onclick = doUpdateReload;
+      return;
+    }
 
     /* 일정 등록/수정 */
     if (type === "schedule") {
@@ -3723,6 +3795,83 @@
     renderArchive();
     renderStyle();
     renderSettings();
+    updateNoticeBadge();
+  }
+
+  /* ═══════════ 새 버전 감지 → '새로고침' 안내 배너 ═══════════
+     version.json을 주기적으로 확인해, 이 세션이 처음 로드한 버전과 달라지면
+     (= 그 사이 새 버전이 배포됨) 배너를 띄웁니다.
+     자동 새로고침은 하지 않아요(작성 중이던 내용 보호) — 사용자가 직접 누르게 합니다.
+     ▶ 배포할 때마다 version.json의 version 값만 새 값으로 올리면 됩니다. */
+  let _runningVer = null, _dismissedVer = null, _updateAvailable = false;
+  function fetchVersion() {
+    try {
+    return fetch("version.json?t=" + Date.now(), { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => (j && j.version) || null)
+      .catch(() => null);
+    } catch (e) { return Promise.resolve(null); }
+  }
+  function checkVersion() {
+    if (document.hidden) return;
+    fetchVersion().then((v) => {
+      if (v && _runningVer && v !== _runningVer) {
+        _updateAvailable = true;
+        updateNoticeBadge();
+        if (v !== _dismissedVer) showUpdateBanner(v);
+      }
+    });
+  }
+  function initVersionCheck() {
+    if (location.protocol === "file:") return; // 로컬(file://)에선 비활성화 — fetch 불가
+    fetchVersion().then((v) => { _runningVer = v; });
+    setInterval(checkVersion, 180000); // 3분마다
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) checkVersion(); });
+    window.addEventListener("focus", checkVersion);
+  }
+  function doUpdateReload() {
+    try { sessionStorage.setItem("msc.justUpdated", "1"); } catch (e) {}
+    location.reload();
+  }
+  function showUpdateBanner(v) {
+    if (document.getElementById("updateBanner")) return;
+    const bar = document.createElement("div");
+    bar.id = "updateBanner";
+    bar.setAttribute("role", "status");
+    bar.innerHTML =
+      '<div style="display:flex;flex-direction:column;gap:3px;margin-right:2px">' +
+        '<span style="font-weight:700">✨ 새 버전이 나왔어요</span>' +
+        '<span style="font-size:11.5px;opacity:.82;line-height:1.45">저장된 기록은 그대로예요.<br>작성 중인 내용이 있으면 먼저 등록해 주세요.</span>' +
+      '</div>' +
+      '<button id="ubReload">새로고침</button>' +
+      '<button id="ubClose" aria-label="닫기">✕</button>';
+    Object.assign(bar.style, {
+      position: "fixed", left: "50%",
+      bottom: "calc(var(--nav-h) + 18px + env(safe-area-inset-bottom, 0px))",
+      transform: "translateX(-50%)", zIndex: "300",
+      display: "flex", alignItems: "center", gap: "12px",
+      background: "var(--line-strong)", color: "var(--bg)",
+      padding: "12px 14px 12px 18px", borderRadius: "14px",
+      boxShadow: "var(--shadow)", fontSize: "13.5px", maxWidth: "90vw",
+    });
+    document.body.appendChild(bar);
+    const reload = bar.querySelector("#ubReload");
+    Object.assign(reload.style, {
+      background: "var(--bg)", color: "var(--text)", border: "none",
+      borderRadius: "9px", padding: "7px 13px", fontSize: "13px", fontWeight: "700", cursor: "pointer",
+    });
+    reload.onclick = () => {
+      var bd = document.getElementById("modalBackdrop");
+      var midInput = bd && !bd.classList.contains("hidden");
+      if (midInput && !confirm("작성 중인 내용이 있어요. 새로고침하면 아직 '등록'하지 않은 입력은 사라질 수 있어요. 계속할까요?")) return;
+      doUpdateReload();
+    };
+    const close = bar.querySelector("#ubClose");
+    Object.assign(close.style, {
+      background: "transparent", color: "var(--bg)", border: "none",
+      fontSize: "14px", lineHeight: "1", cursor: "pointer", opacity: ".7", padding: "4px",
+    });
+    close.onclick = () => { bar.remove(); _dismissedVer = v; };
   }
 
   /* ═══════════ 시작 ═══════════ */
@@ -3853,6 +4002,13 @@
       else if (mqDesk.addListener) mqDesk.addListener(onDesk);
       onDesk(mqDesk);
     }
+    try {
+      if (sessionStorage.getItem("msc.justUpdated")) {
+        sessionStorage.removeItem("msc.justUpdated");
+        setTimeout(function () { toast("최신 버전으로 업데이트됐어요 ✨"); }, 500);
+      }
+    } catch (e) {}
+    initVersionCheck();
     tickClock();
   }
 

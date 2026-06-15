@@ -25,8 +25,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="apple-touch-icon" href="favicon.svg">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="css/fonts.css?v=3">
-<link rel="stylesheet" href="css/style.css?v=3">
+<link rel="stylesheet" href="css/fonts.css?v=6">
+<link rel="stylesheet" href="css/style.css?v=6">
 </head>
 <body>
 <!-- Google Tag Manager (noscript) -->
@@ -190,7 +190,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <button class="nav-btn" data-page="ledger" onclick="App.go('ledger')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20v-7M12 20V6M19 20v-10"/></svg></span>덕질 가계부</button>
       <button class="nav-btn" data-page="style" onclick="App.go('style')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 11.6V6A2.5 2.5 0 0 1 6 3.5h5.6a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8l-5.6 5.6a2 2 0 0 1-2.8 0l-7-7a2 2 0 0 1-.6-1.4Z"/><circle cx="8.2" cy="8.2" r="1.3"/></svg></span>스타일북</button>
       <button class="nav-btn" data-page="settings" onclick="App.go('settings')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7.5h3.3M11.7 7.5H20"/><circle cx="9.5" cy="7.5" r="2.2"/><path d="M4 16.5h8.3M16.7 16.5H20"/><circle cx="14.5" cy="16.5" r="2.2"/></svg></span>설정</button>
-      <a class="side-help" href="feedback.html" target="_blank" rel="noopener" aria-label="건의하기" data-tip="건의할 수 있어요">?</a>
+      <div class="side-tools">
+        <button class="side-tool" onclick="App.openModal('notices')" aria-label="공지사항" data-tip="공지사항"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="nt-dot hidden" id="noticeDotSide"></span></button>
+        <a class="side-tool" href="feedback.html" target="_blank" rel="noopener" aria-label="건의하기" data-tip="건의할 수 있어요">?</a>
+      </div>
     </nav>
     <div class="side-foot">
       <button class="mini-toggle" id="darkToggleSide" onclick="App.toggleDark()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14A8.5 8.5 0 1 1 10 3.5a7 7 0 0 0 10.5 10.5Z"/></svg> 다크 모드</button>
@@ -207,7 +210,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <span class="mh-name" id="mhName">최애</span>
         <span class="mh-dday badge-accent" id="mhDday">D+0</span>
       </div>
-      <button class="mh-dark" onclick="App.toggleDark()" title="다크 모드 전환" aria-label="다크 모드 전환"><svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14A8.5 8.5 0 1 1 10 3.5a7 7 0 0 0 10.5 10.5Z"/></svg><svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M4.4 4.4l1.85 1.85M17.75 17.75l1.85 1.85M2.5 12h2.6M18.9 12h2.6M4.4 19.6l1.85-1.85M17.75 6.25l1.85-1.85"/></svg></button>
+      <div class="mh-actions">
+        <button class="mh-icon" onclick="App.openModal('notices')" aria-label="공지사항"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="nt-dot hidden" id="noticeDotTop"></span></button>
+        <a class="mh-icon" href="feedback.html" target="_blank" rel="noopener" aria-label="건의함"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 5.5h15A1.5 1.5 0 0 1 21 7v8a1.5 1.5 0 0 1-1.5 1.5H10l-4 3.3V16.5H4.5A1.5 1.5 0 0 1 3 15V7a1.5 1.5 0 0 1 1.5-1.5Z"/></svg></a>
+        <button class="mh-icon" onclick="App.openFramePicker()" aria-label="미니홈피 모드"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="12.5" rx="2"/><path d="M9 20.5h6M12 17v3.5"/></svg></button>
+        <button class="mh-dark" onclick="App.toggleDark()" title="다크 모드 전환" aria-label="다크 모드 전환"><svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14A8.5 8.5 0 1 1 10 3.5a7 7 0 0 0 10.5 10.5Z"/></svg><svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M4.4 4.4l1.85 1.85M17.75 17.75l1.85 1.85M2.5 12h2.6M18.9 12h2.6M4.4 19.6l1.85-1.85M17.75 6.25l1.85-1.85"/></svg></button>
+      </div>
     </header>
 
     <!-- ──────── 메인(홈) ──────── -->
@@ -587,7 +595,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <button class="more-row" onclick="App.toggleDark()"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14A8.5 8.5 0 1 1 10 3.5a7 7 0 0 0 10.5 10.5Z"/></svg> 다크 모드</span><span>›</span></button>
       <button class="more-row" onclick="App.openFramePicker()"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="12.5" rx="2"/><path d="M9 20.5h6M12 17v3.5"/></svg> 미니홈피 모드</span><span>›</span></button>
       <button class="more-row" onclick="App.go('settings')"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7.5h3.3M11.7 7.5H20"/><circle cx="9.5" cy="7.5" r="2.2"/><path d="M4 16.5h8.3M16.7 16.5H20"/><circle cx="14.5" cy="16.5" r="2.2"/></svg> 설정</span><span>›</span></button>
-      <a class="more-row" href="feedback.html" target="_blank" rel="noopener"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .8c0 1.7-2.5 2.3-2.5 4"/><circle cx="12" cy="17.2" r=".6" fill="currentColor" stroke="none"/></svg> 건의함</span><span>›</span></a>
+      <a class="more-row" href="faq.html" target="_blank" rel="noopener"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .8c0 1.7-2.5 2.3-2.5 4"/><circle cx="12" cy="17.2" r=".6" fill="currentColor" stroke="none"/></svg> Q&A <small style="color:var(--muted);font-weight:500">자주 묻는 질문</small></span><span>›</span></a>
     </section>
   </main>
 
@@ -650,6 +658,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <div class="toast" id="toast"></div>
 
-<script src="script/app.js?v=3"></script>
+<script src="script/app.js?v=6"></script>
 </body>
 </html>
