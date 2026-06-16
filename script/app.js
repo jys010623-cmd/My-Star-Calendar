@@ -24,6 +24,7 @@
   /* ── 카테고리 정의 ── */
   // 덕질 유형 프리셋 — 캘린더 카테고리가 주제에 맞게 바뀜 (색은 위치순 팔레트 재사용)
   const PALETTE = ["--c-comeback", "--c-concert", "--c-ticket", "--c-birthday", "--c-broadcast", "--c-release", "--c-personal"];
+  const PASTEL = ["#F4B7C7", "#AFD2F0", "#F7CBA4", "#FBE2A0", "#BBE3C0", "#CFBDEC", "#F3BCDD", "#BCE2DD", "#D8C7B0", "#C7D8B0"];
   // cats=캘린더 카테고리 / arch=아카이브 오프라인 기록 유형 / archOn=온라인 기록 유형
   const PRESETS = {
     idol:    { name: "아이돌", cats: [["comeback", "컴백"], ["concert", "콘서트"], ["ticket", "티켓팅"], ["birthday", "생일·생카"], ["broadcast", "방송·버블"], ["release", "발매·굿즈"], ["personal", "개인"]],
@@ -48,10 +49,34 @@
                arch: ["기록", "방문", "기타"], archOn: ["온라인", "시청", "기타"] },
   };
   let CATS = {}; // 활성 프리셋 카테고리 — buildCats()로 채움
+  const CAT_FALLBACK = { name: "기타", v: "--cat-fallback" }; // 카테고리 삭제 등으로 못 찾을 때 안전 폴백
+  // 카테고리는 '오프라인/온라인' 두 묶음으로만 나뉨 (사용자 편집 가능)
+  function defaultCats() {
+    const off = ["콘서트", "팬미팅", "팬사인회", "생일카페", "팝업스토어"];
+    const on = ["컴백", "발매", "음악방송", "방송", "라이브", "버블", "자컨", "MD"];
+    const all = off.map((n) => [n, "offline"]).concat(on.map((n) => [n, "online"]));
+    return all.map(([name, mode], i) => ({ key: "cat_" + uid(), name, mode, color: PASTEL[i % PASTEL.length] }));
+  }
   function buildCats() {
-    const p = PRESETS[(S && S.preset) || "idol"] || PRESETS.idol;
+    const root = (typeof document !== "undefined") ? document.documentElement : null;
+    let list;
+    if (S) {
+      // 오프/온 카테고리 모델(om1)로 한 번 이전
+      if (S.catModel !== "om7" || !Array.isArray(S.cats) || !S.cats.length) {
+        S.cats = defaultCats();
+        S.catModel = "om7";
+      }
+      list = S.cats;
+    } else {
+      list = defaultCats();
+    }
     CATS = {};
-    p.cats.forEach(([k, n], i) => { CATS[k] = { name: n, v: PALETTE[i % PALETTE.length] }; });
+    list.forEach((c) => {
+      CATS[c.key] = { name: c.name, v: `--cat-${c.key}`, mode: c.mode || "offline" };
+      if (root) root.style.setProperty(`--cat-${c.key}`, c.color);
+    });
+    if (root && S && S.recColor) root.style.setProperty("--c-record", S.recColor);
+    const p = PRESETS[(S && S.preset) || "idol"] || PRESETS.idol;
     ARCH_TYPES = (p.arch || PRESETS.idol.arch).slice();
     ARCH_TYPES_ON = (p.archOn || PRESETS.idol.archOn).slice();
   }
@@ -149,6 +174,7 @@
   let S = null;            // 전체 데이터
   let calCur = new Date(); // 캘린더 표시 월
   let selDate = null;      // 선택된 날짜 'YYYY-MM-DD'
+  let homeDay = null;      // 홈 'TODAY' 카드가 보여줄 날짜 (null = 오늘). '이번 주'에서 날짜를 누르면 바뀜
   let ledgerCur = new Date();
   let binderMode = "own";
   let styleMode = "all";
@@ -311,7 +337,7 @@
       onboarded: false, preset: "idol", dark: false, retro: false, retroSkin: "browser", retroPos: "float", bg: "none", align: "left", widgets: {}, budget: 0, notifyTicket: false, haptics: true, veil: 0, mode: "", template: "profile", archView: "card", accent: "#141414",
       biases: [], currentBias: null,
       customArchTypes: { offline: [], online: [] },
-      schedules: [], stickers: {}, photocards: [],
+      cats: [], recLabel: "기록", recColor: "#c3aee8", schedules: [], stickers: {}, photocards: [],
       expenses: [], archives: [], links: [], styles: [],
       timetables: [], ttRange: { s: 0, e: 24 },
       membership: { title: "MY STAR PASS", name: "", icon: "✦", no: "0001" },
@@ -783,6 +809,68 @@
     const tx = (q) => Math.round((q + m) * 255).toString(16).padStart(2, "0");
     return ("#" + tx(r) + tx(g) + tx(b)).toUpperCase();
   }
+  function openCatManager() {
+    let draft = (S.cats || []).map((c) => ({ key: c.key, name: c.name, color: c.color, mode: c.mode || "offline" }));
+    let recDraft = { label: (S.recLabel || "기록"), color: (S.recColor || "#c3aee8") };
+    openModalRaw("카테고리 관리", `
+      <p class="hint">오프라인·온라인별로 카테고리를 추가·이름·색 변경·삭제할 수 있어요. 색 동그라미를 누르면 색을 바꿔요.</p>
+      <div id="catMgrList"></div>
+      <div class="catm-sep">특별 토글 · 후기·기록 표시 (삭제 불가)</div>
+      <div class="catm-row">
+        <button type="button" class="catm-sw" id="recSw" style="background:${recDraft.color}" aria-label="색 변경"></button>
+        <input type="text" class="catm-name" id="recName" value="${esc(recDraft.label)}" maxlength="12" placeholder="이름">
+        <div class="catm-pal hidden" id="recPal">
+          ${PASTEL.map((p) => `<button type="button" class="catm-chip" data-recpick="${p}" style="background:${p}" aria-label="색"></button>`).join("")}
+          <label class="catm-custom">직접 <input type="color" id="recCustom" value="${recDraft.color}"></label>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-lg" id="catSaveBtn">저장</button>`);
+    const rowHtml = (c, i) => `<div class="catm-row">
+        <button type="button" class="catm-sw" data-sw="${i}" style="background:${c.color}" aria-label="색 변경"></button>
+        <input type="text" class="catm-name" data-nm="${i}" value="${esc(c.name)}" maxlength="12" placeholder="이름">
+        <button type="button" class="catm-del" data-del="${i}" aria-label="삭제">${I("x")}</button>
+        <div class="catm-pal hidden" data-pal="${i}">
+          ${PASTEL.map((p) => `<button type="button" class="catm-chip" data-pick="${i}" data-color="${p}" style="background:${p}" aria-label="색"></button>`).join("")}
+          <label class="catm-custom">직접 <input type="color" data-custom="${i}" value="${c.color}"></label>
+        </div>
+      </div>`;
+    function render() {
+      const list = $("catMgrList");
+      const sec = (mode, label, ic) => {
+        const items = draft.map((c, i) => [c, i]).filter(([c]) => (c.mode || "offline") === mode);
+        return `<div class="catm-grouphd">${ic} ${label}</div>`
+          + (items.length ? items.map(([c, i]) => rowHtml(c, i)).join("") : `<p class="hint catm-empty">아직 없어요.</p>`)
+          + `<button type="button" class="f-chip chip-add catm-add" data-add="${mode}">+ ${label} 카테고리</button>`;
+      };
+      list.innerHTML = sec("offline", "오프라인", I("pin")) + sec("online", "온라인", I("monitor"));
+      list.querySelectorAll("[data-nm]").forEach((el) => { el.oninput = () => { draft[+el.dataset.nm].name = el.value; }; });
+      list.querySelectorAll("[data-sw]").forEach((el) => { el.onclick = () => { const pal = list.querySelector(`[data-pal="${el.dataset.sw}"]`); if (pal) pal.classList.toggle("hidden"); }; });
+      list.querySelectorAll("[data-pick]").forEach((el) => { el.onclick = () => { draft[+el.dataset.pick].color = el.dataset.color; render(); }; });
+      list.querySelectorAll("[data-custom]").forEach((el) => { el.oninput = () => { const i = +el.dataset.custom; draft[i].color = el.value; const sw = list.querySelector(`[data-sw="${i}"]`); if (sw) sw.style.background = el.value; }; });
+      list.querySelectorAll("[data-del]").forEach((el) => { el.onclick = () => { draft.splice(+el.dataset.del, 1); render(); }; });
+      list.querySelectorAll("[data-add]").forEach((el) => { el.onclick = () => { draft.push({ key: "cat_" + uid(), name: "새 카테고리", color: PASTEL[draft.length % PASTEL.length], mode: el.dataset.add }); render(); }; });
+    }
+    render();
+    $("recName").oninput = () => { recDraft.label = $("recName").value; };
+    $("recSw").onclick = () => { $("recPal").classList.toggle("hidden"); };
+    document.querySelectorAll("#recPal [data-recpick]").forEach((el) => { el.onclick = () => { recDraft.color = el.dataset.recpick; $("recSw").style.background = recDraft.color; $("recPal").classList.add("hidden"); }; });
+    $("recCustom").oninput = () => { recDraft.color = $("recCustom").value; $("recSw").style.background = recDraft.color; };
+    $("catSaveBtn").onclick = () => {
+      draft = draft.map((c) => ({ key: c.key, name: (c.name || "").trim(), color: c.color, mode: c.mode || "offline" })).filter((c) => c.name);
+      S.cats = draft;
+      S.recLabel = (recDraft.label || "").trim() || "기록";
+      S.recColor = recDraft.color;
+      buildCats();
+      Object.keys(CATS).forEach((k) => activeCats.add(k));
+      [...activeCats].forEach((k) => { if (!CATS[k]) activeCats.delete(k); });
+      save();
+      closeModal();
+      renderCalendar();
+      if (typeof renderHome === "function") renderHome();
+      toast("카테고리를 저장했어요");
+    };
+  }
+
   function openColorPicker(ctx) {
     let [h, sv, vv] = hexToHsv(S.accent);
     openModalRaw("나만의 컬러", `
@@ -1205,28 +1293,11 @@
       });
     }
 
-    // TODAY
-    const tk = todayKey();
-    $("todayDateLabel").textContent = new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" });
-    const todays = byBias(S.schedules).filter((s) => s.date === tk).sort((a, b2) => (a.time || "").localeCompare(b2.time || ""));
-    const annivToday = [];
-    if (b.birthday && isAnnivToday(b.birthday)) annivToday.push({ cat: "birthday", title: `${b.name} 생일`, time: "" });
-    if (b.debutDate && isAnnivToday(b.debutDate)) annivToday.push({ cat: "birthday", title: "데뷔 기념일", time: "" });
-    (b.annivs || []).forEach((a) => { if (isAnnivToday(a.date)) annivToday.push({ cat: "birthday", title: a.title, time: "" }); });
-    const all = [...annivToday, ...todays];
-    $("todayScroll").innerHTML = all.length
-      ? all.map((s) => {
-          const c = CATS[s.cat] || CATS.personal;
-          return `<div class="today-card" style="--cat:var(${c.v})">
-            <div class="tc-cat">${c.name}</div>
-            <div class="tc-time">${esc(s.time) || "하루 종일"}</div>
-            <div class="tc-title">${esc(s.title)}</div>
-          </div>`;
-        }).join("")
-      : `<div class="today-empty">오늘은 조용한 날이에요.<br>+ 버튼으로 일정을 등록해 보세요</div>`;
+    // TODAY ('이번 주'에서 고른 날짜를 보여줄 수 있음)
+    renderHomeToday(b);
 
     // 이번 달 지출
-    const ym = tk.slice(0, 7);
+    const ym = todayKey().slice(0, 7);
     const monthExp = byBias(S.expenses).filter((e) => e.date && e.date.startsWith(ym));
     const total = monthExp.reduce((a, e) => a + (+e.amount || 0), 0);
     $("homeSpend").textContent = won(total);
@@ -1251,7 +1322,7 @@
       .slice(0, 5);
     $("upcomingList").innerHTML = upcoming.length
       ? upcoming.map((s) => {
-          const c = CATS[s.cat] || CATS.personal;
+          const c = CATS[s.cat] || CAT_FALLBACK;
           const d = new Date(s.date);
           const dday = Math.round((stripTime(d) - stripTime(new Date())) / 86400000);
           return `<li><span class="dot" style="background:var(${c.v})"></span>${esc(s.title)}<span class="ud">${d.getMonth() + 1}/${d.getDate()} · D-${dday}</span></li>`;
@@ -1308,7 +1379,7 @@
     const nextSch = byBias(S.schedules).filter((s) => s.date && s.date >= today).sort((a, c) => a.date.localeCompare(c.date))[0];
     if (nextSch) {
       const n = Math.round((stripTime(new Date(nextSch.date)) - stripTime(new Date())) / 86400000);
-      ddays.push({ ic: I("bell"), label: nextSch.title, n, v: (CATS[nextSch.cat] || CATS.personal).v });
+      ddays.push({ ic: I("bell"), label: nextSch.title, n, v: (CATS[nextSch.cat] || CAT_FALLBACK).v });
     }
     ddays.sort((a, c) => a.n - c.n);
     const ddEl = $("homeDday");
@@ -1317,21 +1388,7 @@
       : `<div class="dday-empty">생일·데뷔일을 등록하면 카운트다운이 떠요 (설정 → 최애 관리)</div>`;
 
     // 이번 주 스트립
-    const wkEl = $("homeWeek");
-    if (wkEl) {
-      const now = new Date();
-      const start = new Date(now); start.setDate(now.getDate() - now.getDay());
-      const schedDates = new Set(byBias(S.schedules).map((s) => s.date));
-      const names = ["일", "월", "화", "수", "목", "금", "토"];
-      let wk = "";
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(start); d.setDate(start.getDate() + i);
-        const key = fmtDate(d);
-        wk += `<button class="wk-day ${key === today ? "today" : ""}" data-date="${key}"><span class="wk-name ${i === 0 ? "sun" : i === 6 ? "sat" : ""}">${names[i]}</span><span class="wk-num">${d.getDate()}</span><i class="wk-dot ${schedDates.has(key) ? "on" : ""}"></i></button>`;
-      }
-      wkEl.innerHTML = wk;
-      wkEl.querySelectorAll("[data-date]").forEach((btn) => { btn.onclick = () => { selDate = btn.dataset.date; go("calendar"); }; });
-    }
+    renderHomeWeek();
 
     // 최근 기록·포카
     const recEl = $("homeRecent");
@@ -1934,9 +1991,88 @@
     move(e);
   }
 
-  function isAnnivToday(dateStr) {
-    const d = new Date(dateStr), n = new Date();
+  function isAnnivOn(dateStr, refKey) {
+    const d = new Date(dateStr), n = refKey ? new Date(refKey) : new Date();
     return d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
+  }
+  function isAnnivToday(dateStr) { return isAnnivOn(dateStr); }
+
+  /* 홈 'TODAY' 카드 — homeDay(없으면 오늘)에 해당하는 일정·기념일을 보여줌 */
+  function renderHomeToday(b) {
+    b = b || curBias();
+    const tk = homeDay || todayKey();
+    const isToday = tk === todayKey();
+    const labelEl = $("todayDateLabel");
+    if (labelEl) {
+      const d = new Date(tk);
+      labelEl.textContent = d.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" });
+    }
+    // 제목(TODAY ↔ 선택한 날) · '오늘로' 되돌리기 버튼 표시
+    const titleEl = $("todayTitle");
+    if (titleEl) titleEl.textContent = "TODAY"; // 제목 고정: 글자 폭 변화로 화면이 움직이지 않도록
+    const backBtn = $("todayBackBtn");
+    if (backBtn) backBtn.style.visibility = isToday ? "hidden" : "visible"; // 자리는 늘 차지 → 버튼이 생겼다 사라져도 화면이 안 움직임
+
+    const items = b ? byBias(S.schedules).filter((s) => s.date === tk).sort((a, b2) => (a.time || "").localeCompare(b2.time || "")) : [];
+    const annivs = [];
+    if (b) {
+      if (b.birthday && isAnnivOn(b.birthday, tk)) annivs.push({ cat: "birthday", title: `${b.name} 생일`, time: "" });
+      if (b.debutDate && isAnnivOn(b.debutDate, tk)) annivs.push({ cat: "birthday", title: "데뷔 기념일", time: "" });
+      (b.annivs || []).forEach((a) => { if (isAnnivOn(a.date, tk)) annivs.push({ cat: "birthday", title: a.title, time: "" }); });
+    }
+    const all = [...annivs, ...items];
+    const sc = $("todayScroll");
+    if (sc) sc.innerHTML = all.length
+      ? all.map((s) => {
+          const c = CATS[s.cat] || CAT_FALLBACK;
+          return `<div class="today-card" style="--cat:var(${c.v})">
+            <div class="tc-cat">${c.name}</div>
+            <div class="tc-time">${esc(s.time) || "하루 종일"}</div>
+            <div class="tc-title">${esc(s.title)}</div>
+          </div>`;
+        }).join("")
+      : `<div class="today-empty">${isToday ? "오늘은 조용한 날이에요." : "이 날은 등록된 일정이 없어요."}<br>아래 '일정 추가'로 등록해 보세요</div>`;
+  }
+
+  /* 홈 '이번 주' 스트립 — 오늘/선택한 날을 표시. 날짜를 누르면 TODAY 카드만 바꿈(캘린더로 안 감) */
+  function renderHomeWeek() {
+    const wkEl = $("homeWeek");
+    if (!wkEl) return;
+    const today = todayKey();
+    const now = new Date();
+    const start = new Date(now); start.setDate(now.getDate() - now.getDay());
+    const schedDates = new Set(byBias(S.schedules).map((s) => s.date));
+    const names = ["일", "월", "화", "수", "목", "금", "토"];
+    const sel = homeDay || today; // 현재 TODAY 카드가 보여주는 날짜
+    let wk = "";
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start); d.setDate(start.getDate() + i);
+      const key = fmtDate(d);
+      const cls = (key === today ? " today" : "") + (key === sel && key !== today ? " sel" : "");
+      wk += `<button class="wk-day${cls}" data-date="${key}"><span class="wk-name ${i === 0 ? "sun" : i === 6 ? "sat" : ""}">${names[i]}</span><span class="wk-num">${d.getDate()}</span><i class="wk-dot ${schedDates.has(key) ? "on" : ""}"></i></button>`;
+    }
+    wkEl.innerHTML = wk;
+    wkEl.querySelectorAll("[data-date]").forEach((btn) => {
+      btn.onclick = () => {
+        homeDay = (btn.dataset.date === todayKey()) ? null : btn.dataset.date;
+        renderHomeToday();
+        renderHomeWeek();
+      };
+    });
+  }
+
+  // '이번 주'/'TODAY'에서 고른 날짜를 캘린더에서 열기 (일정 추가용)
+  function homeOpenCalendar() {
+    selDate = homeDay || todayKey();
+    const d = new Date(selDate);
+    calCur = new Date(d.getFullYear(), d.getMonth(), 1);
+    go("calendar");
+  }
+  // 'TODAY'를 오늘로 되돌리기
+  function homeBackToToday() {
+    homeDay = null;
+    renderHomeToday();
+    renderHomeWeek();
   }
 
   function renderMemberCard() {
@@ -2554,17 +2690,43 @@
     };
   }
 
+  // 가로로 긴 줄을 마우스로 끌어 좌우 스크롤 (칩 클릭과 충돌 안 나게 드래그 후 클릭은 무시)
+  function enableDragScroll(el) {
+    if (!el || el.dataset.dragScroll) return;
+    el.dataset.dragScroll = "1";
+    let down = false, moved = false, startX = 0, startLeft = 0;
+    el.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      down = true; moved = false; startX = e.clientX; startLeft = el.scrollLeft;
+    });
+    window.addEventListener("pointermove", (e) => {
+      if (!down) return;
+      const dx = e.clientX - startX;
+      if (!moved && Math.abs(dx) > 5) moved = true;
+      if (moved) { el.scrollLeft = startLeft - dx; }
+    });
+    window.addEventListener("pointerup", () => {
+      if (down && moved) { el._suppressClick = true; setTimeout(() => { el._suppressClick = false; }, 60); }
+      down = false; moved = false;
+    });
+    el.addEventListener("click", (e) => { if (el._suppressClick) { e.stopPropagation(); e.preventDefault(); } }, true);
+  }
+
   function renderCalendar() {
     const y = calCur.getFullYear(), m = calCur.getMonth();
     $("calTitle").textContent = `${y}.${pad(m + 1)}`;
 
     // 필터 칩
     const fr = $("catFilters");
-    fr.innerHTML = Object.entries(CATS).map(([k, c]) =>
-      `<button class="f-chip ${activeCats.has(k) ? "active" : ""}" data-cat="${k}">
-        <span class="dot" style="background:var(${c.v})"></span>${c.name}</button>`).join("")
-      + `<button class="f-chip rec-chip ${showRecords ? "active" : ""}" data-rec="1" title="아카이브 기록(후기)을 캘린더에 함께 표시">
-          <span class="dot rec-dot"></span>기록</button>`;
+    const _chip = ([k, c]) => `<button class="f-chip ${activeCats.has(k) ? "active" : ""}" data-cat="${k}" style="--cat:var(${c.v})"><span class="dot" style="background:var(${c.v})"></span>${c.name}</button>`;
+    const _off = Object.entries(CATS).filter(([k, c]) => (c.mode || "offline") === "offline");
+    const _on = Object.entries(CATS).filter(([k, c]) => (c.mode || "offline") === "online");
+    let _chips;
+    if (calMode === "offline") _chips = _off.map(_chip).join("");
+    else if (calMode === "online") _chips = _on.map(_chip).join("");
+    else _chips = _off.map(_chip).join("") + (_off.length && _on.length ? `<span class="f-divider" aria-hidden="true"></span>` : "") + _on.map(_chip).join("");
+    fr.innerHTML = _chips
+      + `<button class="f-chip chip-add" id="catMgrBtn" title="카테고리 추가·수정·삭제">+ 카테고리</button>`;
     fr.querySelectorAll(".f-chip[data-cat]").forEach((ch) => {
       ch.onclick = () => {
         const k = ch.dataset.cat;
@@ -2572,8 +2734,9 @@
         renderCalendar();
       };
     });
-    const recChip = fr.querySelector(".f-chip[data-rec]");
-    if (recChip) recChip.onclick = () => { showRecords = !showRecords; renderCalendar(); };
+    const catMgrBtn = fr.querySelector("#catMgrBtn");
+    if (catMgrBtn) catMgrBtn.onclick = openCatManager;
+    enableDragScroll(fr);
 
     // 멀티캘린더 구분: 전체 / 오프라인 / 온라인
     const cm = $("calModeSeg");
@@ -2616,10 +2779,15 @@
       if (key === tk) classes.push("today");
       if (key === selDate) classes.push("selected");
       const st = S.stickers[key] ? `<span class="sticker">${S.stickers[key]}</span>` : "";
-      const dots = (schedByDate[key] || []).slice(0, 5)
-        .map((s) => `<i style="background:var(${(CATS[s.cat] || CATS.personal).v})"></i>`).join("")
-        + (archByDate[key] || []).slice(0, 3)
-          .map((a) => `<i class="rec ${(a.mode || "offline") === "online" ? "on" : "off"}"></i>`).join("");
+      // 칸 안 내용: 점 대신 '제목 칩' — 일정은 카테고리 색 점, 기록은 보라색 펜 아이콘으로 구분
+      const dayItems = [];
+      (schedByDate[key] || []).forEach((s) => dayItems.push({ r: false, title: s.title, c: `var(${(CATS[s.cat] || CAT_FALLBACK).v})` }));
+      (archByDate[key] || []).forEach((a) => dayItems.push({ r: true, title: a.title }));
+      const MAXC = 3;
+      const chips = dayItems.slice(0, MAXC).map((it) => it.r
+        ? `<span class="cal-chip rec">${I("pencil")}<span class="ct">${esc(it.title || "기록")}</span></span>`
+        : `<span class="cal-chip"><i class="ci" style="background:${it.c}"></i><span class="ct">${esc(it.title || "일정")}</span></span>`
+      ).join("") + (dayItems.length > MAXC ? `<span class="cal-more">+${dayItems.length - MAXC}</span>` : "");
       let anniv = "";
       if (b) {
         if (b.birthday && sameMD(b.birthday, m, dayNum)) anniv = `<span class="anniv">${I("cake")} 생일</span>`;
@@ -2631,7 +2799,7 @@
       }
       html += `<div class="${classes.join(" ")}" data-date="${key}">
         <span class="num">${dayNum}</span>${st}
-        <div class="dots">${dots}</div>${anniv}
+        <div class="daychips">${chips}</div>${anniv}
       </div>`;
     }
     $("calGrid").innerHTML = html;
@@ -2661,7 +2829,7 @@
       .sort((a, b) => (a.mode || "").localeCompare(b.mode || ""));
 
     const schedHtml = items.map((s) => {
-      const c = CATS[s.cat] || CATS.personal;
+      const c = CATS[s.cat] || CAT_FALLBACK;
       return `<li>
         <span class="bar" style="background:var(${c.v})"></span>
         <div class="dl-main">
@@ -2682,7 +2850,7 @@
       return `<li class="day-rec" data-rview="${a.id}">
         <span class="bar rec-bar ${on ? "on" : "off"}"></span>
         <div class="dl-main">
-          <div class="dl-cat rec-cat">${on ? I("monitor") : I("pin")} 기록 · ${esc(a.etype || "기타")}${a.place ? " · " + esc(a.place) : ""}</div>
+          <div class="dl-cat rec-cat">${on ? I("monitor") : I("pin")} ${esc(S.recLabel || "기록")} · ${esc(a.etype || "기타")}${a.place ? " · " + esc(a.place) : ""}</div>
           <div class="dl-title">${esc(a.title)}</div>
           ${a.content ? `<div class="dl-sub">${esc(a.content.length > 40 ? a.content.slice(0, 40) + "…" : a.content)}</div>` : ""}
         </div>
@@ -2741,7 +2909,7 @@
     const d = new Date(selDate);
     let text = `🗓 ${d.getMonth() + 1}/${d.getDate()} ${b ? b.name : ""} 스케줄\n`;
     items.forEach((s) => {
-      text += `\n${s.time ? s.time + " " : ""}[${(CATS[s.cat] || CATS.personal).name}] ${s.title}`;
+      text += `\n${s.time ? s.time + " " : ""}[${(CATS[s.cat] || CAT_FALLBACK).name}] ${s.title}`;
       if (s.place) text += ` @ ${s.place}`;
     });
     text += "\n\n#마이스타캘린더 #MyStarCalendar";
@@ -3725,7 +3893,7 @@
           </div>
         </div>
         <div class="field"><label>카테고리</label>
-          <select id="mCat">${Object.entries(CATS).map(([k, c]) => `<option value="${k}">${c.name}</option>`).join("")}</select>
+          <select id="mCat"></select>
         </div>
         <div class="field"><label>날짜 *</label><input type="date" id="mDate" value="${baseDate}"></div>
         <div class="field"><label>시간</label><input type="time" id="mTime"></div>
@@ -3743,14 +3911,21 @@
         <button class="btn btn-primary btn-lg" id="mSave">저장</button>
         ${edit && edit.groupId ? `<button class="btn btn-danger btn-lg slim" id="mDelGroup">이 반복 일정 전체 삭제</button>` : ""}
       `);
-      let schedMode = edit ? (edit.mode || (edit.cat === "broadcast" ? "online" : "offline")) : "offline";
+      let schedMode = edit ? (edit.mode || "offline") : "offline";
+      const fillCat = () => {
+        const opts = Object.entries(CATS).filter(([k, c]) => (c.mode || "offline") === schedMode);
+        $("mCat").innerHTML = opts.length
+          ? opts.map(([k, c]) => `<option value="${k}">${esc(c.name)}</option>`).join("")
+          : `<option value="">(이 모드의 카테고리 없음 — 관리에서 추가)</option>`;
+      };
       const syncSchedMode = () => {
         $("mSchedMode").querySelectorAll("[data-sm]").forEach((b) => {
           b.classList.toggle("active", b.dataset.sm === schedMode);
-          b.onclick = () => { schedMode = b.dataset.sm; syncSchedMode(); };
+          b.onclick = () => { schedMode = b.dataset.sm; syncSchedMode(); fillCat(); };
         });
       };
       syncSchedMode();
+      fillCat();
       const mr = $("mRepeat");
       if (mr) mr.onchange = () => {
         $("mRepEndWrap").classList.toggle("hidden", !mr.value);
@@ -4690,6 +4865,7 @@
     exportData, resetAll,
     openStandby, closeStandby,
     toggleEditHome,
+    homeOpenCalendar, homeBackToToday,
   };
 
   document.addEventListener("DOMContentLoaded", init);

@@ -27,6 +27,8 @@
   --c-broadcast: #3dbdff;
   --c-release: #2ecc9a;
   --c-personal: #9b9b9b;
+  --c-record: #c3aee8;
+  --cat-fallback: var(--muted);
 
   --radius: 14px;
   --nav-h: 62px;
@@ -598,6 +600,22 @@ input[type="color"] {
   padding: 2px 2px 10px; scrollbar-width: none;
 }
 .today-scroll::-webkit-scrollbar { display: none; }
+/* TODAY 헤더의 동작 버튼들 (일정 추가 / 오늘로 되돌리기) */
+.today-actions { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.today-add-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--accent); color: var(--on-accent);
+  border: none; border-radius: 16px; padding: 5px 11px 5px 9px;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.today-add-btn .li { width: 14px; height: 14px; }
+.today-add-btn:hover { filter: brightness(1.05); }
+.today-back-btn {
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 16px; padding: 4px 10px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.today-back-btn:hover { border-color: var(--line-strong); color: var(--text); }
 .today-card {
   flex: 0 0 auto; width: 168px;
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
@@ -656,6 +674,9 @@ input[type="color"] {
 .wk-day.today .wk-name.sun,
 .wk-day.today .wk-name.sat { color: var(--on-accent); opacity: .82; }
 .wk-day.today .wk-dot.on { background: var(--on-accent); }
+/* '이번 주'에서 고른 날(오늘이 아닐 때) — 테두리로 강조 */
+.wk-day.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.wk-day.sel .wk-num { color: var(--accent-deep); }
 
 .recent-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
 .recent-scroll::-webkit-scrollbar { display: none; }
@@ -895,7 +916,8 @@ input[type="color"] {
   display: flex; align-items: center; justify-content: center;
 }
 .binder-hint { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
-.filter-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
+.filter-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; cursor: grab; }
+.filter-row:active { cursor: grabbing; }
 .filter-row::-webkit-scrollbar { display: none; }
 .f-chip {
   flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px;
@@ -903,7 +925,23 @@ input[type="color"] {
   padding: 5px 11px; font-size: 12px; font-weight: 600; color: var(--muted);
 }
 .f-chip .dot { width: 7px; height: 7px; border-radius: 50%; }
-.f-chip.active { border-color: var(--line-strong); color: var(--text); }
+.f-chip.active { color: var(--text); }
+.f-divider { width: 0; height: 18px; align-self: center; border-left: 1px solid var(--line); margin: 0 3px; flex: 0 0 auto; }
+.f-chip:not(.active):not(.chip-add) { opacity: .45; }
+.catm-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.catm-sw { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); flex: none; cursor: pointer; padding: 0; }
+.catm-name { flex: 1; min-width: 90px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--text); font-size: 14px; }
+.catm-del { flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.catm-del .li { width: 15px; height: 15px; }
+.catm-pal { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 6px 0 2px; }
+.catm-chip { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line); cursor: pointer; padding: 0; }
+.catm-custom { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+.catm-custom input[type=color] { width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 8px; background: none; cursor: pointer; padding: 0; }
+.catm-sep { font-size: 12px; color: var(--muted); margin: 14px 0 6px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.catm-grouphd { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; margin: 12px 0 4px; }
+.catm-grouphd .li { width: 15px; height: 15px; }
+.catm-empty { padding: 4px 0; }
+.catm-add { margin: 6px 0 2px; }
 /* 아카이브 사용자 추가 유형 칩 */
 .f-chip.chip-add { border-style: dashed; color: var(--accent-deep); font-weight: 700; }
 .f-chip.chip-custom { padding-right: 5px; }
@@ -941,6 +979,13 @@ input[type="color"] {
 .cal-cell .dots { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 3px; }
 .cal-cell .dots i { width: 6px; height: 6px; border-radius: 50%; }
 .cal-cell .anniv { font-size: 9.5px; color: var(--c-birthday); font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 2px; margin-top: 2px; }
+.cal-cell { overflow: hidden; }
+.cal-cell .daychips { display: flex; flex-direction: column; gap: 1px; margin-top: 3px; min-width: 0; }
+.cal-chip { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 10.5px; line-height: 1.45; color: var(--text); }
+.cal-chip .ci { width: 5px; height: 5px; border-radius: 50%; flex: none; }
+.cal-chip .ct { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.cal-chip.rec .li { width: 11px; height: 11px; flex: none; color: var(--c-record); }
+.cal-more { font-size: 10px; color: var(--muted); margin-top: 1px; }
 
 .day-panel { margin-top: 18px; border-top: 1.5px solid var(--line-strong); padding-top: 14px; }
 .day-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
@@ -960,14 +1005,14 @@ input[type="color"] {
 .day-list .dl-del { background: none; border: none; color: var(--muted); font-size: 13px; padding: 2px 5px; display: inline-flex; align-items: center; }
 .day-empty { color: var(--muted); font-size: 13px; padding: 14px 2px; }
 /* 캘린더↔아카이브 연동: 기록 표시 */
-.cal-cell .dots i.rec { background: transparent; border: 1.6px solid var(--accent-deep); box-sizing: border-box; }
-.cal-cell .dots i.rec.on { background: var(--accent-deep); }
-.f-chip .rec-dot { width: 7px; height: 7px; border-radius: 50%; background: transparent; border: 1.6px solid var(--accent-deep); box-sizing: border-box; }
-.day-list .rec-bar { background: var(--accent-deep); }
-.day-list .rec-bar.on { background: var(--accent-deep); opacity: .55; }
+.cal-cell .dots i.rec { background: var(--accent-deep); border: none; box-sizing: border-box; }
+.cal-cell .dots i.rec.on { background: var(--accent-deep); opacity: .5; }
+.f-chip .rec-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c-record); border: none; box-sizing: border-box; }
+.day-list .rec-bar { background: var(--c-record); }
+.day-list .rec-bar.on { background: var(--c-record); opacity: .55; }
 .day-list .day-rec { cursor: pointer; }
 .day-list .day-rec:hover { background: var(--accent-softer); border-radius: 8px; }
-.day-list .rec-cat { color: var(--accent-deep); display: inline-flex; align-items: center; gap: 4px; }
+.day-list .rec-cat { color: var(--c-record); display: inline-flex; align-items: center; gap: 4px; }
 .day-list .rec-cat .li { width: 13px; height: 13px; }
 .dl-rec-thumb { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; flex-shrink: 0; align-self: center; }
 .day-list .day-add-rec { border-bottom: none; padding: 12px 0 2px; }
@@ -2794,16 +2839,4 @@ input[type="range"].cp::-moz-range-thumb {
 }
 
 .tt-reppick { display: flex; gap: 6px; }
-.tt-reppick button { flex: 1; padding: 10px; border-radius: 11px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 13px; font-weight: 700; }
-.tt-reppick button.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-
-.tt-clock { cursor: pointer; }
-.tt-selline { stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; }
-.tt-seldot { fill: var(--accent); }
-.tt-ctot.sel { fill: var(--accent-deep); font-weight: 700; }
-
-.tt-cstyle { display: flex; gap: 6px; justify-content: center; margin: 0 0 12px; }
-.tt-cstyle button { padding: 5px 13px; border-radius: 20px; border: 1px solid var(--line); background: var(--card); color: var(--muted); font-size: 12px; font-weight: 700; }
-.tt-cstyle button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-deep); }
-.tt-cap { text-align: center; font-size: 15px; font-weight: 800; margin: 0 0 6px; }
-.tt-cap span { color: var(--muted); font-weight: 600; font-size: 13px; }
+.tt-reppick button { flex: 1; padding: 10px; border-radius: 11px; border: 1px solid var(--line); back
