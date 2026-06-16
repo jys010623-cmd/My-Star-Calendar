@@ -69,6 +69,10 @@ body {
 }
 
 button { font-family: inherit; cursor: pointer; }
+/* 버튼은 기본 글자색이 검정이라 테마색을 상속하지 않아, 다크모드에서 버튼 안
+   글씨(통계 숫자·이번 주 날짜 등 .hstat·.wk-day가 버튼)가 까맣게 묻혀 안 보였다.
+   color:inherit로 테마 글자색(--text)을 따르게 해 다크모드에서도 또렷하게 보이게 한다. */
+button { color: inherit; }
 input, select, textarea { font-family: inherit; font-size: 14px; color: var(--text); }
 .hidden { display: none !important; }
 img { max-width: 100%; display: block; }
@@ -488,6 +492,19 @@ input[type="color"] {
 }
 [data-template="classic"] .pc-info { padding-top: 0; }
 [data-template="classic"] .hero-name { font-size: 26px; }
+
+/* 클래식/미니멀 헤더 정렬 보정 — 누락돼 있던 규칙 복구.
+   이게 없어 클래식 템플릿(특히 감성 모드·미니홈피)에서 아바타와 글씨가
+   세로 가운데로 안 맞고 빈 공간이 생겼다. */
+[data-template="classic"] .profile-card-main { display: flex; align-items: center; }
+[data-template="classic"] .pc-row { flex: 1; }
+:is([data-mode="y2k"], [data-mode="glow"], [data-mode="ballet"], [data-mode="y3k"])[data-template="classic"] .profile-card-main { padding: 16px 18px; }
+:is([data-mode="y2k"], [data-mode="glow"], [data-mode="ballet"], [data-mode="y3k"])[data-template="minimal"] .profile-card-main { padding: 14px 18px 16px; }
+
+/* color-mix 미지원(구형 브라우저) 폴백 — 누락돼 있던 규칙 복구 */
+@supports not (color: color-mix(in srgb, red 50%, white)) {
+  :root { --accent-soft: rgba(20, 20, 20, .10); --accent-softer: rgba(20, 20, 20, .05); --accent-deep: #000000; }
+}
 
 /* ───────── 프로필 상세: 커버 + 꾸미기 ───────── */
 .back-btn {
@@ -2710,6 +2727,125 @@ input[type="range"].cp::-moz-range-thumb {
     radial-gradient(28px 28px at 55% 96%, rgba(107, 198, 238, .05), transparent 70%);
 }
 
+/* ───────── Y3K(실버) 모드: 메탈릭 크롬 — 누락돼 있던 블록 복구 ───────── */
+/* Y3K: 쇠맛 메탈릭 크롬 */
+[data-mode="y3k"] {
+  --bg: #E9EBEF; --bg-soft: #DFE2E8; --card: #F5F6F9;
+  --text: #1E2126; --muted: #79808B; --line: #C3C8D2; --line-strong: #3A3F49;
+  --shadow: 0 2px 12px rgba(40, 45, 56, .16);
+  --radius: 10px;
+  --pat: rgba(58, 63, 73, .22);
+}
+[data-mode="y3k"] .hero-name,
+[data-mode="y3k"] .page-head h2 { letter-spacing: .02em; }
+/* 크롬 효과는 글자가 아니라 포인트 요소에 */
+[data-mode="y3k"] .badge-accent {
+  background: linear-gradient(135deg, #CFD3DB, #F7F8FA 30%, #A8AEBA 60%, #DDE0E7);
+  color: #1E2126; border: 1px solid #FDFDFE;
+}
+[data-mode="y3k"] .card-title::before {
+  background: linear-gradient(135deg, #9AA1AD, #F2F4F8 45%, #6D7480);
+}
+[data-mode="y3k"] .fab {
+  background: linear-gradient(135deg, #CFD3DB, #F7F8FA 30%, #A8AEBA 60%, #DDE0E7);
+  color: #1E2126; border: 1px solid #FDFDFE;
+}
+/* 메탈 프레임 아바타 */
+[data-mode="y3k"] .pc-avatar, [data-mode="y3k"] .side-avatar,
+[data-mode="y3k"] .prof-avatar, [data-mode="y3k"] .bl-avatar {
+  border: none;
+  box-shadow: 0 0 0 1px #888F9B, 0 0 0 3px #E8EAEF, 0 0 0 4px #9AA1AD;
+}
+/* 메탈 광택 카드 */
+[data-mode="y3k"] .card, [data-mode="y3k"] .profile-card-main {
+  border: 1px solid #FDFDFE;
+  background-image: linear-gradient(165deg, rgba(255, 255, 255, .85), rgba(255, 255, 255, 0) 36%, rgba(120, 128, 142, .12) 85%);
+}
+/* 크롬 멤버십 카드 + 흐르는 광택 */
+[data-mode="y3k"] .member-card {
+  background: linear-gradient(135deg, #CFD3DB, #F7F8FA 28%, #A8AEBA 55%, #E6E8EE 78%, #C2C7D1);
+  color: #1E2126; border: 1px solid #FDFDFE;
+  position: relative; overflow: hidden;
+}
+[data-mode="y3k"] .member-card::after {
+  content: ""; position: absolute; top: -60%; bottom: -60%; left: 0; width: 36%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, .55), transparent);
+  transform: translateX(-150%) skewX(-18deg);
+  animation: silverSheen 4s ease-in-out infinite;
+  will-change: transform;
+  pointer-events: none;
+}
+@keyframes silverSheen { 0% { transform: translateX(-150%) skewX(-18deg); } 60%, 100% { transform: translateX(450%) skewX(-18deg); } }
+/* 메탈 버튼 엣지 */
+[data-mode="y3k"] .btn-primary {
+  border: 1px solid rgba(255, 255, 255, .65);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 2px 8px rgba(40, 45, 56, .22);
+}
+[data-mode="y3k"] .page-head h2::after { content: " ✧"; color: #9AA1AD; }
+[data-mode="y3k"] .hero-group { text-transform: uppercase; letter-spacing: .18em; }
+[data-mode="y3k"] .tab.active {
+  background: linear-gradient(135deg, #3A3F49, #6A7280 52%, #2E323C);
+  border-color: transparent; color: #F2F4F8;
+}
+[data-mode="y3k"] .cal-cell.today { box-shadow: inset 0 0 0 1.5px #9AA1AD; border-radius: 10px; }
+[data-mode="y3k"] .logo-word::after { content: " ◢"; font-size: .8em; }
+
+/* 밤의 Y3K: 건메탈 */
+[data-dark="true"][data-mode="y3k"] {
+  --bg: #131419; --bg-soft: #1A1C22; --card: #20232A;
+  --text: #E8EAEF; --muted: #8B92A0; --line: #343845; --line-strong: #B8BFCC;
+  --shadow: 0 2px 14px rgba(0, 0, 0, .5);
+  --pat: rgba(184, 191, 204, .16);
+}
+[data-dark="true"][data-mode="y3k"] .badge-accent {
+  background: linear-gradient(135deg, #4A505E, #8B92A0 38%, #2E323C 68%, #6A7280);
+  color: #E8EAEF; border-color: #565D6C;
+}
+[data-dark="true"][data-mode="y3k"] .card-title::before {
+  background: linear-gradient(135deg, #6A7280, #C9CFD9 45%, #3A3F4B);
+}
+[data-dark="true"][data-mode="y3k"] .fab {
+  background: linear-gradient(135deg, #4A505E, #8B92A0 38%, #2E323C 68%, #6A7280);
+  color: #E8EAEF; border-color: #565D6C;
+}
+[data-dark="true"][data-mode="y3k"] .pc-avatar, [data-dark="true"][data-mode="y3k"] .side-avatar,
+[data-dark="true"][data-mode="y3k"] .prof-avatar, [data-dark="true"][data-mode="y3k"] .bl-avatar {
+  box-shadow: 0 0 0 1px #565D6C, 0 0 0 3px #2A2D36, 0 0 0 4px #8B92A0;
+}
+[data-dark="true"][data-mode="y3k"] .card, [data-dark="true"][data-mode="y3k"] .profile-card-main {
+  border-color: #3A3F4B;
+  background-image: linear-gradient(165deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, 0) 40%);
+}
+[data-dark="true"][data-mode="y3k"] .member-card {
+  background: linear-gradient(135deg, #3A3F4B, #6A7280 30%, #23262E 60%, #525A68);
+  color: #E8EAEF; border-color: #4A505E;
+}
+[data-dark="true"][data-mode="y3k"] .member-card::after {
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, .22), transparent);
+}
+[data-dark="true"][data-mode="y3k"] .tab.active {
+  background: linear-gradient(135deg, #8B92A0, #C9CFD9 52%, #6A7280); color: #1E2126;
+}
+
+/* ───────── 응원봉(glow) 모드: 공연장 암전 + 퍼스널컬러 글로우 ─────────
+   이 블록이 파일에서 누락돼 응원봉 모드가 평범한 라이트 화면으로 보였다(미니홈피 포함).
+   복구: 배경을 암전(near-black)으로, 글씨는 밝게, 시계·이름·배지에 강조색 글로우. */
+[data-mode="glow"] {
+  --bg: #0A0A12; --bg-soft: #12121D; --card: #14141F;
+  --text: #F1EFFA; --muted: #c4c5d2; --line: #262638; --line-strong: #F1EFFA;
+  --accent-deep: color-mix(in srgb, var(--accent) 70%, #fff);
+  --shadow: 0 0 18px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+[data-mode="glow"] .badge-accent, [data-mode="glow"] .btn-primary,
+[data-mode="glow"] .fab, [data-mode="glow"] .tab.active {
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 70%, transparent), 0 0 28px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+[data-mode="glow"] .clock { color: var(--accent); text-shadow: 0 0 14px var(--accent); }
+[data-mode="glow"] .card-title::before { box-shadow: 0 0 9px var(--accent); }
+[data-mode="glow"] .hero-name, [data-mode="glow"] .prof-id h2 { text-shadow: 0 0 16px color-mix(in srgb, var(--accent) 55%, transparent); }
+[data-mode="glow"] .logo-svg { filter: drop-shadow(0 0 6px var(--accent)); }
+[data-mode="glow"] .side-dday, [data-mode="glow"] .mh-dday { box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent); }
+
 /* ───────── 창 배치: 바닥에 붙은 창 (dock) ───────── */
 [data-retro="true"][data-retro-pos="dock"]:not([data-retro-max="true"]):not([data-retro-min="true"]) .app {
   margin-bottom: 0;
@@ -2839,4 +2975,5 @@ input[type="range"].cp::-moz-range-thumb {
 }
 
 .tt-reppick { display: flex; gap: 6px; }
-.tt-reppick button { flex: 1; padding: 10px; border-radius: 11px; border: 1px solid var(--line); back
+.tt-reppick button { flex: 1; padding: 10px; border-radius: 11px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 13px; font-weight: 700; }
+.tt-reppick button.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
