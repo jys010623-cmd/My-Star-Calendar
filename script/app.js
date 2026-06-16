@@ -1454,6 +1454,23 @@
     for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; // djb2
     return s.length + "_" + (h >>> 0).toString(36);
   }
+  // 단일 사진 필드(프로필·배경·멤버십·스타일북)용: 내용 기반 키 부여 / localStorage용 사본에서 제거
+  function assignImgKey(obj, field, keyField) {
+    const v = obj && obj[field];
+    if (typeof v === "string" && v.indexOf("data:") === 0) {
+      const k = imgKeyOf(v);
+      if (!imgStored.has(k)) { imgStored.add(k); imgPut(k, v); }
+      obj[keyField] = k;
+    }
+  }
+  function stripImgField(obj, field, keyField) {
+    if (obj && obj[keyField] && typeof obj[field] === "string" && obj[field].indexOf("data:") === 0) {
+      const q = Object.assign({}, obj);
+      delete q[field];
+      return q;
+    }
+    return obj;
+  }
   // 새로 들어온 사진(base64)에 키를 부여하고 IndexedDB에 저장 (이미 저장된 건 건너뜀)
   function ensureImgKeys() {
     (S.photocards || []).forEach((p) => {
@@ -1471,6 +1488,9 @@
         return key;
       });
     });
+    (S.biases || []).forEach((b) => { assignImgKey(b, "photo", "photoKey"); assignImgKey(b, "cover", "coverKey"); });
+    (S.styles || []).forEach((s) => { assignImgKey(s, "img", "imgKey"); });
+    assignImgKey(S.membership, "photo", "photoKey");
   }
   // localStorage에 저장할 때 쓰는 가벼운 사본: 포카 사진(base64)은 빼고 참조(imgKey)만 남김
   function persistState() {
@@ -1491,6 +1511,9 @@
       }
       return d;
     });
+    lite.biases = (S.biases || []).map((b) => stripImgField(stripImgField(b, "photo", "photoKey"), "cover", "coverKey"));
+    lite.styles = (S.styles || []).map((s) => stripImgField(s, "img", "imgKey"));
+    if (S.membership) lite.membership = stripImgField(S.membership, "photo", "photoKey");
     return lite;
   }
   // 시작할 때 IndexedDB에 있는 포카 사진을 메모리(S)로 다시 채워 넣음
@@ -1505,6 +1528,16 @@
           .then((vals) => { d.imgs = vals.filter((v) => v != null); }));
       }
     });
+    (S.biases || []).forEach((b) => {
+      if (!b.photo && b.photoKey) tasks.push(imgGet(b.photoKey).then((v) => { if (v) b.photo = v; }));
+      if (!b.cover && b.coverKey) tasks.push(imgGet(b.coverKey).then((v) => { if (v) b.cover = v; }));
+    });
+    (S.styles || []).forEach((s) => {
+      if (!s.img && s.imgKey) tasks.push(imgGet(s.imgKey).then((v) => { if (v) s.img = v; }));
+    });
+    if (S.membership && !S.membership.photo && S.membership.photoKey) {
+      tasks.push(imgGet(S.membership.photoKey).then((v) => { if (v) S.membership.photo = v; }));
+    }
     if (tasks.length) Promise.all(tasks).then(renderAll);
   }
 
