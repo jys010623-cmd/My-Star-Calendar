@@ -8,23 +8,12 @@
   const LS_KEY = "myStarCalendar.v1";
 
   /* ═══════════ 공지사항 ═══════════
-     새 소식을 올리려면 아래 NOTICES 배열 맨 위에 항목을 추가하세요.
-     - id: 숫자(이전보다 큰 값이면 됨). 이 숫자로 '새 공지' 여부를 판단합니다.
-     - cat: "update"(업데이트) | "info"(안내) | "maint"(점검)
-     - date: 표시용 문자열, title: 제목, body: 내용
+     공지 내용은 script/notices-data.js 에서 관리합니다 (메인 모달 · 공지사항 페이지 공용).
+     새 소식을 올리려면 그 파일의 NOTICES 배열 맨 위에 항목을 추가하세요.
      id가 사용자가 마지막으로 본 값보다 크면 메뉴에 빨간 점(배지)이 붙고,
      공지사항을 한 번 열어보면 사라집니다. (첫 사용자·전체 초기화 사용자는 안 뜸) */
-  const NOTICES = [
-    { id: 4, cat: "update", date: "2026.06.16", title: "음악 기능이 더 똑똑해졌어요 🎵",
-      body: "이제 음악을 여러 곡(최대 3개) 등록하고 칩으로 골라 들을 수 있어요. 유튜브·스포티파이 링크는 물론 기기에 받은 음원 파일도 추가할 수 있고, 다른 메뉴를 둘러보다 메인으로 돌아와도 노래가 끊기지 않아요." },
-    { id: 3, cat: "update", date: "2026.06.15", title: "새 배경 패턴 4종 추가",
-      body: "배경 패턴에 클로버·리본·체리·사과 4종이 새로 생겼어요. 설정 > 배경 패턴에서 골라 내 최애 분위기에 맞게 꾸며보세요!" },
-    { id: 2, cat: "update", date: "2026.06.15", title: "공지사항과 건의함 추가",
-      body: "이제 공지사항과 건의함이 생겼어요. PC는 왼쪽 사이드바, 태블릿·모바일은 상단에서 들어갈 수 있어요. 건의함에 남겨주신 의견은 다음 업데이트에 반영됩니다. 🙇" },
-    { id: 1, cat: "info", date: "2026.06.12", title: "오픈 베타 시작",
-      body: "마이 스타 캘린더 오픈 베타가 시작됐어요. 최애를 등록하고 나만의 덕질 공간을 만들어 보세요. 많은 관심 부탁드려요! 🌟" },
-  ];
-  const NOTICE_CATS = {
+  const NOTICES = window.NOTICES || [];
+  const NOTICE_CATS = window.NOTICE_CATS || {
     update: { label: "업데이트", color: "--c-release" },
     info:   { label: "안내",     color: "--c-broadcast" },
     maint:  { label: "점검",     color: "--c-birthday" },
@@ -3533,19 +3522,38 @@
         + '<button id="noticeUpdateReload" class="btn btn-primary btn-sm" style="flex:0 0 auto">새로고침</button></div>';
     }
     if (!NOTICES.length) return head + `<p class="notice-empty">아직 공지가 없어요.</p>`;
-    return head + `<div class="notice-list">` + NOTICES.map((n) => {
+
+    const seen = S.seenNotice || 0;
+    const sorted = NOTICES.slice().sort((a, b) => b.id - a.id); // 최신순
+    const RECENT = 2;                                   // 위에는 최신 공지 2개만
+    const pinned = sorted.find((n) => n.pin) || null;  // 맨 아래 고정(pin:true 표시한 공지 — '오픈 베타 시작')
+    const recent = sorted.filter((n) => n !== pinned).slice(0, RECENT);
+    const restCount = sorted.length - recent.length - (pinned ? 1 : 0); // 페이지로 넘어가는 개수
+
+    const itemHtml = (n) => {
       const c = NOTICE_CATS[n.cat] || NOTICE_CATS.info;
-      const isNew = n.id > (S.seenNotice || 0);
-      return `<div class="notice-item">
-        <div class="notice-top">
-          <span class="notice-cat" style="background:var(${c.color})">${c.label}</span>
-          ${isNew ? `<span class="notice-new">NEW</span>` : ""}
-          <span class="notice-date">${n.date}</span>
+      const isNew = n.id > seen;
+      const acc = !isNew;              // 새 공지는 펼침, 읽은 공지는 접힌 아코디언
+      return `<div class="notice-item${acc ? " notice-acc" : ""}">
+        <div class="notice-summary">
+          <div class="notice-top">
+            <span class="notice-cat" style="background:var(${c.color})">${c.label}</span>
+            ${isNew ? `<span class="notice-new">NEW</span>` : ""}
+            <span class="notice-date">${n.date}</span>
+            ${acc ? `<span class="notice-arrow" aria-hidden="true">⌄</span>` : ""}
+          </div>
+          <h4 class="notice-title">${esc(n.title)}</h4>
         </div>
-        <h4 class="notice-title">${esc(n.title)}</h4>
         <p class="notice-body">${esc(n.body)}</p>
       </div>`;
-    }).join("") + `</div>`;
+    };
+
+    let html = head + `<div class="notice-list">`;
+    html += recent.map(itemHtml).join("");                    // 최신 2개
+    if (pinned) html += `<div class="notice-pinned">` + itemHtml(pinned) + `</div>`; // 안내 고정
+    html += `</div>`;
+    html += `<a class="notice-allbtn" href="notices.html">공지사항 전체 보기${restCount > 0 ? ` <span>지난 공지 ${restCount}개</span>` : ""} →</a>`;
+    return html;
   }
 
   /* 사이드바·더보기 공지 배지(빨간 점) 갱신 */
@@ -3569,6 +3577,10 @@
       updateNoticeBadge();
       var _ub = document.getElementById("noticeUpdateReload");
       if (_ub) _ub.onclick = doUpdateReload;
+      // 읽은 공지 아코디언 펼치기/접기
+      $("modalBody").querySelectorAll(".notice-acc .notice-summary").forEach(function (s) {
+        s.onclick = function () { s.parentElement.classList.toggle("open"); };
+      });
       return;
     }
 

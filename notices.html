@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="마이 스타 캘린더 공지사항 — 업데이트 소식과 안내를 한곳에서 모아 보세요.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" id="metaTheme">
+<meta name="robots" content="noindex">
+<title>공지사항 — 마이 스타 캘린더</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="apple-touch-icon" href="favicon.svg">
+<link rel="stylesheet" href="css/fonts.css?v=13">
+<link rel="stylesheet" href="css/style.css?v=15">
+<style>
+  /* 앱 style.css는 PC에서 body 스크롤을 잠그므로 단독 페이지에선 해제 */
+  html, body { overflow: visible !important; height: auto !important; }
+
+  .fb-wrap { max-width: 720px; margin: 0 auto; padding: 0 18px 80px; }
+  .fb-top { display: flex; align-items: center; justify-content: space-between; padding: 22px 0 14px; }
+  .fb-left { display: flex; align-items: center; gap: 12px; }
+  .fb-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+  .fb-brand .logo-svg { width: 30px; height: 30px; }
+  .fb-brand b { font-size: 14.5px; font-weight: 800; letter-spacing: .01em; }
+  .fb-brand small { display: block; font-size: 11px; color: var(--muted); font-weight: 500; letter-spacing: .04em; }
+  .icon-btn {
+    width: 40px; height: 40px; border-radius: 11px;
+    background: var(--card); border: 1px solid var(--line);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--text); font-size: 18px;
+  }
+  .fb-hero { padding: 8px 0 18px; }
+  .fb-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .14em; color: var(--accent-deep); text-transform: uppercase; margin-bottom: 10px; }
+  .fb-hero h1 { font-size: 26px; font-weight: 800; line-height: 1.28; letter-spacing: -0.02em; }
+  .fb-hero p { margin-top: 10px; font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+  /* 공지 카드는 메인과 동일한 .notice-* 스타일(style.css)을 그대로 사용 */
+  .np-list { display: flex; flex-direction: column; gap: 12px; }
+  .np-list .notice-body { display: block; }
+
+  .fb-foot { text-align: center; margin-top: 22px; font-size: 12px; color: var(--muted); }
+  .fb-foot a { color: var(--accent-deep); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="fb-wrap">
+
+  <div class="fb-top">
+   <div class="fb-left">
+    <button class="icon-btn" id="backBtn" aria-label="뒤로 가기" title="뒤로 가기">←</button>
+    <a class="fb-brand" href="index.html" aria-label="홈으로">
+      <svg class="logo-svg" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M32 6 C34.5 23 41 29.5 58 32 C41 34.5 34.5 41 32 58 C29.5 41 23 34.5 6 32 C23 29.5 29.5 23 32 6 Z" fill="var(--accent)"/>
+        <circle cx="50" cy="14" r="2.6" fill="var(--accent)"/>
+        <circle cx="14" cy="50" r="2.6" fill="var(--accent)"/>
+      </svg>
+      <span><b>공지사항</b><small>MY STAR CALENDAR · NOTICE</small></span>
+    </a>
+   </div>
+    <button class="icon-btn" id="darkBtn" aria-label="다크 모드 전환" title="다크 모드">◐</button>
+  </div>
+
+  <div class="fb-hero">
+    <p class="fb-eyebrow">Notice</p>
+    <h1>공지사항</h1>
+    <p>업데이트 소식과 안내를 모아뒀어요. 최신 소식이 맨 위에 있어요.</p>
+  </div>
+
+  <div class="np-list" id="noticeList"></div>
+
+  <p class="fb-foot">© <span id="yr"></span> 마이 스타 캘린더 · <a href="index.html">mystarzip.com</a></p>
+</div>
+
+<script src="script/notices-data.js?v=17"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (s) { return document.querySelector(s); };
+
+  function syncTheme() {
+    try {
+      var raw = localStorage.getItem("myStarCalendar.v1");
+      var S = raw ? JSON.parse(raw) : null;
+      var root = document.documentElement;
+      var dark = readDark(S);
+      var acc = (S && S.accent) ? S.accent : "#141414";
+      if (acc.toLowerCase() === "#141414" && dark) acc = "#f2f2ef";
+      root.style.setProperty("--accent", acc);
+      var r = parseInt(acc.slice(1,3),16), g = parseInt(acc.slice(3,5),16), b = parseInt(acc.slice(5,7),16);
+      var lum = 0.299*r + 0.587*g + 0.114*b;
+      root.style.setProperty("--on-accent", lum > 150 ? "#111111" : "#ffffff");
+      root.setAttribute("data-dark", dark ? "true" : "false");
+      var mt = document.getElementById("metaTheme");
+      if (mt) mt.setAttribute("content", dark ? "#131314" : "#ffffff");
+    } catch (e) {}
+  }
+  function readDark(S) {
+    var saved = localStorage.getItem("fb.dark");
+    if (saved !== null) return saved === "1";
+    if (S && typeof S.dark === "boolean") return S.dark;
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+  syncTheme();
+
+  $("#darkBtn").addEventListener("click", function () {
+    var now = document.documentElement.getAttribute("data-dark") === "true";
+    localStorage.setItem("fb.dark", now ? "0" : "1");
+    syncTheme();
+  });
+
+  $("#backBtn").addEventListener("click", function () {
+    if (history.length > 1 && document.referrer) history.back();
+    else window.location.href = "index.html";
+  });
+
+  document.getElementById("yr").textContent = new Date().getFullYear();
+
+  /* 공지 목록 렌더 (notices-data.js의 window.NOTICES 사용) */
+  var esc = function (s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  };
+  var CATS = window.NOTICE_CATS || {};
+  var NOTICES = (window.NOTICES || []).slice().sort(function (a, b) { return b.id - a.id; });
+  var wrap = document.getElementById("noticeList");
+  if (!NOTICES.length) {
+    wrap.innerHTML = '<p class="notice-empty">아직 공지가 없어요.</p>';
+  } else {
+    wrap.innerHTML = NOTICES.map(function (n) {
+      var c = CATS[n.cat] || CATS.info || { label: "안내", color: "--c-broadcast" };
+      return '<div class="notice-item">'
+        + '<div class="notice-top">'
+        + '<span class="notice-cat" style="background:var(' + c.color + ')">' + esc(c.label) + '</span>'
+        + '<span class="notice-date">' + esc(n.date) + '</span>'
+        + '</div>'
+        + '<h4 class="notice-title">' + esc(n.title) + '</h4>'
+        + '<p class="notice-body">' + esc(n.body) + '</p>'
+        + '</div>';
+    }).join("");
+  }
+})();
+</script>
+</body>
+</html>

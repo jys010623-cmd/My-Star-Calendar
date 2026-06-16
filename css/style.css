@@ -1296,6 +1296,26 @@ a.more-row { text-decoration: none; }
 .notice-title { font-size: 14.5px; font-weight: 800; margin-bottom: 5px; }
 .notice-body { font-size: 13px; color: var(--muted); line-height: 1.6; white-space: pre-line; }
 .notice-empty { color: var(--muted); font-size: 13.5px; text-align: center; padding: 20px 0; }
+/* 읽은 공지 아코디언(접기/펼치기) — flex-gap으로 간격 통일 */
+.notice-acc { padding-top: 13px; padding-bottom: 13px; }
+.notice-acc .notice-summary { display: flex; flex-direction: column; gap: 7px; cursor: pointer; }
+.notice-acc .notice-top { margin-bottom: 0; }
+.notice-acc .notice-title { margin-bottom: 0; line-height: 1.35; }
+.notice-acc .notice-body { display: none; }
+.notice-acc.open .notice-body { display: block; margin-top: 10px; }
+.notice-arrow { font-size: 13px; color: var(--muted); transition: transform .18s ease; }
+.notice-acc.open .notice-arrow { transform: rotate(180deg); }
+/* 맨 아래 고정 안내 — 위에 얇은 구분선으로 분리 */
+.notice-pinned { margin-top: 3px; padding-top: 14px; border-top: 1px solid var(--line); }
+/* 공지사항 전체 보기 버튼 */
+.notice-allbtn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; margin-top: 12px; padding: 12px; box-sizing: border-box;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--card);
+  color: var(--text); font-size: 13px; font-weight: 700; text-decoration: none;
+}
+.notice-allbtn span { color: var(--muted); font-weight: 600; }
+.notice-allbtn:hover { border-color: var(--line-strong); }
 
 /* ───────── FAB ───────── */
 .fab-wrap {
