@@ -15,7 +15,9 @@
      id가 사용자가 마지막으로 본 값보다 크면 메뉴에 빨간 점(배지)이 붙고,
      공지사항을 한 번 열어보면 사라집니다. (첫 사용자·전체 초기화 사용자는 안 뜸) */
   const NOTICES = [
-    { id: 3, cat: "update", date: "2026.06.15", title: "새 배경 패턴 4종 추가 🍎",
+    { id: 4, cat: "update", date: "2026.06.16", title: "음악 기능이 더 똑똑해졌어요 🎵",
+      body: "이제 음악을 여러 곡(최대 3개) 등록하고 칩으로 골라 들을 수 있어요. 유튜브·스포티파이 링크는 물론 기기에 받은 음원 파일도 추가할 수 있고, 다른 메뉴를 둘러보다 메인으로 돌아와도 노래가 끊기지 않아요." },
+    { id: 3, cat: "update", date: "2026.06.15", title: "새 배경 패턴 4종 추가",
       body: "배경 패턴에 클로버·리본·체리·사과 4종이 새로 생겼어요. 설정 > 배경 패턴에서 골라 내 최애 분위기에 맞게 꾸며보세요!" },
     { id: 2, cat: "update", date: "2026.06.15", title: "공지사항과 건의함 추가",
       body: "이제 공지사항과 건의함이 생겼어요. PC는 왼쪽 사이드바, 태블릿·모바일은 상단에서 들어갈 수 있어요. 건의함에 남겨주신 의견은 다음 업데이트에 반영됩니다. 🙇" },
@@ -1386,51 +1388,231 @@
     return null;
   }
 
+  /* ───────── 음원 파일 저장소 (IndexedDB) ─────────
+     음원 파일은 용량이 커서 localStorage(평소 저장 데이터)에 넣으면 저장이 느려지고 금방 꽉 찹니다.
+     그래서 파일은 IndexedDB에 따로 보관하고, 저장 데이터에는 작은 참조(fileId)만 남깁니다. */
+  const AUDIO_DB = "myStarCalendar.audio", AUDIO_STORE = "files";
+  function audioDB() {
+    return new Promise((res, rej) => {
+      const rq = indexedDB.open(AUDIO_DB, 1);
+      rq.onupgradeneeded = () => { rq.result.createObjectStore(AUDIO_STORE); };
+      rq.onsuccess = () => res(rq.result);
+      rq.onerror = () => rej(rq.error);
+    });
+  }
+  function audioPut(id, blob) {
+    return audioDB().then((db) => new Promise((res, rej) => {
+      const tx = db.transaction(AUDIO_STORE, "readwrite");
+      tx.objectStore(AUDIO_STORE).put(blob, id);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    }));
+  }
+  function audioGet(id) {
+    return audioDB().then((db) => new Promise((res, rej) => {
+      const tx = db.transaction(AUDIO_STORE, "readonly");
+      const rq = tx.objectStore(AUDIO_STORE).get(id);
+      rq.onsuccess = () => res(rq.result || null);
+      rq.onerror = () => rej(rq.error);
+    }));
+  }
+  function audioDel(id) {
+    return audioDB().then((db) => new Promise((res) => {
+      const tx = db.transaction(AUDIO_STORE, "readwrite");
+      tx.objectStore(AUDIO_STORE).delete(id);
+      tx.oncomplete = () => res(); tx.onerror = () => res();
+    })).catch(() => {});
+  }
+  const audioUrlCache = {}; // fileId → objectURL (한 번 만든 건 재사용해 재생 끊김 방지)
+  const MUSIC_MAX = 3; // 최애당 음악 최대 개수
+
+  /* 최애의 음악 목록 헬퍼 (구버전 b.music 문자열은 목록으로 자동 변환) */
+  function curMusics(b) {
+    if (!b) return [];
+    if (!Array.isArray(b.musics)) {
+      b.musics = b.music ? [{ id: uid(), name: "", type: "link", url: b.music }] : [];
+      if (b.musics.length && !b.musicCur) b.musicCur = b.musics[0].id;
+      delete b.music;
+    }
+    return b.musics;
+  }
+  function curMusicEntry(b) {
+    const list = curMusics(b);
+    if (!list.length) return null;
+    return list.find((x) => x.id === b.musicCur) || list[0];
+  }
+  function musicLabel(e, list) {
+    if (e.name) return e.name;
+    if (e.type === "file") return "음원";
+    const em = musicEmbed(e.url);
+    const plat = em ? em.platform : "링크";
+    const links = list.filter((x) => x.type !== "file");
+    return links.length > 1 ? plat + " " + (links.indexOf(e) + 1) : plat;
+  }
+
   function renderMusic(b) {
     const box = $("homeMusic");
     if (!box) return;
-    const url = b && b.music;
-    const em = musicEmbed(url);
-    const bar = `<div class="music-bar">${em ? `<span class="music-plat">${em.platform}</span>` : ""}<button class="btn btn-ghost btn-sm" data-mus="edit">변경</button><button class="btn btn-ghost btn-sm" data-mus="clear">빼기</button></div>`;
-    if (em && em.platform === "Spotify") {
-      box.innerHTML = `<iframe class="music-spotify" src="${em.src}" width="100%" height="152" frameborder="0" loading="lazy" allow="encrypted-media; clipboard-write; fullscreen; picture-in-picture"></iframe>` + bar;
-    } else if (em) {
-      box.innerHTML = `<div class="music-embed"><iframe src="${em.src}" loading="lazy" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>` + bar;
-    } else if (url) {
-      box.innerHTML = `<a class="btn btn-dark btn-sm" href="${esc(safeUrl(url))}" target="_blank" rel="noopener">음악 바로가기 ${I("arrowUR")}</a>` + bar;
-    } else {
-      box.innerHTML = `<div class="music-empty">${I("sparkles")} 최애 플레이리스트를 추가해 들으면서 기록해요</div><button class="btn btn-ghost btn-sm" data-mus="edit">+ 음악 추가</button>`;
+    const list = curMusics(b);
+    const entry = curMusicEntry(b);
+    const curKey = entry ? entry.id : "";
+    const sig = list.map((e) => e.id).join(",");
+    // 같은 곡이 이미 떠 있고 목록도 그대로면 다시 그리지 않음 — 화면 전환·홈 갱신 때마다
+    // 플레이어(iframe·audio)를 새로 만들면 재생이 끊기기 때문. 곡 변경·추가·삭제 때만 새로 만든다.
+    if (entry && box.dataset.curKey === curKey && box.dataset.sig === sig && box.querySelector(".music-player")) return;
+
+    box.innerHTML = "";
+    const player = document.createElement("div");
+    player.className = "music-player";
+    buildPlayer(player, entry);
+    box.appendChild(player);
+
+    // 음악이 하나도 없을 때: 기존처럼 가로로 꽉 찬 '+ 음악 추가' 버튼만 보여준다
+    if (!entry) {
+      const add = document.createElement("button");
+      add.className = "btn btn-ghost btn-sm"; // 배포본과 동일: 카드 폭에 꽉 차고 글자는 가운데 정렬, 낮은 높이
+      add.textContent = "+ 음악 추가";
+      add.onclick = openMusicModal;
+      box.appendChild(add);
+      box.dataset.curKey = "";
+      box.dataset.sig = sig;
+      return;
     }
-    box.querySelectorAll("[data-mus]").forEach((bt) => {
-      bt.onclick = () => { if (bt.dataset.mus === "edit") openMusicModal(); else clearMusic(); };
+
+    // 칩(곡 전환)과 버튼을 한 줄에: 왼쪽에 칩(곡 1개면 플랫폼 라벨), 오른쪽에 추가·빼기 버튼
+    const ctrl = document.createElement("div");
+    ctrl.className = "music-bar";
+    if (list.length > 1) {
+      const chips = document.createElement("div");
+      chips.className = "music-chips";
+      list.forEach((e) => {
+        const c = document.createElement("button");
+        c.className = "music-chip" + (e.id === curKey ? " on" : "");
+        c.textContent = musicLabel(e, list);
+        c.title = c.textContent;
+        c.onclick = () => { b.musicCur = e.id; save(); renderMusic(b); };
+        chips.appendChild(c);
+      });
+      ctrl.appendChild(chips);
+    } else if (entry) {
+      let plat = "음원";
+      if (entry.type !== "file") { const pem = musicEmbed(entry.url); plat = pem ? pem.platform : "링크"; }
+      const lab = document.createElement("span");
+      lab.className = "music-plat";
+      lab.textContent = plat;
+      ctrl.appendChild(lab);
+    }
+    const actions = document.createElement("div");
+    actions.className = "music-actions";
+    actions.innerHTML = `<button class="btn btn-ghost btn-sm" data-mus="add">+ 음악 추가</button>`
+      + (entry ? `<button class="btn btn-ghost btn-sm" data-mus="remove">빼기</button>` : "");
+    ctrl.appendChild(actions);
+    box.appendChild(ctrl);
+    actions.querySelectorAll("[data-mus]").forEach((bt) => {
+      bt.onclick = () => {
+        if (bt.dataset.mus === "add") {
+          if (curMusics(b).length >= MUSIC_MAX) return toast("음악 추가는 최대 " + MUSIC_MAX + "개까지 가능해요");
+          openMusicModal();
+        } else removeMusic(curKey);
+      };
     });
+
+    box.dataset.curKey = curKey;
+    box.dataset.sig = sig;
+  }
+
+  function buildPlayer(player, entry) {
+    if (!entry) {
+      player.innerHTML = `<div class="music-empty">${I("sparkles")} 최애 플레이리스트를 추가해 들으면서 기록해요</div>`;
+      return;
+    }
+    if (entry.type === "file") {
+      const audio = document.createElement("audio");
+      audio.controls = true;
+      audio.className = "music-audio";
+      player.appendChild(audio);
+      const cached = audioUrlCache[entry.fileId];
+      if (cached) { audio.src = cached; return; }
+      audioGet(entry.fileId).then((blob) => {
+        if (!blob) { player.innerHTML = `<div class="music-empty">${I("sparkles")} 음원 파일을 찾을 수 없어요. 다시 추가해 주세요</div>`; return; }
+        const u = URL.createObjectURL(blob);
+        audioUrlCache[entry.fileId] = u;
+        audio.src = u;
+      }).catch(() => {});
+      return;
+    }
+    const em = musicEmbed(entry.url);
+    if (em && em.platform === "Spotify") {
+      player.innerHTML = `<iframe class="music-spotify" src="${em.src}" width="100%" height="152" frameborder="0" loading="lazy" allow="encrypted-media; clipboard-write; fullscreen; picture-in-picture"></iframe>`;
+    } else if (em) {
+      player.innerHTML = `<div class="music-embed"><iframe src="${em.src}" loading="lazy" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`;
+    } else {
+      player.innerHTML = `<a class="btn btn-dark btn-sm" href="${esc(safeUrl(entry.url))}" target="_blank" rel="noopener">음악 바로가기 ${I("arrowUR")}</a>`;
+    }
   }
 
   function openMusicModal() {
     const b = curBias();
     if (!b) return toast("먼저 최애를 등록해 주세요!");
+    if (curMusics(b).length >= MUSIC_MAX) return toast("음악 추가는 최대 " + MUSIC_MAX + "개까지 가능해요");
+    let picked = null; // 선택한 음원 파일
     openModalRaw("음악 추가", `
-      <p class="fp-desc">유튜브 또는 스포티파이의 플레이리스트·영상 링크를 붙여넣어 주세요. 재생할 땐 인터넷이 필요해요.</p>
-      <div class="field"><label>링크</label><input type="url" id="musicInput" placeholder="https://open.spotify.com/playlist/… 또는 https://youtube.com/…" value="${esc(b.music || "")}"></div>
-      <button class="btn btn-primary btn-lg" id="musicSave">저장</button>
-      ${b.music ? `<button class="btn btn-ghost btn-lg slim" id="musicRemove">음악 빼기</button>` : ""}
+      <p class="fp-desc">유튜브·스포티파이 링크를 붙여넣거나, 기기에 받은 음원 파일을 추가할 수 있어요. 링크는 재생할 때 인터넷이 필요해요.</p>
+      <div class="field"><label>이름 (선택 · 최대 6자)</label><input type="text" id="musicName" maxlength="6" placeholder="예: 출근길 플리"></div>
+      <div class="field"><label>링크</label><input type="url" id="musicInput" placeholder="https://open.spotify.com/playlist/… 또는 https://youtube.com/…"></div>
+      <div class="field"><label>또는 기기에서 음원 파일</label>
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer">음원 파일 선택<input type="file" accept="audio/*" id="musicFile" hidden></label>
+        <span id="musicFileName" class="music-plat" style="margin-left:8px"></span>
+      </div>
+      <button class="btn btn-primary btn-lg" id="musicSave">추가</button>
     `);
+    $("musicFile").onchange = (e) => {
+      picked = (e.target.files && e.target.files[0]) || null;
+      $("musicFileName").textContent = picked ? picked.name : "";
+    };
     $("musicSave").onclick = () => {
+      const bb = curBias();
+      const list = curMusics(bb);
+      const name = $("musicName").value.trim().slice(0, 6); // 띄어쓰기 포함 최대 6자
+      if (picked) {
+        const isAudio = /^audio\//.test(picked.type || "")
+          || /\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|weba|wma|aif|aiff|alac)$/i.test(picked.name || "");
+        if (!isAudio) return toast("오디오 파일만 추가할 수 있어요");
+        const fileId = uid();
+        toast("음원을 저장하는 중…");
+        audioPut(fileId, picked).then(() => {
+          const id = uid();
+          list.push({ id: id, name: name || picked.name.replace(/\.[^.]+$/, ""), type: "file", fileId: fileId, mime: picked.type });
+          bb.musicCur = id; save(); closeModal(); renderHome();
+          toast("음원을 추가했어요 ♪");
+        }).catch(() => toast("음원 저장에 실패했어요. 파일이 너무 크지 않은지 확인해 주세요"));
+        return;
+      }
       let url = $("musicInput").value.trim();
-      if (!url) return toast("링크를 붙여넣어 주세요!");
+      if (!url) return toast("링크를 붙여넣거나 음원 파일을 선택해 주세요!");
       if (!/^[a-z][a-z0-9+.-]*:/i.test(url)) url = "https://" + url;
       try { new URL(url); } catch (e) { return toast("올바른 링크가 아니에요 (https://… 형식)"); }
-      b.music = url; save(); closeModal(); renderHome();
+      const id = uid();
+      list.push({ id: id, name: name, type: "link", url: url });
+      bb.musicCur = id; save(); closeModal(); renderHome();
       toast(musicEmbed(url) ? "음악을 추가했어요 ♪" : "링크를 저장했어요 (임베드 미지원 — 바로가기로 열려요)");
     };
-    const rm = $("musicRemove");
-    if (rm) rm.onclick = clearMusic;
   }
 
-  function clearMusic() {
+  function removeMusic(id) {
     const b = curBias();
-    if (b) { delete b.music; save(); }
-    closeModal();
+    if (!b) return;
+    const list = curMusics(b);
+    const i = list.findIndex((x) => x.id === id);
+    if (i < 0) return;
+    const e = list[i];
+    if (e.type === "file" && e.fileId) {
+      audioDel(e.fileId);
+      if (audioUrlCache[e.fileId]) { try { URL.revokeObjectURL(audioUrlCache[e.fileId]); } catch (_) {} delete audioUrlCache[e.fileId]; }
+    }
+    list.splice(i, 1);
+    if (b.musicCur === id) b.musicCur = list.length ? list[0].id : null;
+    save();
     renderHome();
     toast("음악을 뺐어요");
   }
@@ -1456,10 +1638,18 @@
   function applyHomeLayout() {
     const wrap = $("homeBlocks");
     if (!wrap) return;
-    homeOrder().forEach((id) => {
-      const el = wrap.querySelector('.home-block[data-block="' + id + '"]');
-      if (el) wrap.appendChild(el);
-    });
+    // 블록을 appendChild로 옮기면 그 안의 iframe(음악)이 리로드돼 노래가 끊긴다.
+    // 그래서 현재 DOM 순서가 원하는 순서와 다를 때만 재배치한다.
+    const order = homeOrder();
+    const current = Array.from(wrap.querySelectorAll(".home-block")).map((el) => el.dataset.block);
+    const desired = order.filter((id) => current.includes(id));
+    const sameOrder = desired.length === current.length && desired.every((id, i) => id === current[i]);
+    if (!sameOrder) {
+      order.forEach((id) => {
+        const el = wrap.querySelector('.home-block[data-block="' + id + '"]');
+        if (el) wrap.appendChild(el);
+      });
+    }
     const hidden = homeHiddenSet();
     wrap.querySelectorAll(".home-block").forEach((el) => {
       el.classList.toggle("hidden", hidden.has(el.dataset.block));
@@ -3232,6 +3422,7 @@
   function resetAll() {
     if (!confirm("정말 모든 데이터를 삭제할까요?\n(되돌릴 수 없어요. 백업을 먼저 권장해요!)")) return;
     localStorage.removeItem(LS_KEY);
+    try { indexedDB.deleteDatabase(AUDIO_DB); } catch (e) {} // 저장한 음원 파일도 함께 삭제
     location.reload();
   }
 
