@@ -320,7 +320,8 @@
 
   function save() {
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify(S));
+      ensureImgKeys(); // 포카 사진은 IndexedDB로 보내고 참조만 남김
+      localStorage.setItem(LS_KEY, JSON.stringify(persistState()));
     } catch (e) {
       toast("저장 공간이 가득 찼어요. 사진을 줄이거나 백업 후 정리해 주세요.");
     }
@@ -1414,6 +1415,68 @@
   }
   const audioUrlCache = {}; // fileId → objectURL (한 번 만든 건 재사용해 재생 끊김 방지)
   const MUSIC_MAX = 3; // 최애당 음악 최대 개수
+
+  /* ───────── 이미지 파일 저장소 (IndexedDB) ─────────
+     포카처럼 장수가 많은 사진을 localStorage(평소 저장 데이터)에 base64로 넣으면
+     용량이 금방 차고 저장이 느려집니다. 그래서 사진은 IndexedDB에 따로 보관하고,
+     평소 저장 데이터(localStorage)에는 작은 참조(imgKey)만 남깁니다.
+     화면·백업은 그대로 동작하도록, 메모리(S) 안에는 사진을 그대로 둡니다. */
+  const IMG_DB = "myStarCalendar.img", IMG_STORE = "imgs";
+  function imgDB() {
+    return new Promise((res, rej) => {
+      const rq = indexedDB.open(IMG_DB, 1);
+      rq.onupgradeneeded = () => { rq.result.createObjectStore(IMG_STORE); };
+      rq.onsuccess = () => res(rq.result);
+      rq.onerror = () => rej(rq.error);
+    });
+  }
+  function imgPut(id, val) {
+    return imgDB().then((db) => new Promise((res, rej) => {
+      const tx = db.transaction(IMG_STORE, "readwrite");
+      tx.objectStore(IMG_STORE).put(val, id);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    })).catch(() => {});
+  }
+  function imgGet(id) {
+    return imgDB().then((db) => new Promise((res, rej) => {
+      const tx = db.transaction(IMG_STORE, "readonly");
+      const r = tx.objectStore(IMG_STORE).get(id);
+      r.onsuccess = () => res(r.result || null);
+      r.onerror = () => rej(r.error);
+    })).catch(() => null);
+  }
+
+  // 새로 들어온 포카 사진(base64)에 키를 부여하고 IndexedDB에 저장 (이미 키가 있으면 건너뜀)
+  function ensureImgKeys() {
+    (S.photocards || []).forEach((p) => {
+      if (typeof p.img === "string" && p.img.indexOf("data:") === 0 && !p.imgKey) {
+        p.imgKey = uid();
+        imgPut(p.imgKey, p.img);
+      }
+    });
+  }
+  // localStorage에 저장할 때 쓰는 가벼운 사본: 포카 사진(base64)은 빼고 참조(imgKey)만 남김
+  function persistState() {
+    const lite = Object.assign({}, S);
+    lite.photocards = (S.photocards || []).map((p) => {
+      if (p.imgKey && typeof p.img === "string" && p.img.indexOf("data:") === 0) {
+        const q = Object.assign({}, p);
+        delete q.img; // base64는 IndexedDB에 있으니 localStorage엔 안 넣음
+        return q;
+      }
+      return p;
+    });
+    return lite;
+  }
+  // 시작할 때 IndexedDB에 있는 포카 사진을 메모리(S)로 다시 채워 넣음
+  function hydrateImages() {
+    const tasks = [];
+    (S.photocards || []).forEach((p) => {
+      if (!p.img && p.imgKey) tasks.push(imgGet(p.imgKey).then((v) => { if (v) p.img = v; }));
+    });
+    if (tasks.length) Promise.all(tasks).then(() => { renderBinder(); renderHome(); });
+  }
 
   /* 최애의 음악 목록 헬퍼 (구버전 b.music 문자열은 목록으로 자동 변환) */
   function curMusics(b) {
@@ -3412,6 +3475,7 @@
     if (!confirm("정말 모든 데이터를 삭제할까요?\n(되돌릴 수 없어요. 백업을 먼저 권장해요!)")) return;
     localStorage.removeItem(LS_KEY);
     try { indexedDB.deleteDatabase(AUDIO_DB); } catch (e) {} // 저장한 음원 파일도 함께 삭제
+    try { indexedDB.deleteDatabase(IMG_DB); } catch (e) {} // 저장한 포카 사진도 함께 삭제
     location.reload();
   }
 
@@ -3831,7 +3895,7 @@
         const album = $("mAlbum").value.trim();
         if (edit) {
           Object.assign(edit, { name, album, memo: $("mMemo").value.trim(), status });
-          if (modalPhotoData) edit.img = modalPhotoData;
+          if (modalPhotoData) { edit.img = modalPhotoData; delete edit.imgKey; } // 새 사진이면 키 새로 부여되게 비움
         } else {
           S.photocards.push({ id: uid(), biasId: S.currentBias, name, album, img: modalPhotoData, memo: $("mMemo").value.trim(), status });
         }
@@ -4122,6 +4186,7 @@
       $("app").classList.remove("hidden");
       renderAll();
     }
+    hydrateImages(); // IndexedDB에 보관된 포카 사진을 메모리로 복원 후 다시 그림
     linkFieldLabels(document); // 정적 폼(온보딩·설정·아카이브 등) 라벨 연결
     $("importFile").addEventListener("change", (e) => {
       if (e.target.files[0]) importData(e.target.files[0]);
