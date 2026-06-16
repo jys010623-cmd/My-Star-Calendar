@@ -1447,13 +1447,29 @@
     })).catch(() => null);
   }
 
-  // 새로 들어온 포카 사진(base64)에 키를 부여하고 IndexedDB에 저장 (이미 키가 있으면 건너뜀)
+  const imgStored = new Set(); // 이번 세션에서 이미 IndexedDB에 쓴 이미지 키 (중복 저장 방지)
+  // 아카이브 사진은 추가·삭제·순서변경이 가능해서, 내용으로 키를 만들어 순서가 바뀌어도 어긋나지 않게 함
+  function imgKeyOf(s) {
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; // djb2
+    return s.length + "_" + (h >>> 0).toString(36);
+  }
+  // 새로 들어온 사진(base64)에 키를 부여하고 IndexedDB에 저장 (이미 저장된 건 건너뜀)
   function ensureImgKeys() {
     (S.photocards || []).forEach((p) => {
       if (typeof p.img === "string" && p.img.indexOf("data:") === 0 && !p.imgKey) {
         p.imgKey = uid();
         imgPut(p.imgKey, p.img);
       }
+    });
+    (S.archives || []).forEach((d) => {
+      if (!Array.isArray(d.imgs) || !d.imgs.length) return;
+      if (!d.imgs.every((im) => typeof im === "string" && im.indexOf("data:") === 0)) return; // 비정상이면 그대로 둠(안전)
+      d.imgKeys = d.imgs.map((im) => {
+        const key = imgKeyOf(im);
+        if (!imgStored.has(key)) { imgStored.add(key); imgPut(key, im); }
+        return key;
+      });
     });
   }
   // localStorage에 저장할 때 쓰는 가벼운 사본: 포카 사진(base64)은 빼고 참조(imgKey)만 남김
@@ -1467,6 +1483,14 @@
       }
       return p;
     });
+    lite.archives = (S.archives || []).map((d) => {
+      if (Array.isArray(d.imgs) && d.imgs.length && Array.isArray(d.imgKeys) && d.imgKeys.length === d.imgs.length) {
+        const q = Object.assign({}, d);
+        delete q.imgs; // base64들은 IndexedDB에, localStorage엔 imgKeys만
+        return q;
+      }
+      return d;
+    });
     return lite;
   }
   // 시작할 때 IndexedDB에 있는 포카 사진을 메모리(S)로 다시 채워 넣음
@@ -1475,7 +1499,13 @@
     (S.photocards || []).forEach((p) => {
       if (!p.img && p.imgKey) tasks.push(imgGet(p.imgKey).then((v) => { if (v) p.img = v; }));
     });
-    if (tasks.length) Promise.all(tasks).then(() => { renderBinder(); renderHome(); });
+    (S.archives || []).forEach((d) => {
+      if ((!Array.isArray(d.imgs) || !d.imgs.length) && Array.isArray(d.imgKeys) && d.imgKeys.length) {
+        tasks.push(Promise.all(d.imgKeys.map((k) => { imgStored.add(k); return imgGet(k); }))
+          .then((vals) => { d.imgs = vals.filter((v) => v != null); }));
+      }
+    });
+    if (tasks.length) Promise.all(tasks).then(renderAll);
   }
 
   /* 최애의 음악 목록 헬퍼 (구버전 b.music 문자열은 목록으로 자동 변환) */
