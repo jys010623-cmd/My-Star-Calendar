@@ -313,6 +313,7 @@
       customArchTypes: { offline: [], online: [] },
       schedules: [], stickers: {}, photocards: [],
       expenses: [], archives: [], links: [], styles: [],
+      timetables: [], ttRange: { s: 0, e: 24 },
       membership: { title: "MY STAR PASS", name: "", icon: "✦", no: "0001" },
       seenNotice: 0,
     };
@@ -638,7 +639,7 @@
     const navPage = page === "profile" ? "home" : page;
     document.querySelectorAll(".nav-btn, .bn-btn").forEach((b) => {
       b.classList.toggle("active", b.dataset.page === navPage ||
-        (b.dataset.page === "more" && ["ledger", "style", "settings", "more"].includes(navPage) && b.classList.contains("bn-btn")));
+        (b.dataset.page === "more" && ["timetable", "ledger", "style", "settings", "more"].includes(navPage) && b.classList.contains("bn-btn")));
     });
     closeFab();
     window.scrollTo({ top: 0 });
@@ -647,13 +648,14 @@
     if (page === "home") renderHome();
     if (page === "profile") renderProfile();
     if (page === "calendar") renderCalendar();
+    if (page === "timetable") renderTimetable();
     if (page === "binder") renderBinder();
     if (page === "ledger") renderLedger();
     if (page === "archive") renderArchive();
     if (page === "style") renderStyle();
     if (page === "settings") renderSettings();
     // 페이지 이동 시 문서 제목 갱신 (SPA 접근성·브라우저 기록)
-    const titles = { home: "홈", profile: "최애 프로필", calendar: "캘린더", binder: "포카 바인더", ledger: "덕질 가계부", archive: "아카이브", style: "스타일북", settings: "설정" };
+    const titles = { home: "홈", profile: "최애 프로필", calendar: "캘린더", timetable: "스케줄러", binder: "포카 바인더", ledger: "덕질 가계부", archive: "아카이브", style: "스타일북", settings: "설정" };
     document.title = (titles[page] ? titles[page] + " · " : "") + "마이 스타 캘린더";
   }
 
@@ -4149,6 +4151,7 @@
     renderHome();
     renderProfile();
     renderCalendar();
+    renderTimetable();
     renderBinder();
     renderLedger();
     renderArchive();
@@ -4373,10 +4376,315 @@
   }
 
   /* 외부 공개 API */
+
+  /* ═══════════ 스케줄러 (주간 + 원형 24시 + 고정 시간표) ═══════════
+     주차별로 따로 저장. 한 주의 월요일 날짜(YYYY-MM-DD)를 week 키로 사용.
+     데이터: S.timetables = [{id, biasId, week, day(0=월..6=일), start, end(0~1440 분), title, color}] */
+  let ttWeekStart = null;   // 그 주 월요일 Date
+  let ttView = "fixed";     // "fixed"(시간표) | "week"(주간) | "circle"(원형)
+  let ttDay = 0;            // 원형 뷰에서 보는 요일 (0=월)
+  let ttSelStart = null;    // 원형 뷰: 첫 클릭으로 잡은 시작 시각(분), null이면 선택 없음
+  let ttDraft = null;       // 원형 뷰: 시작~끝을 잡은 회색 임시 칸 {start, end}. 탭하면 입력 모달
+  const TT_DOW = ["월", "화", "수", "목", "금", "토", "일"];
+  const TT_COLORS = ["var(--accent)", "#f7a8c4", "#f6b9a8", "#fbd6a0", "#fdeaa8", "#bfe6c2", "#a8dadc", "#b8c8f0", "#cdbdf0", "#d9d9de"];
+  // 밝은 파스텔엔 어두운 글자, 진한 색엔 흰 글자 (가독성)
+  function ttTextOn(c) { if (!c || c[0] !== "#" || c.length < 7) return "#fff"; const r = parseInt(c.slice(1, 3), 16), g = parseInt(c.slice(3, 5), 16), b = parseInt(c.slice(5, 7), 16); return (0.299 * r + 0.587 * g + 0.114 * b) > 175 ? "#3a3a3a" : "#fff"; }
+
+  const ttMondayOf = (d) => {
+    const x = new Date(d); x.setHours(0, 0, 0, 0);
+    x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+    return x;
+  };
+  const ttKeyOf = (d) => fmtDate(ttMondayOf(d));
+  const ttKey = () => fmtDate(ttWeekStart);
+  const ttHM = (m) => pad(Math.floor(m / 60)) + ":" + pad(m % 60);
+  function ttBlocks() {
+    const k = ttKey(), bid = S.currentBias;
+    return (S.timetables || []).filter((b) => (b.week === k || b.week === "*") && (!b.biasId || b.biasId === bid));
+  }
+
+  // 주간/시간표 표에 보일 시간대 (S.ttRange, 기본 0~24)
+  function ttRangeHours(fixed) { let r = fixed ? S.ttRangeFixed : (S.ttRangeWeek || S.ttRange); r = r || {}; return { s: Number.isInteger(r.s) ? r.s : 0, e: Number.isInteger(r.e) ? r.e : 24 }; }
+
+  function renderTimetable() {
+    if (!$("ttGrid")) return;
+    if (!ttWeekStart) ttWeekStart = ttMondayOf(new Date());
+    const end = new Date(ttWeekStart); end.setDate(end.getDate() + 6);
+    const cur = ttKey() === ttKeyOf(new Date());
+    $("ttTitle").innerHTML = `${ttWeekStart.getMonth() + 1}.${ttWeekStart.getDate()} – ${end.getMonth() + 1}.${end.getDate()}` + (cur ? ` <span class="tt-now">이번 주</span>` : "");
+    $("ttTabs").innerHTML = [["fixed", "시간표", I("bookmark")], ["week", "주간", I("grid")], ["circle", "원형 24시", I("clock")]]
+      .map(([k, n, ic]) => `<button class="${ttView === k ? "active" : ""}" data-ttv="${k}">${ic} ${n}</button>`).join("");
+    $("ttTabs").querySelectorAll("[data-ttv]").forEach((b) => { b.onclick = () => ttSetView(b.dataset.ttv); });
+    renderTTTools();
+    const fixedView = ttView === "fixed";
+    if (ttView === "circle") { $("ttGrid").classList.add("hidden"); $("ttCircle").classList.remove("hidden"); renderTTCircle(); }
+    else { $("ttGrid").classList.remove("hidden"); $("ttCircle").classList.add("hidden"); renderTTGrid(fixedView); }
+    if ($("ttWeekHead")) $("ttWeekHead").classList.toggle("hidden", fixedView); // 고정 시간표는 날짜·주차 없음
+  }
+
+  function renderTTTools() {
+    const t = $("ttTools"); if (!t) return;
+    const fixed = ttView === "fixed";
+    let h = `<button class="chip-btn" onclick="App.openTTBlock(${fixed ? "null, { fixed: true }" : ""})">${I("clock")} 일정 추가</button>`;
+    if (!fixed) h += `<button class="chip-btn" onclick="App.openTTCopy()">다른 주 복사</button>`;
+    if (ttView === "week" || fixed) {
+      const { s: rs, e: re } = ttRangeHours(fixed);
+      h += `<button class="chip-btn" onclick="App.openTTRange('${fixed ? "fixed" : "week"}')">시간 범위 ${rs}–${re}시</button>`;
+    }
+    t.innerHTML = h;
+  }
+
+  // 하루 안에서 겹치는 일정을 나란히 배치하기 위한 레인 계산
+  function ttLayout(arr) {
+    const sorted = arr.map((b) => Object.assign({}, b)).sort((a, b) => a.start - b.start || a.end - b.end);
+    const laneEnd = [];
+    sorted.forEach((b) => {
+      let i = 0; for (; i < laneEnd.length; i++) { if (laneEnd[i] <= b.start) break; }
+      b._lane = i; laneEnd[i] = b.end;
+    });
+    const n = Math.max(laneEnd.length, 1);
+    sorted.forEach((b) => { b._lanes = n; });
+    return sorted;
+  }
+
+  function renderTTGrid(fixed) {
+    const blocks = fixed
+      ? (S.timetables || []).filter((b) => b.week === "*" && (!b.biasId || b.biasId === S.currentBias))
+      : ttBlocks();
+    const rng = ttRangeHours(fixed);
+    let minH = rng.s, maxH = rng.e;
+    // 설정한 범위 밖에 일정이 있으면 가려지지 않도록 자동 확장
+    blocks.forEach((b) => { minH = Math.min(minH, Math.floor(b.start / 60)); maxH = Math.max(maxH, Math.ceil(b.end / 60)); });
+    if (maxH < minH + 1) maxH = minH + 1;
+    const hh = 42;
+    const todayIdx = (!fixed && ttKey() === ttKeyOf(new Date())) ? (new Date().getDay() + 6) % 7 : -1;
+    let heads = `<div class="tt-corner"></div>`;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(ttWeekStart); d.setDate(d.getDate() + i);
+      const wk = i === 5 ? "sat" : i === 6 ? "sun" : "";
+      heads += fixed
+        ? `<div class="tt-dhead ${wk}"><b>${TT_DOW[i]}</b></div>`
+        : `<div class="tt-dhead ${wk} ${i === todayIdx ? "today" : ""}"><b>${TT_DOW[i]}</b><span>${d.getDate()}</span></div>`;
+    }
+    let axis = `<div class="tt-axis">`;
+    for (let h = minH; h < maxH; h++) axis += `<div class="tt-hr" style="height:${hh}px"><span>${h}</span></div>`;
+    axis += `</div>`;
+    let cols = "";
+    for (let i = 0; i < 7; i++) {
+      let slots = "";
+      for (let h = minH; h < maxH; h++) slots += `<div class="tt-slot" data-day="${i}" data-hour="${h}" style="height:${hh}px"></div>`;
+      let bl = "";
+      ttLayout(blocks.filter((b) => b.day === i)).forEach((b) => {
+        const top = (b.start - minH * 60) / 60 * hh;
+        const ht = Math.max((b.end - b.start) / 60 * hh, 17);
+        const w = 100 / b._lanes, left = b._lane * w;
+        bl += `<button class="tt-block" data-id="${b.id}" style="top:${top}px;height:${ht - 2}px;left:calc(${left}% + 1px);width:calc(${w}% - 2px);background:${b.color};color:${ttTextOn(b.color)}"><b>${b.week === "*" ? "↻ " : ""}${esc(b.title)}</b><i>${ttHM(b.start)}~${ttHM(b.end)}</i></button>`;
+      });
+      cols += `<div class="tt-col ${i === todayIdx ? "today" : ""}">${slots}${bl}</div>`;
+    }
+    $("ttGrid").innerHTML = `<div class="tt-head">${heads}</div><div class="tt-body">${axis}${cols}</div>`;
+    $("ttGrid").querySelectorAll(".tt-slot").forEach((sl) => { sl.onclick = () => { const d = +sl.dataset.day, h = +sl.dataset.hour; openTTBlock(null, { day: d, start: h * 60, end: Math.min(h * 60 + 60, 1440), fixed: !!fixed }); }; });
+    $("ttGrid").querySelectorAll(".tt-block").forEach((bt) => { bt.onclick = (e) => { e.stopPropagation(); openTTBlock(bt.dataset.id, fixed ? { fixed: true } : undefined); }; });
+    if (!blocks.length) $("ttGrid").insertAdjacentHTML("beforeend", fixed
+      ? `<p class="tt-empty">빈 칸을 탭해 매주 반복되는 고정 시간표를 짜요. 날짜 없이 매주 똑같이 적용돼요.</p>`
+      : `<p class="tt-empty">빈 시간 칸을 탭하면 그 시간에 일정이 생겨요. ‘매주 반복’으로 만들면 모든 주에 ↻ 표시로 떠요.</p>`);
+  }
+
+  const ttPolar = (cx, cy, r, deg) => { const a = (deg - 90) * Math.PI / 180; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; };
+  function ttArc(cx, cy, rO, rI, a0, a1) {
+    if (a1 - a0 >= 359.999) a1 = a0 + 359.999;
+    const large = (a1 - a0) > 180 ? 1 : 0;
+    const o0 = ttPolar(cx, cy, rO, a0), o1 = ttPolar(cx, cy, rO, a1), i1 = ttPolar(cx, cy, rI, a1), i0 = ttPolar(cx, cy, rI, a0);
+    const f = (n) => n.toFixed(1);
+    return `M${f(o0[0])} ${f(o0[1])} A${rO} ${rO} 0 ${large} 1 ${f(o1[0])} ${f(o1[1])} L${f(i1[0])} ${f(i1[1])} A${rI} ${rI} 0 ${large} 0 ${f(i0[0])} ${f(i0[1])} Z`;
+  }
+
+  function renderTTCircle() {
+    const all = ttBlocks();
+    const day = all.filter((b) => b.day === ttDay).sort((a, b) => a.start - b.start);
+    let chips = `<div class="tt-daychips">`;
+    for (let i = 0; i < 7; i++) chips += `<button class="${i === ttDay ? "on" : ""} ${i === 5 ? "sat" : i === 6 ? "sun" : ""}" data-d="${i}">${TT_DOW[i]}</button>`;
+    chips += `</div>`;
+    const cx = 130, cy = 130, rO = 112;
+    const full = S.ttCircleStyle !== "donut";
+    const rI = full ? 2 : 66;
+    let ticks = "", arcs = "", labels = "";
+    for (let h = 0; h < 24; h++) {
+      const a = h / 24 * 360;
+      const p1 = ttPolar(cx, cy, rO, a), p2 = ttPolar(cx, cy, h % 6 === 0 ? rO - 13 : rO - 6, a);
+      ticks += `<line x1="${p1[0].toFixed(1)}" y1="${p1[1].toFixed(1)}" x2="${p2[0].toFixed(1)}" y2="${p2[1].toFixed(1)}" class="tt-tick ${h % 6 === 0 ? "major" : ""}"/>`;
+      if (h % 3 === 0) { const tp = ttPolar(cx, cy, rO + 13, a); labels += `<text x="${tp[0].toFixed(1)}" y="${tp[1].toFixed(1)}" class="tt-hrnum">${h}</text>`; }
+    }
+    day.forEach((b) => {
+      const a0 = b.start / 1440 * 360, a1 = b.end / 1440 * 360;
+      arcs += `<path d="${ttArc(cx, cy, rO, rI, a0, a1)}" style="fill:${b.color}" class="tt-arc" data-id="${b.id}"/>`;
+      if (a1 - a0 >= 18) { const mid = (a0 + a1) / 2, lp = ttPolar(cx, cy, (rO + rI) / 2, mid); labels += `<text x="${lp[0].toFixed(1)}" y="${lp[1].toFixed(1)}" class="tt-arclabel" style="fill:${ttTextOn(b.color)}">${esc(b.title.slice(0, 5))}</text>`; }
+    });
+    const totMin = day.reduce((s, b) => s + (b.end - b.start), 0);
+    let sel = "";
+    if (ttSelStart != null) {
+      const aS = ttSelStart / 1440 * 360, lp1 = ttPolar(cx, cy, 24, aS), lp2 = ttPolar(cx, cy, rO, aS);
+      sel = `<line x1="${lp1[0].toFixed(1)}" y1="${lp1[1].toFixed(1)}" x2="${lp2[0].toFixed(1)}" y2="${lp2[1].toFixed(1)}" class="tt-selline"/><circle cx="${lp2[0].toFixed(1)}" cy="${lp2[1].toFixed(1)}" r="4.5" class="tt-seldot"/>`;
+    }
+    let draftSvg = "";
+    if (ttDraft) { const da0 = ttDraft.start / 1440 * 360, da1 = ttDraft.end / 1440 * 360; draftSvg = `<path d="${ttArc(cx, cy, rO, rI, da0, da1)}" class="tt-draft"/>`; }
+    const centerTxt = ttSelStart != null ? `시작 ${ttHM(ttSelStart)} · 끝 지점 클릭`
+      : (ttDraft ? `${ttHM(ttDraft.start)}~${ttHM(ttDraft.end)} · 탭하여 입력` : "");
+    const center = centerTxt ? `<text x="${cx}" y="${cy + 4}" class="tt-ctot sel">${centerTxt}</text>` : "";
+    const hole = full ? "" : `<circle cx="${cx}" cy="${cy}" r="${rI}" class="tt-hole"/>`;
+    const svg = `<svg viewBox="0 0 260 260" class="tt-clock" role="img" aria-label="${TT_DOW[ttDay]}요일 24시간 시간표">`
+      + `<circle cx="${cx}" cy="${cy}" r="${rO}" class="tt-face"/>${arcs}${draftSvg}${hole}${ticks}${sel}${labels}${center}</svg>`;
+    const hrStr = (totMin / 60).toFixed(totMin % 60 ? 1 : 0);
+    const cap = `<div class="tt-cap">${TT_DOW[ttDay]}요일 <span>· ${hrStr}시간</span></div>`;
+    const cstyle = `<div class="tt-cstyle" id="ttCStyle"><button type="button" class="${full ? "on" : ""}" data-cs="full">기본형</button><button type="button" class="${!full ? "on" : ""}" data-cs="donut">도넛형</button></div>`;
+    let leg = `<ul class="tt-legend">`;
+    if (!day.length) leg += `<li class="tt-empty2">이 요일엔 아직 일정이 없어요.</li>`;
+    day.forEach((b) => { leg += `<li data-id="${b.id}"><span class="tt-dot" style="background:${b.color}"></span><b>${ttHM(b.start)}~${ttHM(b.end)}</b> ${b.week === "*" ? "↻ " : ""}${esc(b.title)}</li>`; });
+    leg += `</ul>`;
+    $("ttCircle").innerHTML = chips + cstyle + cap + `<div class="tt-clockwrap">${svg}</div>` + leg;
+    $("ttCircle").querySelectorAll(".tt-daychips button").forEach((c) => { c.onclick = () => ttSetDay(+c.dataset.d); });
+    $("ttCircle").querySelectorAll(".tt-cstyle button").forEach((c) => { c.onclick = () => ttSetCircleStyle(c.dataset.cs); });
+    $("ttCircle").querySelectorAll(".tt-legend li[data-id]").forEach((el) => { el.onclick = () => openTTBlock(el.dataset.id); });
+    const svgEl = $("ttCircle").querySelector("svg.tt-clock");
+    if (svgEl) {
+      const draftEl = svgEl.querySelector(".tt-draft");
+      if (draftEl) draftEl.onclick = (e) => { e.stopPropagation(); ttOpenDraft(); };
+      svgEl.onclick = (e) => ttCircleClick(svgEl, e);
+    }
+  }
+
+  // 원형 뷰에서 클릭한 화면 좌표 → 시각(분, 30분 단위 스냅). 첫 클릭=시작, 두 번째 클릭=끝(→입력), 같은 지점=해제
+  function ttCircleClick(svgEl, e) {
+    const r = svgEl.getBoundingClientRect();
+    if (!r.width) return;
+    const x = (e.clientX - r.left) / r.width * 260, y = (e.clientY - r.top) / r.height * 260;
+    const dx = x - 130, dy = y - 130;
+    if (Math.hypot(dx, dy) < 26) return; // 한가운데(글자 영역) 클릭은 무시
+    let deg = Math.atan2(dx, -dy) * 180 / Math.PI;
+    if (deg < 0) deg += 360;
+    let min = Math.round(deg / 360 * 1440 / 30) * 30;
+    if (min >= 1440) min -= 1440;
+    if (ttDraft) {
+      // 회색 임시 칸이 있으면: 그 범위 안을 누르면 입력, 밖을 누르면 새로 시작
+      if (min >= ttDraft.start && min <= ttDraft.end) { ttOpenDraft(); return; }
+      ttDraft = null; ttSelStart = min; renderTTCircle(); return;
+    }
+    if (ttSelStart == null) { ttSelStart = min; renderTTCircle(); return; }
+    if (min === ttSelStart) { ttSelStart = null; renderTTCircle(); return; }
+    ttDraft = { start: Math.min(ttSelStart, min), end: Math.max(ttSelStart, min) };
+    ttSelStart = null;
+    renderTTCircle();
+  }
+
+  function ttOpenDraft() {
+    if (!ttDraft) return;
+    openTTBlock(null, { day: ttDay, start: ttDraft.start, end: ttDraft.end });
+  }
+
+  function ttSetView(v) { ttView = v; ttSelStart = null; ttDraft = null; renderTimetable(); }
+  function ttSetDay(d) { ttDay = d; ttSelStart = null; ttDraft = null; renderTTCircle(); }
+  function ttSetCircleStyle(v) { S.ttCircleStyle = v === "full" ? "full" : "donut"; ttSelStart = null; ttDraft = null; save(); renderTTCircle(); }
+  function ttMove(dir) { const d = new Date(ttWeekStart); d.setDate(d.getDate() + dir * 7); ttWeekStart = ttMondayOf(d); ttSelStart = null; ttDraft = null; renderTimetable(); }
+  function ttThisWeek() { ttWeekStart = ttMondayOf(new Date()); ttSelStart = null; ttDraft = null; renderTimetable(); }
+  function openTTRange(mode) {
+    const fixed = mode === "fixed", key = fixed ? "ttRangeFixed" : "ttRangeWeek", label = fixed ? "시간표" : "주간";
+    const { s: curS, e: curE } = ttRangeHours(fixed);
+    const opt = (max, sel) => { let o = ""; for (let hh = 0; hh <= max; hh++) o += `<option value="${hh}"${hh === sel ? " selected" : ""}>${hh}시</option>`; return o; };
+    openModalRaw(`${label} 시간 범위`, `
+      <p class="hint" style="margin:0 0 12px">${label} 표에 보일 시간대를 정해요 (24시간 기준). 이 범위 밖에 일정이 있으면 자동으로 늘어나요.</p>
+      <div class="tt-timerow">
+        <div class="field"><label>시작</label><select id="ttRS" class="tt-time">${opt(23, curS)}</select></div>
+        <div class="field"><label>끝</label><select id="ttRE" class="tt-time">${opt(24, curE)}</select></div>
+      </div>
+      <button class="btn btn-primary btn-lg" id="ttRSave">적용</button>
+      <button class="btn btn-ghost btn-lg slim" id="ttRReset">0–24시 전체로</button>
+    `);
+    $("ttRSave").onclick = () => {
+      const sv = +$("ttRS").value, ev = +$("ttRE").value;
+      if (ev <= sv) { toast("끝 시간이 시작보다 늦어야 해요"); return; }
+      S[key] = { s: sv, e: ev }; save(); closeModal(); renderTimetable(); toast(`${label} 시간 범위를 바꿨어요`);
+    };
+    $("ttRReset").onclick = () => { S[key] = { s: 0, e: 24 }; save(); closeModal(); renderTimetable(); };
+  }
+
+  function openTTCopy() {
+    if (!ttWeekStart) ttWeekStart = ttMondayOf(new Date());
+    const prev = new Date(ttWeekStart); prev.setDate(prev.getDate() - 7);
+    openModalRaw("다른 주 일정 복사", `
+      <p class="hint" style="margin:0 0 12px">고른 날짜가 속한 주의 일정을 이번 주(${ttWeekStart.getMonth() + 1}.${ttWeekStart.getDate()} 주)로 가져와요.</p>
+      <div class="field"><label>가져올 주의 날짜</label><input type="date" id="ttCopyDate" value="${fmtDate(prev)}"></div>
+      <button class="btn btn-primary btn-lg" id="ttCopyGo">이 주 일정 가져오기</button>
+    `);
+    $("ttCopyGo").onclick = () => {
+      const v = $("ttCopyDate").value;
+      if (!v) { toast("날짜를 골라주세요"); return; }
+      const src = ttMondayOf(new Date(v + "T00:00:00")), srcKey = fmtDate(src), bid = S.currentBias;
+      if (srcKey === ttKey()) { toast("이번 주와 같은 주예요"); return; }
+      const list = (S.timetables || []).filter((b) => b.week === srcKey && (!b.biasId || b.biasId === bid));
+      if (!list.length) { toast("그 주엔 저장된 일정이 없어요"); return; }
+      const k = ttKey();
+      list.forEach((b) => S.timetables.push({ id: uid(), biasId: bid, week: k, day: b.day, start: b.start, end: b.end, title: b.title, color: b.color }));
+      save(); closeModal(); renderTimetable(); toast(`${src.getMonth() + 1}.${src.getDate()} 주 일정을 가져왔어요`);
+    };
+  }
+
+  function ttTimeSelect(id, val) {
+    let o = "";
+    for (let t = 0; t <= 1440; t += 15) o += `<option value="${t}"${t === val ? " selected" : ""}>${ttHM(t)}</option>`;
+    return `<select id="${id}" class="tt-time">${o}</select>`;
+  }
+
+  function openTTBlock(editId, prefill) {
+    if (!ttWeekStart) ttWeekStart = ttMondayOf(new Date());
+    const edit = editId ? (S.timetables || []).find((b) => b.id === editId) : null;
+    prefill = prefill || {};
+    const fixed = prefill.fixed === true;
+    const day = edit ? edit.day : (prefill.day != null ? prefill.day : (ttView === "circle" ? ttDay : 0));
+    const start = edit ? edit.start : (prefill.start != null ? prefill.start : 9 * 60);
+    const end = edit ? edit.end : (prefill.end != null ? prefill.end : Math.min(start + 60, 1440));
+    let selDay = day, selColor = edit ? edit.color : TT_COLORS[0];
+    const isRep = edit ? edit.week === "*" : false;
+    let selRep = fixed ? true : isRep;
+    openModalRaw(edit ? "일정 수정" : "일정 추가", `
+      <div class="field"><label>제목 *</label><input type="text" id="ttT" value="${edit ? esc(edit.title) : ""}" placeholder="예) 음악방송 스밍" maxlength="40"></div>
+      <div class="field"><label>요일</label><div class="tt-dowpick" id="ttDowPick">${TT_DOW.map((n, i) => `<button type="button" class="${i === day ? "on" : ""} ${i === 5 ? "sat" : i === 6 ? "sun" : ""}" data-d="${i}">${n}</button>`).join("")}</div></div>
+      <div class="tt-timerow">
+        <div class="field"><label>시작</label>${ttTimeSelect("ttS", start)}</div>
+        <div class="field"><label>종료</label>${ttTimeSelect("ttE", end)}</div>
+      </div>
+      ${fixed ? "" : `<div class="field"><label>반복</label><div class="tt-reppick" id="ttRep"><button type="button" class="${!isRep ? "on" : ""}" data-r="0">이번 주만</button><button type="button" class="${isRep ? "on" : ""}" data-r="1">매주 반복</button></div></div>`}
+      <div class="field"><label>색상</label><div class="tt-colorpick" id="ttC">${TT_COLORS.map((c) => `<button type="button" class="${c === selColor ? "on" : ""}" data-c="${c}" style="background:${c}" aria-label="색상"></button>`).join("")}</div></div>
+      <button class="btn btn-primary btn-lg" id="ttSave">${edit ? "수정 완료" : "추가"}</button>
+      ${edit ? `<button class="btn btn-danger btn-lg" id="ttDel">이 일정 삭제</button>` : ""}
+    `);
+    $("ttDowPick").querySelectorAll("button").forEach((b) => { b.onclick = () => { selDay = +b.dataset.d; $("ttDowPick").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); }; });
+    $("ttC").querySelectorAll("button").forEach((b) => { b.onclick = () => { selColor = b.dataset.c; $("ttC").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); }; });
+    if ($("ttRep")) $("ttRep").querySelectorAll("button").forEach((b) => { b.onclick = () => { selRep = b.dataset.r === "1"; $("ttRep").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); }; });
+    $("ttSave").onclick = () => {
+      const title = $("ttT").value.trim();
+      if (!title) { toast("제목을 입력해 주세요"); $("ttT").focus(); return; }
+      const s = +$("ttS").value, e = +$("ttE").value;
+      if (e <= s) { toast("종료 시간이 시작보다 늦어야 해요"); return; }
+      const wk = (fixed || selRep) ? "*" : ttKey();
+      if (edit) { edit.title = title; edit.day = selDay; edit.start = s; edit.end = e; edit.color = selColor; edit.week = wk; }
+      else S.timetables.push({ id: uid(), biasId: S.currentBias, week: wk, day: selDay, start: s, end: e, title, color: selColor });
+      if (ttView === "circle") ttDay = selDay;
+      ttDraft = null; ttSelStart = null;
+      save(); closeModal(); renderTimetable();
+      toast(edit ? "일정을 수정했어요" : "일정을 추가했어요");
+    };
+    if (edit) $("ttDel").onclick = () => {
+      if (!confirm("이 일정을 삭제할까요?")) return;
+      S.timetables = S.timetables.filter((x) => x.id !== edit.id);
+      save(); closeModal(); renderTimetable(); toast("일정을 삭제했어요");
+    };
+  }
+
   window.App = {
     obNext, obFinish, obSkip, extractFromPhoto,
     go, toggleFab, toggleDark, toggleRetro, setRetroSkin, setRetroPos, setBg, setAlign, setPatStyle, openFramePicker, openColorPicker, openBudget, openYearReview, toggleNotifyTicket, toggleHaptics, setVeil, setPreset, retroMin, retroMax, toggleDeco, toggleCoverPos, cardGo, coverDragStart, editCurrentBias, setTemplate, setMode,
     calMove, calToday, calJump, openStickerPicker, shareDay,
+    ttMove, ttThisWeek, ttSetView, ttSetDay, ttSetCircleStyle, openTTRange, openTTCopy, openTTBlock,
     binderTab, ledgerMove, archiveTab, styleTab,
     addLink, openModal, closeModal, backdropClose,
     exportData, resetAll,

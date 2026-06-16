@@ -2716,3 +2716,94 @@ input[type="range"].cp::-moz-range-thumb {
     background: color-mix(in srgb, var(--muted) 78%, transparent);
   }
 }
+
+/* ───────── 시간표 (주간 + 원형 24시) ───────── */
+.tt-week { margin-top: 2px; }
+.tt-now { font-size: 11px; font-weight: 700; color: var(--accent-deep); background: var(--accent-soft); padding: 2px 7px; border-radius: 20px; vertical-align: middle; margin-left: 4px; }
+.tt-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 4px 0 12px; }
+.tt-tools { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip-btn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-deep); }
+
+/* 주간 그리드 */
+.tt-gridwrap { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--card); }
+.tt-head, .tt-body { display: grid; grid-template-columns: 34px repeat(7, 1fr); }
+.tt-body { padding-top: 7px; }
+.tt-head { border-bottom: 1px solid var(--line); background: var(--bg-soft); }
+.tt-dhead { text-align: center; padding: 7px 0 6px; border-left: 1px solid var(--line); }
+.tt-dhead b { display: block; font-size: 12.5px; font-weight: 800; line-height: 1.2; }
+.tt-dhead span { font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tt-dhead.sat b { color: #3d7bff; }
+.tt-dhead.sun b { color: #ff5c5c; }
+.tt-dhead.today { background: var(--accent-soft); }
+.tt-dhead.today b { color: var(--accent-deep); }
+.tt-axis { border-right: 1px solid var(--line); }
+.tt-hr { position: relative; box-sizing: border-box; }
+.tt-hr span { position: absolute; top: -7px; right: 4px; font-size: 9.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tt-col { position: relative; border-left: 1px solid var(--line); }
+.tt-col.today { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.tt-slot { box-sizing: border-box; border-bottom: 1px solid var(--line); cursor: pointer; }
+.tt-slot:hover { background: var(--accent-softer); }
+.tt-block { position: absolute; box-sizing: border-box; border: none; border-radius: 6px; padding: 3px 5px; color: #fff; text-align: left; overflow: hidden; cursor: pointer; box-shadow: 0 1px 3px rgba(0, 0, 0, .16); line-height: 1.15; z-index: 2; }
+.tt-block b { display: block; font-size: 10.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tt-block i { font-size: 8.5px; font-style: normal; opacity: .92; }
+.tt-empty { padding: 16px 14px; font-size: 12.5px; color: var(--muted); text-align: center; line-height: 1.5; }
+
+/* 원형 24시 */
+.tt-daychips { display: flex; gap: 5px; justify-content: center; margin: 2px 0 14px; flex-wrap: wrap; }
+.tt-daychips button { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 13px; font-weight: 700; }
+.tt-daychips button.sat { color: #3d7bff; }
+.tt-daychips button.sun { color: #ff5c5c; }
+.tt-daychips button.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.tt-clockwrap { display: flex; justify-content: center; }
+.tt-clock { width: 100%; max-width: 340px; height: auto; }
+.tt-face { fill: var(--card); stroke: var(--line); stroke-width: 1; }
+.tt-hole { fill: var(--card); stroke: none; }
+.tt-tick { stroke: var(--muted); stroke-width: 1; opacity: .5; }
+.tt-tick.major { stroke: var(--text); opacity: .65; stroke-width: 1.4; }
+.tt-hrnum { fill: var(--muted); font-size: 9px; text-anchor: middle; dominant-baseline: middle; font-weight: 700; }
+.tt-arc { stroke: var(--card); stroke-width: 1; pointer-events: none; }
+.tt-draft { fill: color-mix(in srgb, var(--muted) 36%, transparent); stroke: var(--muted); stroke-width: 1.4; stroke-dasharray: 4 3; cursor: pointer; }
+
+.tt-arclabel { fill: #fff; font-size: 7.5px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+.tt-cday { fill: var(--text); font-size: 14px; font-weight: 800; text-anchor: middle; }
+.tt-ctot { fill: var(--muted); font-size: 10px; text-anchor: middle; font-weight: 600; }
+.tt-legend { list-style: none; margin: 16px 0 12px; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.tt-legend li { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 10px; font-size: 13px; cursor: pointer; }
+.tt-legend li[data-id]:hover { background: var(--bg-soft); }
+.tt-legend li b { font-variant-numeric: tabular-nums; font-weight: 700; }
+.tt-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+.tt-empty2 { color: var(--muted); justify-content: center; cursor: default; }
+
+/* 일정 추가 모달 */
+.tt-dowpick, .tt-colorpick { display: flex; gap: 6px; flex-wrap: wrap; }
+.tt-dowpick button { width: 40px; height: 40px; border-radius: 11px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 14px; font-weight: 700; }
+.tt-dowpick button.sat { color: #3d7bff; }
+.tt-dowpick button.sun { color: #ff5c5c; }
+.tt-dowpick button.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.tt-timerow { display: flex; gap: 12px; }
+.tt-timerow .field { flex: 1; min-width: 0; }
+.tt-time { width: 100%; }
+.tt-colorpick button { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; padding: 0; }
+.tt-colorpick button.on { border-color: var(--text); box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--text); }
+
+@media (max-width: 480px) {
+  .tt-head, .tt-body { grid-template-columns: 28px repeat(7, 1fr); }
+  .tt-block b { font-size: 9.8px; }
+  .tt-block i { font-size: 8px; }
+  .tt-dhead b { font-size: 11.5px; }
+}
+
+.tt-reppick { display: flex; gap: 6px; }
+.tt-reppick button { flex: 1; padding: 10px; border-radius: 11px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 13px; font-weight: 700; }
+.tt-reppick button.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+
+.tt-clock { cursor: pointer; }
+.tt-selline { stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; }
+.tt-seldot { fill: var(--accent); }
+.tt-ctot.sel { fill: var(--accent-deep); font-weight: 700; }
+
+.tt-cstyle { display: flex; gap: 6px; justify-content: center; margin: 0 0 12px; }
+.tt-cstyle button { padding: 5px 13px; border-radius: 20px; border: 1px solid var(--line); background: var(--card); color: var(--muted); font-size: 12px; font-weight: 700; }
+.tt-cstyle button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-deep); }
+.tt-cap { text-align: center; font-size: 15px; font-weight: 800; margin: 0 0 6px; }
+.tt-cap span { color: var(--muted); font-weight: 600; font-size: 13px; }
