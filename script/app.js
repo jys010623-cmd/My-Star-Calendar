@@ -724,7 +724,7 @@
   function initOnboarding() {
     $("onboarding").classList.remove("hidden");
     $("obStartWrap").innerHTML = dateSelectHTML("obStart", todayKey(), { yearsFwd: 1 });
-    $("obBirthdayWrap").innerHTML = calToggleHTML("obBirthCal", false) + dateSelectHTML("obBirthday", "", { yearsFwd: 1 }) + `<p class="cal-preview" id="obBirthPrev"></p>`;
+    $("obBirthdayWrap").innerHTML = `<div class="cal-row">` + calToggleHTML("obBirthCal", false) + `<span class="cal-preview" id="obBirthPrev"></span></div>` + dateSelectHTML("obBirthday", "", { yearsFwd: 1 });
     $("obDebutWrap").innerHTML = dateSelectHTML("obDebut", "", { yearsFwd: 1 });
     obRenderPreset();
     // 스와치
@@ -4415,7 +4415,7 @@
         <div class="field"><label>이름 *</label><input type="text" id="mTitle" value="${edit ? esc(edit.name) : ""}"></div>
         <div class="field"><label>그룹 / 소속</label><input type="text" id="mGroup" value="${edit ? esc(edit.group || "") : ""}"></div>
         <div class="field"><label>덕질 시작일 *</label>${dateSelectHTML("mStart", edit ? edit.startDate : todayKey(), { yearsFwd: 1 })}</div>
-        <div class="field"><label>생일</label>${calToggleHTML("mBirthCal", !!(edit && edit.birthdayLunar))}${dateSelectHTML("mBirth", edit && edit.birthday ? edit.birthday : "", { yearsFwd: 1 })}<p class="cal-preview" id="mBirthPrev"></p></div>
+        <div class="field"><label>생일</label><div class="cal-row">${calToggleHTML("mBirthCal", !!(edit && edit.birthdayLunar))}<span class="cal-preview" id="mBirthPrev"></span></div>${dateSelectHTML("mBirth", edit && edit.birthday ? edit.birthday : "", { yearsFwd: 1 })}</div>
         <div class="field"><label>데뷔일</label>${dateSelectHTML("mDebut", edit && edit.debutDate ? edit.debutDate : "", { yearsFwd: 1 })}</div>
         <button class="btn btn-primary btn-lg" id="mSave">${edit ? "수정 완료" : "추가"}</button>
         ${edit && S.biases.length > 1 ? `<button class="btn btn-danger btn-lg" id="mDel">이 최애 삭제</button>` : ""}

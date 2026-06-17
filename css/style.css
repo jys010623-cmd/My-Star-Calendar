@@ -3000,9 +3000,10 @@ input[type="range"].cp::-moz-range-thumb {
 }
 
 /* 생일 양력/음력 토글 */
-.cal-toggle { display: inline-flex; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+/* 토글 + 미리보기를 한 줄에 — 미리보기가 떠도 아래로 안 늘어나 칸 간격이 일정 */
+.cal-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.cal-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .cal-toggle button { padding: 6px 16px; font-size: 13px; font-weight: 700; background: var(--card); color: var(--muted); border: none; cursor: pointer; }
 .cal-toggle button + button { border-left: 1px solid var(--line); }
 .cal-toggle button.on { background: var(--accent); color: var(--on-accent); }
-/* 미리보기 자리는 비어 있어도 항상 같은 높이를 차지 → 토글해도 아래 버튼이 안 밀림 */
-.cal-preview { margin: 6px 2px 0; font-size: 12.5px; font-weight: 600; color: var(--accent-deep); min-height: 16px; line-height: 16px; }
+.cal-preview { font-size: 12.5px; font-weight: 600; color: var(--accent-deep); }
