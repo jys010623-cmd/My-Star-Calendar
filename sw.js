@@ -5,7 +5,7 @@
          캐시에 갱신해 두므로 다음 실행엔 최신이 반영됨(또는 '새로고침' 배너로 바로 알림).
    주의: version.json은 절대 캐시하지 않음(버전 감지가 항상 실시간이어야 함).
    ▶ 앱 셸을 갱신하고 싶으면 아래 CACHE 버전 숫자만 올리면 됨. */
-const CACHE = "msc-shell-v3";
+const CACHE = "msc-shell-v4";
 const SHELL = [
   "./",
   "./index.html",
@@ -38,6 +38,23 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // 외부(GTM·유튜브·스포티파이 등)는 그대로 통과
   if (url.pathname.endsWith("version.json")) return; // 버전 감지는 항상 실시간 — 캐시 금지
+
+  // 공지 데이터는 항상 네트워크에서 최신으로 받아옴 → 배포하면 다음 실행에 공지가 자동으로 바뀜.
+  // (앱 셸은 아래 캐시 우선이라 빠르게 뜨고, 공지만 따로 최신화. 오프라인이면 캐시로 대체.)
+  if (url.pathname.endsWith("notices-data.js")) {
+    e.respondWith(
+      fetch(url.pathname, { cache: "no-store" })
+        .then((res) => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+          }
+          return res;
+        })
+        .catch(() => caches.match(req).then((hit) => hit || caches.match(url.pathname)))
+    );
+    return;
+  }
 
   // 캐시 우선 + 백그라운드 갱신: 캐시에 있으면 즉시 내주고(→ 앱 즉시 표시 → 스플래시 순삭),
   // 동시에 네트워크로 받아 캐시를 갱신. 캐시에 없으면 네트워크로 가져옴. 오프라인이면 캐시로 대체.
