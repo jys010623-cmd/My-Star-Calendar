@@ -2998,3 +2998,9 @@ input[type="range"].cp::-moz-range-thumb {
 @media (prefers-contrast: more) {
   .card, input, select, textarea, .btn, .tab, .chip-btn { border-color: var(--text); }
 }
+
+/* 생일 양력/음력 토글 */
+.cal-toggle { display: inline-flex; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.cal-toggle button { padding: 6px 16px; font-size: 13px; font-weight: 700; background: var(--card); color: var(--muted); border: none; cursor: pointer; }
+.cal-toggle button + button { border-left: 1px solid var(--line); }
+.cal-toggle button.on { background: var(--accent); color: var(--on-accent); }

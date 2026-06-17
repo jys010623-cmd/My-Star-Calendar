@@ -51,21 +51,36 @@
   let CATS = {}; // 활성 프리셋 카테고리 — buildCats()로 채움
   const CAT_FALLBACK = { name: "기타", v: "--cat-fallback" }; // 카테고리 삭제 등으로 못 찾을 때 안전 폴백
   // 카테고리는 '오프라인/온라인' 두 묶음으로만 나뉨 (사용자 편집 가능)
-  function defaultCats() {
-    const off = ["콘서트", "팬미팅", "팬사인회", "생일카페", "팝업스토어"];
-    const on = ["컴백", "발매", "음악방송", "방송", "라이브", "버블", "자컨", "MD"];
-    const all = off.map((n) => [n, "offline"]).concat(on.map((n) => [n, "online"]));
+  // 덕질 유형별 기본 캘린더 카테고리 (오프라인=직접 가는 것 / 온라인=방송·발매·디지털)
+  const CAT_DEFAULTS = {
+    idol:    { off: ["콘서트", "팬미팅", "팬사인회", "생일카페", "팝업스토어"], on: ["컴백", "발매", "음악방송", "방송", "라이브", "버블", "자컨", "MD"] },
+    actor:   { off: ["무대인사", "시사회", "팬미팅", "전시·팝업"], on: ["방영·개봉", "시상식", "화보·인터뷰", "라이브 방송", "VOD·다시보기"] },
+    vtuber:  { off: ["오프 콘서트", "팝업", "팬미팅"], on: ["방송·합방", "신곡·컨텐츠", "생일·기념일", "콘서트 스밍", "클립·다시보기"] },
+    musical: { off: ["공연", "커튼콜·이벤트", "굿즈·전시", "시사회"], on: ["온라인 중계", "캐스팅 소식", "음반·MD"] },
+    sports:  { off: ["직관", "팬미팅·사인회", "이벤트"], on: ["중계·하이라이트", "선수 생일", "유니폼·굿즈"] },
+    esports: { off: ["직관·현장", "팬미팅", "이벤트"], on: ["경기·대회", "방송·중계", "선수 생일", "굿즈"] },
+    content: { off: ["전시·팝업", "행사", "상영회"], on: ["발매·연재", "콜라보", "캐릭터 생일", "굿즈", "영상·자료"] },
+    game:    { off: ["오프 이벤트", "팝업", "대회·행사"], on: ["업데이트", "이벤트", "픽업·가챠", "캐릭터 생일", "굿즈", "방송·생중계"] },
+    hobby:   { off: ["연습·활동", "레슨·클래스", "발표·대회"], on: ["온라인 클래스", "영상 학습", "기념일"] },
+    free:    { off: ["일정", "모임", "기념일"], on: ["온라인", "시청"] },
+  };
+  function defaultCats(preset) {
+    const d = CAT_DEFAULTS[preset] || CAT_DEFAULTS.idol;
+    const all = d.off.map((n) => [n, "offline"]).concat(d.on.map((n) => [n, "online"]));
     return all.map(([name, mode], i) => ({ key: "cat_" + uid(), name, mode, color: PASTEL[i % PASTEL.length] }));
   }
   function buildCats() {
     const root = (typeof document !== "undefined") ? document.documentElement : null;
     let list;
     if (S) {
-      // 오프/온 카테고리 모델(om1)로 한 번 이전
-      if (S.catModel !== "om7" || !Array.isArray(S.cats) || !S.cats.length) {
-        S.cats = defaultCats();
-        S.catModel = "om7";
+      // 구버전(om7) 카테고리는 아이돌 기준으로 만들어졌으므로 catsPreset을 idol로 간주(아이돌 커스텀 보존)
+      if (S.catsPreset == null && S.catModel === "om7" && Array.isArray(S.cats) && S.cats.length) S.catsPreset = "idol";
+      // 카테고리가 없거나 현재 덕질 유형과 카테고리 기준이 다르면 그 유형 기본값으로 (재)생성
+      if (!Array.isArray(S.cats) || !S.cats.length || S.catsPreset !== S.preset) {
+        S.cats = defaultCats(S.preset);
+        S.catsPreset = S.preset;
       }
+      S.catModel = "om8";
       list = S.cats;
     } else {
       list = defaultCats();
@@ -275,6 +290,25 @@
     const d = dEl ? dEl.dataset.val : "1"; // 일 드롭다운이 없으면(월 점프 등) 1일로
     if (!y || !m || !d) return "";
     return `${y}-${pad(+m)}-${pad(+d)}`;
+  }
+  // 양력/음력 선택 토글 (생일 입력용)
+  function calToggleHTML(id, isLunar) {
+    return `<div class="cal-toggle" id="${id}" role="group" aria-label="양력 음력 선택">`
+      + `<button type="button" data-cal="solar" class="${isLunar ? "" : "on"}">양력</button>`
+      + `<button type="button" data-cal="lunar" class="${isLunar ? "on" : ""}">음력</button>`
+      + `</div>`;
+  }
+  function calToggleVal(id) {
+    const el = $(id);
+    if (!el) return false;
+    const on = el.querySelector("button.on");
+    return !!(on && on.dataset.cal === "lunar");
+  }
+  function handleCalToggle(e) {
+    const btn = e.target.closest(".cal-toggle button[data-cal]");
+    if (!btn) return;
+    btn.closest(".cal-toggle").querySelectorAll("button").forEach((x) => x.classList.remove("on"));
+    btn.classList.add("on");
   }
   // 펼친 목록을 화면 기준(fixed)으로 띄워 모달 overflow에 안 잘리게. 공간 보고 아래/위로.
   function positionDselList(btn, list) {
@@ -515,10 +549,62 @@
     return Math.round((d - t0) / 86400000);
   }
 
+  /* ───────── 음력 생일 (b.birthdayLunar=true면 b.birthday의 월·일을 음력으로 해석) ───────── */
+  function isLunarBirth(b) { return !!(b && b.birthday && b.birthdayLunar); }
+  // 음력 생일이 다음(또는 오늘) 돌아오는 양력 Date
+  function lunarBirthSolar(b, from) {
+    if (!isLunarBirth(b) || !window.Lunar) return null;
+    const p = b.birthday.split("-");
+    return window.Lunar.annivNextSolar(+p[1], +p[2], from || new Date());
+  }
+  // 생일 D-day (양력·음력 공용)
+  function birthdayDDay(b) {
+    if (!b || !b.birthday) return null;
+    if (isLunarBirth(b)) {
+      const s = lunarBirthSolar(b);
+      return s ? Math.round((stripTime(s) - stripTime(new Date())) / 86400000) : null;
+    }
+    return dToAnniv(b.birthday);
+  }
+  function birthdayDDayText(b) { const n = birthdayDDay(b); return n == null ? "" : (n === 0 ? "D-DAY" : "D-" + n); }
+  // 주어진 양력 날짜(refKey "YYYY-MM-DD")가 이 최애의 생일인가
+  function birthdayOnKey(b, refKey) {
+    if (!b || !b.birthday) return false;
+    if (isLunarBirth(b)) {
+      const ref = stripTime(refKey ? parseYMD(refKey) : new Date());
+      const p = b.birthday.split("-");
+      const s = window.Lunar && window.Lunar.toSolar(ref.getFullYear(), +p[1], +p[2], false);
+      return !!(s && stripTime(s).getTime() === ref.getTime());
+    }
+    return isAnnivOn(b.birthday, refKey);
+  }
+  // 주어진 양력 (연, 월0base, 일)이 생일인가 — 캘린더 칸용
+  function birthdayOnYMD(b, year, month0, day) {
+    if (!b || !b.birthday) return false;
+    if (isLunarBirth(b)) {
+      const p = b.birthday.split("-");
+      const s = window.Lunar && window.Lunar.toSolar(year, +p[1], +p[2], false);
+      return !!(s && s.getMonth() === month0 && s.getDate() === day);
+    }
+    return sameMD(b.birthday, month0, day);
+  }
+  // 프로필 등 생일 표시 문구 (음력이면 음력 + 올해 환산 양력)
+  function birthdayLabel(b) {
+    if (!b || !b.birthday) return "—";
+    if (isLunarBirth(b)) {
+      const p = b.birthday.split("-");
+      // '올해 양력'은 올해(현재 연도)의 환산 양력 — 지났는지와 무관하게 올해 날짜를 보여줌
+      const s = window.Lunar && window.Lunar.toSolar(new Date().getFullYear(), +p[1], +p[2], false);
+      const sx = s ? ` · 올해 양력 ${s.getMonth() + 1}.${s.getDate()}` : "";
+      return `음력 ${+p[1]}.${+p[2]}${sx}`;
+    }
+    return b.birthday;
+  }
+
   function buildBadges(b, ddText) {
     const badges = [`<span class="badge-accent">덕질 ${ddText} ♥</span>`];
     if (b.birthday) {
-      const du = dUntilAnniv(b.birthday);
+      const du = birthdayDDay(b);
       badges.push(`<span class="badge-accent alt">${I("cake")} 생일 ${du === 0 ? "오늘!" : "D-" + du}</span>`);
     }
     if (b.debutDate) {
@@ -575,6 +661,7 @@
       photo: obPhotoData,
       startDate: dateSelectVal("obStart"),
       birthday: dateSelectVal("obBirthday") || null,
+      birthdayLunar: !!dateSelectVal("obBirthday") && calToggleVal("obBirthCal"),
       debutDate: dateSelectVal("obDebut") || null,
     };
     S.biases.push(bias);
@@ -619,7 +706,7 @@
   function initOnboarding() {
     $("onboarding").classList.remove("hidden");
     $("obStartWrap").innerHTML = dateSelectHTML("obStart", todayKey(), { yearsFwd: 1 });
-    $("obBirthdayWrap").innerHTML = dateSelectHTML("obBirthday", "", { yearsFwd: 1 });
+    $("obBirthdayWrap").innerHTML = calToggleHTML("obBirthCal", false) + dateSelectHTML("obBirthday", "", { yearsFwd: 1 });
     $("obDebutWrap").innerHTML = dateSelectHTML("obDebut", "", { yearsFwd: 1 });
     obRenderPreset();
     // 스와치
@@ -1172,7 +1259,7 @@
       .reduce((a, e) => a + (+e.amount || 0), 0);
     const dTo = (ds) => dToAnniv(ds, today);
     const annivs = [];
-    if (b && b.birthday) annivs.push(["생일", dTo(b.birthday)]);
+    if (b && b.birthday) annivs.push(["생일", birthdayDDay(b)]);
     if (b && b.debutDate) annivs.push(["데뷔일", dTo(b.debutDate)]);
     annivs.sort((a, b2) => a[1] - b2[1]);
     const own = byBias(S.photocards).filter((p) => p.status === "own").length;
@@ -1380,7 +1467,7 @@
     // D-DAY 카운트다운
     const dTo = (ds) => dToAnniv(ds, today);
     const ddays = [];
-    if (b.birthday) ddays.push({ ic: I("cake"), label: `${b.name} 생일`, n: dTo(b.birthday), v: "--c-birthday" });
+    if (b.birthday) ddays.push({ ic: I("cake"), label: `${b.name} 생일${isLunarBirth(b) ? " (음력)" : ""}`, n: birthdayDDay(b), v: "--c-birthday" });
     if (b.debutDate) ddays.push({ ic: I("flag"), label: "데뷔 기념일", n: dTo(b.debutDate), v: "--c-comeback" });
     (b.annivs || []).forEach((a) => ddays.push({ ic: I("heart"), label: a.title, n: dTo(a.date), v: "--c-concert" }));
     const nextSch = byBias(S.schedules).filter((s) => s.date && s.date >= today).sort((a, c) => a.date.localeCompare(c.date))[0];
@@ -2023,7 +2110,7 @@
     const items = b ? byBias(S.schedules).filter((s) => s.date === tk).sort((a, b2) => (a.time || "").localeCompare(b2.time || "")) : [];
     const annivs = [];
     if (b) {
-      if (b.birthday && isAnnivOn(b.birthday, tk)) annivs.push({ cat: "birthday", title: `${b.name} 생일`, time: "" });
+      if (b.birthday && birthdayOnKey(b, tk)) annivs.push({ cat: "birthday", title: `${b.name} 생일`, time: "" });
       if (b.debutDate && isAnnivOn(b.debutDate, tk)) annivs.push({ cat: "birthday", title: "데뷔 기념일", time: "" });
       (b.annivs || []).forEach((a) => { if (isAnnivOn(a.date, tk)) annivs.push({ cat: "birthday", title: a.title, time: "" }); });
     }
@@ -2123,7 +2210,7 @@
       const n = dToAnniv(ds);
       return n === 0 ? "D-DAY" : "D-" + n;
     };
-    const rows = [["덕질 시작일", b.startDate || "—", ""], ["생일", b.birthday || "—", dDayTo(b.birthday)], ["데뷔일", b.debutDate || "—", dDayTo(b.debutDate)]];
+    const rows = [["덕질 시작일", b.startDate || "—", ""], ["생일", birthdayLabel(b), b.birthday ? birthdayDDayText(b) : ""], ["데뷔일", b.debutDate || "—", dDayTo(b.debutDate)]];
     (b.annivs || []).forEach((a) => rows.push([esc(a.title), a.date, dDayTo(a.date), a.id]));
     $("annivList").innerHTML = rows.map(([k, v, dd, aid]) => `<li><span>${k}${dd ? ` <em class="al-dd">${dd}</em>` : ""}</span><span class="al-v">${v}${aid ? ` <button class="dl-del" data-anniv="${aid}">${I("x")}</button>` : ""}</span></li>`).join("")
       + `<li class="al-add"><button class="chip-btn" onclick="App.openModal('anniv')">+ 기념일 추가</button></li>`;
@@ -2305,7 +2392,7 @@
   function decoDdayText(b, key) {
     if (!b) return "";
     if (key === "start") { const n = dPlus(b.startDate); return `덕질 D+${n != null ? n : 0}`; }
-    if (key === "birthday" && b.birthday) { const n = ddayCountTo(b.birthday); return `생일 ${n === 0 ? "D-DAY" : "D-" + n}`; }
+    if (key === "birthday" && b.birthday) { const n = birthdayDDay(b); return `생일 ${n === 0 ? "D-DAY" : "D-" + n}`; }
     if (key === "debut" && b.debutDate) { const n = ddayCountTo(b.debutDate); return `데뷔 ${n === 0 ? "D-DAY" : "D-" + n}`; }
     const a = (b.annivs || []).find((x) => x.id === key);
     if (a) { const n = ddayCountTo(a.date); return `${a.title} ${n === 0 ? "D-DAY" : "D-" + n}`; }
@@ -2791,7 +2878,7 @@
       ).join("") + (dayItems.length > MAXC ? `<span class="cal-more">+${dayItems.length - MAXC}</span>` : "");
       let anniv = "";
       if (b) {
-        if (b.birthday && sameMD(b.birthday, m, dayNum)) anniv = `<span class="anniv">${I("cake")} 생일</span>`;
+        if (b.birthday && birthdayOnYMD(b, y, m, dayNum)) anniv = `<span class="anniv">${I("cake")} 생일</span>`;
         else if (b.debutDate && sameMD(b.debutDate, m, dayNum)) anniv = `<span class="anniv">${I("flag")} 데뷔</span>`;
         else {
           const ca = (b.annivs || []).find((a) => sameMD(a.date, m, dayNum));
@@ -4309,7 +4396,7 @@
         <div class="field"><label>이름 *</label><input type="text" id="mTitle" value="${edit ? esc(edit.name) : ""}"></div>
         <div class="field"><label>그룹 / 소속</label><input type="text" id="mGroup" value="${edit ? esc(edit.group || "") : ""}"></div>
         <div class="field"><label>덕질 시작일 *</label>${dateSelectHTML("mStart", edit ? edit.startDate : todayKey(), { yearsFwd: 1 })}</div>
-        <div class="field"><label>생일</label>${dateSelectHTML("mBirth", edit && edit.birthday ? edit.birthday : "", { yearsFwd: 1 })}</div>
+        <div class="field"><label>생일</label>${calToggleHTML("mBirthCal", !!(edit && edit.birthdayLunar))}${dateSelectHTML("mBirth", edit && edit.birthday ? edit.birthday : "", { yearsFwd: 1 })}</div>
         <div class="field"><label>데뷔일</label>${dateSelectHTML("mDebut", edit && edit.debutDate ? edit.debutDate : "", { yearsFwd: 1 })}</div>
         <button class="btn btn-primary btn-lg" id="mSave">${edit ? "수정 완료" : "추가"}</button>
         ${edit && S.biases.length > 1 ? `<button class="btn btn-danger btn-lg" id="mDel">이 최애 삭제</button>` : ""}
@@ -4328,6 +4415,7 @@
           name, group: $("mGroup").value.trim(),
           startDate: dateSelectVal("mStart"),
           birthday: dateSelectVal("mBirth") || null,
+          birthdayLunar: !!dateSelectVal("mBirth") && calToggleVal("mBirthCal"),
           debutDate: dateSelectVal("mDebut") || null,
         };
         if (edit) {
@@ -4562,6 +4650,7 @@
     document.addEventListener("visibilitychange", () => { if (standbyOpen && document.visibilityState === "visible") reqWake(); });
     // 커스텀 날짜 드롭다운 (열기/선택/바깥클릭 닫기)
     document.addEventListener("click", handleDselClick);
+    document.addEventListener("click", handleCalToggle);
 
     // 모바일 전용 '더보기' 페이지를 보던 중 PC 폭으로 바뀌면 설정으로 이동 (빈 화면 방지)
     if (window.matchMedia) {

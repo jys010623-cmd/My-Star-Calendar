@@ -29,6 +29,12 @@
     display: inline-flex; align-items: center; justify-content: center;
     color: var(--text); font-size: 18px;
   }
+  /* 다크모드 토글 아이콘: 라이트=달, 다크=노란 해 (앱 메인과 동일) */
+  #darkBtn svg { width: 20px; height: 20px; }
+  #darkBtn .ico-sun { display: none; }
+  [data-dark="true"] #darkBtn .ico-moon { display: none; }
+  [data-dark="true"] #darkBtn .ico-sun { display: inline; }
+  [data-dark="true"] #darkBtn { color: #ffd34d; }
   .fb-hero { padding: 8px 0 18px; }
   .fb-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .14em; color: var(--accent-deep); text-transform: uppercase; margin-bottom: 10px; }
   .fb-hero h1 { font-size: 26px; font-weight: 800; line-height: 1.28; letter-spacing: -0.02em; }
@@ -73,7 +79,7 @@
       <span><b>자주 묻는 질문</b><small>MY STAR CALENDAR · Q&A</small></span>
     </a>
    </div>
-    <button class="icon-btn" id="darkBtn" aria-label="다크 모드 전환" title="다크 모드">◐</button>
+    <button class="icon-btn" id="darkBtn" aria-label="다크 모드 전환" title="다크 모드"><svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14A8.5 8.5 0 1 1 10 3.5a7 7 0 0 0 10.5 10.5Z"/></svg><svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M4.4 4.4l1.85 1.85M17.75 17.75l1.85 1.85M2.5 12h2.6M18.9 12h2.6M4.4 19.6l1.85-1.85M17.75 6.25l1.85-1.85"/></svg></button>
   </div>
 
   <div class="fb-hero">
