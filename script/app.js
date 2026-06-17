@@ -309,6 +309,23 @@
     if (!btn) return;
     btn.closest(".cal-toggle").querySelectorAll("button").forEach((x) => x.classList.remove("on"));
     btn.classList.add("on");
+    refreshLunarPreviews();
+  }
+  // 생일 입력 중 '음력 → 올해 양력' 미리보기 갱신 (토글·날짜 바꿀 때마다)
+  function refreshLunarPreviews() {
+    [["mBirthCal", "mBirth", "mBirthPrev"], ["obBirthCal", "obBirthday", "obBirthPrev"]].forEach(([calId, dateId, prevId]) => {
+      const prev = $(prevId);
+      if (!prev) return;
+      const sel = $(dateId);
+      const mEl = sel && sel.querySelector(".ds-m"), dEl = sel && sel.querySelector(".ds-d");
+      const m = mEl && mEl.dataset.val, d = dEl && dEl.dataset.val;
+      if (calToggleVal(calId) && m && d && window.Lunar) {
+        const s = window.Lunar.toSolar(new Date().getFullYear(), +m, +d, false);
+        prev.textContent = s ? `(올해 양력 ${s.getMonth() + 1}월 ${s.getDate()}일)` : "";
+      } else {
+        prev.textContent = "";
+      }
+    });
   }
   // 펼친 목록을 화면 기준(fixed)으로 띄워 모달 overflow에 안 잘리게. 공간 보고 아래/위로.
   function positionDselList(btn, list) {
@@ -340,6 +357,7 @@
       dsel.querySelectorAll(".dsel-list .on").forEach((x) => x.classList.remove("on"));
       opt.classList.add("on");
       closeDselList(dsel.querySelector(".dsel-list"));
+      refreshLunarPreviews();
       return;
     }
     const btn = e.target.closest(".dsel-btn");
@@ -706,7 +724,7 @@
   function initOnboarding() {
     $("onboarding").classList.remove("hidden");
     $("obStartWrap").innerHTML = dateSelectHTML("obStart", todayKey(), { yearsFwd: 1 });
-    $("obBirthdayWrap").innerHTML = calToggleHTML("obBirthCal", false) + dateSelectHTML("obBirthday", "", { yearsFwd: 1 });
+    $("obBirthdayWrap").innerHTML = calToggleHTML("obBirthCal", false) + dateSelectHTML("obBirthday", "", { yearsFwd: 1 }) + `<p class="cal-preview" id="obBirthPrev"></p>`;
     $("obDebutWrap").innerHTML = dateSelectHTML("obDebut", "", { yearsFwd: 1 });
     obRenderPreset();
     // 스와치
@@ -3838,6 +3856,7 @@
     $("modalTitle").textContent = title;
     $("modalBody").innerHTML = bodyHtml;
     linkFieldLabels($("modalBody"));
+    refreshLunarPreviews(); // 음력 생일 미리보기 초기 표시(수정 모달에서 기존 음력 생일)
     $("modalBackdrop").classList.remove("hidden");
     var _sbw = window.innerWidth - document.documentElement.clientWidth; // 스크롤바 폭
     document.body.style.overflow = "hidden";
@@ -4396,7 +4415,7 @@
         <div class="field"><label>이름 *</label><input type="text" id="mTitle" value="${edit ? esc(edit.name) : ""}"></div>
         <div class="field"><label>그룹 / 소속</label><input type="text" id="mGroup" value="${edit ? esc(edit.group || "") : ""}"></div>
         <div class="field"><label>덕질 시작일 *</label>${dateSelectHTML("mStart", edit ? edit.startDate : todayKey(), { yearsFwd: 1 })}</div>
-        <div class="field"><label>생일</label>${calToggleHTML("mBirthCal", !!(edit && edit.birthdayLunar))}${dateSelectHTML("mBirth", edit && edit.birthday ? edit.birthday : "", { yearsFwd: 1 })}</div>
+        <div class="field"><label>생일</label>${calToggleHTML("mBirthCal", !!(edit && edit.birthdayLunar))}${dateSelectHTML("mBirth", edit && edit.birthday ? edit.birthday : "", { yearsFwd: 1 })}<p class="cal-preview" id="mBirthPrev"></p></div>
         <div class="field"><label>데뷔일</label>${dateSelectHTML("mDebut", edit && edit.debutDate ? edit.debutDate : "", { yearsFwd: 1 })}</div>
         <button class="btn btn-primary btn-lg" id="mSave">${edit ? "수정 완료" : "추가"}</button>
         ${edit && S.biases.length > 1 ? `<button class="btn btn-danger btn-lg" id="mDel">이 최애 삭제</button>` : ""}
