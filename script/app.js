@@ -3677,6 +3677,9 @@
 
   /* ═══════════ 설정 ═══════════ */
   // 저장 사용량 표시 (사진 포함 IndexedDB+localStorage 추정치) + 저장 보호 상태
+  // 사용자에게 보여주는 버전(직접 올림). 업데이트 감지는 version.json이 따로 담당해요.
+  const APP_VERSION = "1.0";
+  const APP_STAGE = "오픈 베타"; // 배포 단계 라벨. 정식 출시 땐 "" 로 비우면 버전만 보여요.
   function fmtBytes(n) {
     if (n == null) return "?";
     if (n >= 1073741824) return (n / 1073741824).toFixed(1) + "GB";
@@ -3717,7 +3720,7 @@
 
   function renderSettings() {
     renderStorage(); // 저장 사용량·보호 상태
-    const verEl = $("appVer"); if (verEl) verEl.textContent = _runningVer ? "v" + _runningVer : ""; // 정보 섹션 버전
+    const verEl = $("appVer"); if (verEl) verEl.textContent = "v" + APP_VERSION + (APP_STAGE ? " " + APP_STAGE : ""); // 정보 섹션 버전(사용자용)
     // 덕질 유형 프리셋
     renderPresetButtons($("presetTabs"), S.preset || "idol", setPreset);
     // 최애 목록
