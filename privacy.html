@@ -3,19 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="description" content="마이 스타 캘린더 공지사항 — 업데이트 소식과 안내를 한곳에서 모아 보세요.">
+<meta name="description" content="마이 스타 캘린더 개인정보처리방침 — 수집 항목, 이용 목적, 보관, 이용자 권리를 안내합니다.">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#ffffff" id="metaTheme">
 <meta name="robots" content="noindex">
-<title>공지사항 — 마이 스타 캘린더</title>
+<title>개인정보처리방침 — 마이 스타 캘린더</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="apple-touch-icon" href="favicon.svg">
-<link rel="stylesheet" href="css/fonts.css?v=13">
-<link rel="stylesheet" href="css/style.css?v=15">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=1">
+<link rel="stylesheet" href="css/fonts.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=4">
 <style>
-  /* 앱 style.css는 PC에서 body 스크롤을 잠그므로 단독 페이지에선 해제 */
   html, body { overflow: visible !important; height: auto !important; }
-
   .fb-wrap { max-width: 720px; margin: 0 auto; padding: 0 18px 80px; }
   .fb-top { display: flex; align-items: center; justify-content: space-between; padding: 22px 0 14px; }
   .fb-left { display: flex; align-items: center; gap: 12px; }
@@ -23,13 +21,7 @@
   .fb-brand .logo-svg { width: 30px; height: 30px; }
   .fb-brand b { font-size: 14.5px; font-weight: 800; letter-spacing: .01em; }
   .fb-brand small { display: block; font-size: 11px; color: var(--muted); font-weight: 500; letter-spacing: .04em; }
-  .icon-btn {
-    width: 40px; height: 40px; border-radius: 11px;
-    background: var(--card); border: 1px solid var(--line);
-    display: inline-flex; align-items: center; justify-content: center;
-    color: var(--text); font-size: 18px;
-  }
-  /* 다크모드 토글 아이콘: 라이트=달, 다크=노란 해 (앱 메인과 동일) */
+  .icon-btn { width: 40px; height: 40px; border-radius: 11px; background: var(--card); border: 1px solid var(--line); display: inline-flex; align-items: center; justify-content: center; color: var(--text); font-size: 18px; }
   #darkBtn svg { width: 20px; height: 20px; }
   #darkBtn .ico-sun { display: none; }
   [data-dark="true"] #darkBtn .ico-moon { display: none; }
@@ -38,12 +30,16 @@
   .fb-hero { padding: 8px 0 18px; }
   .fb-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .14em; color: var(--accent-deep); text-transform: uppercase; margin-bottom: 10px; }
   .fb-hero h1 { font-size: 26px; font-weight: 800; line-height: 1.28; letter-spacing: -0.02em; }
-  .fb-hero p { margin-top: 10px; font-size: 14px; color: var(--muted); line-height: 1.6; }
-
-  /* 공지 카드는 메인과 동일한 .notice-* 스타일(style.css)을 그대로 사용 */
-  .np-list { display: flex; flex-direction: column; gap: 12px; }
-  .np-list .notice-body { display: block; }
-
+  .fb-hero p { margin-top: 10px; font-size: 13.5px; color: var(--muted); line-height: 1.6; }
+  .legal { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 8px 20px 20px; }
+  .legal section { padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .legal section:last-child { border-bottom: none; }
+  .legal h2 { font-size: 15px; font-weight: 800; margin-bottom: 8px; }
+  .legal p, .legal li { font-size: 13.5px; color: var(--muted); line-height: 1.75; }
+  .legal ul { margin: 6px 0 0; padding-left: 18px; }
+  .legal li { margin-bottom: 4px; }
+  .legal b { color: var(--text); }
+  .legal a { color: var(--accent-deep); }
   .fb-foot { text-align: center; margin-top: 22px; font-size: 12px; color: var(--muted); }
   .fb-foot a { color: var(--accent-deep); text-decoration: none; }
 </style>
@@ -60,29 +56,71 @@
         <circle cx="50" cy="14" r="2.6" fill="var(--accent)"/>
         <circle cx="14" cy="50" r="2.6" fill="var(--accent)"/>
       </svg>
-      <span><b>공지사항</b><small>MY STAR CALENDAR · NOTICE</small></span>
+      <span><b>개인정보처리방침</b><small>MY STAR CALENDAR · PRIVACY</small></span>
     </a>
    </div>
     <button class="icon-btn" id="darkBtn" aria-label="다크 모드 전환" title="다크 모드"><svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14A8.5 8.5 0 1 1 10 3.5a7 7 0 0 0 10.5 10.5Z"/></svg><svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M4.4 4.4l1.85 1.85M17.75 17.75l1.85 1.85M2.5 12h2.6M18.9 12h2.6M4.4 19.6l1.85-1.85M17.75 6.25l1.85-1.85"/></svg></button>
   </div>
 
   <div class="fb-hero">
-    <p class="fb-eyebrow">Notice</p>
-    <h1>공지사항</h1>
-    <p>업데이트 소식과 안내를 모아뒀어요. 최신 소식이 맨 위에 있어요.</p>
+    <p class="fb-eyebrow">Privacy</p>
+    <h1>개인정보처리방침</h1>
+    <p>마이 스타 캘린더(이하 ‘서비스’)는 이용자의 개인정보를 소중히 다루며, 아래와 같이 처리방침을 안내합니다.</p>
   </div>
 
-  <div class="np-list" id="noticeList"></div>
+  <div class="legal">
+    <section>
+      <h2>1. 가장 먼저 — 내 기록은 어디에 있나요?</h2>
+      <p>서비스에 등록하는 모든 기록(최애 정보·일정·사진·가계부·후기 등)은 <b>이용자 본인의 브라우저(기기)에만 저장</b>되며, 운영자 서버로 전송되거나 수집되지 않습니다. 따라서 운영자는 이용자의 앱 기록 내용을 볼 수 없습니다.</p>
+    </section>
+    <section>
+      <h2>2. 수집하는 항목과 방법</h2>
+      <ul>
+        <li><b>자동 수집(이용 분석):</b> 서비스 개선을 위해 Google Tag Manager·Google Analytics를 통해 쿠키, 기기·브라우저 정보, 접속 기록(IP 등) 등 사용 통계가 수집될 수 있습니다.</li>
+        <li><b>건의함 이용 시:</b> 닉네임(선택), 답변용 이메일(선택)을 Google Forms를 통해 수집합니다.</li>
+      </ul>
+    </section>
+    <section>
+      <h2>3. 이용 목적</h2>
+      <p>서비스 품질 개선과 오류·이용 통계 분석, 그리고 건의·문의에 대한 답변 및 후속 연락에 사용합니다.</p>
+    </section>
+    <section>
+      <h2>4. 처리 위탁 및 제3자</h2>
+      <p>다음 외부 서비스를 이용합니다. 해당 도구로 수집된 데이터는 각 사의 개인정보처리방침에 따라 처리됩니다.</p>
+      <ul>
+        <li>이용 분석: Google LLC (Google Tag Manager·Analytics)</li>
+        <li>건의 접수: Google LLC (Google Forms)</li>
+      </ul>
+    </section>
+    <section>
+      <h2>5. 보유 및 이용 기간</h2>
+      <p>분석 데이터는 Google 정책에 따른 기간 동안 보관됩니다. 건의 내용은 처리·답변이 끝난 뒤 합리적인 기간 내에 파기합니다.</p>
+    </section>
+    <section>
+      <h2>6. 쿠키</h2>
+      <p>이용 분석을 위해 쿠키를 사용합니다. 브라우저 설정에서 쿠키를 거부하거나 삭제할 수 있으며, 거부해도 서비스 이용에는 지장이 없습니다(일부 통계에만 영향).</p>
+    </section>
+    <section>
+      <h2>7. 이용자의 권리</h2>
+      <p>이용자는 자신의 개인정보에 대해 열람·정정·삭제·처리정지를 요청할 수 있습니다. 앱 기록은 기기에 저장되므로, <b>설정 → 전체 초기화</b> 또는 브라우저의 사이트 데이터 삭제로 직접 지울 수 있습니다.</p>
+    </section>
+    <section>
+      <h2>8. 문의처</h2>
+      <p>개인정보 관련 문의는 <a href="feedback.html" target="_blank" rel="noopener">건의함</a>을 통해 접수해 주세요.</p>
+    </section>
+    <section>
+      <h2>시행일</h2>
+      <p>시행일: 2026년 6월 17일 · 최종 수정: 2026년 6월 17일</p>
+    </section>
+  </div>
 
-  <p class="fb-foot">© <span id="yr"></span> 마이 스타 캘린더 · <a href="index.html">mystarzip.com</a> · <a href="privacy.html">개인정보처리방침</a> · <a href="terms.html">이용약관</a></p>
+  <p class="fb-foot">© <span id="yr"></span> 마이 스타 캘린더 · <a href="index.html">mystarzip.com</a> · <a href="terms.html">이용약관</a></p>
 </div>
 
-<script src="script/notices-data.js?v=22"></script>
 <script>
 (function () {
   "use strict";
   var $ = function (s) { return document.querySelector(s); };
-
   function syncTheme() {
     try {
       var raw = localStorage.getItem("myStarCalendar.v1");
@@ -107,44 +145,16 @@
     return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   }
   syncTheme();
-
   $("#darkBtn").addEventListener("click", function () {
     var now = document.documentElement.getAttribute("data-dark") === "true";
     localStorage.setItem("fb.dark", now ? "0" : "1");
     syncTheme();
   });
-
   $("#backBtn").addEventListener("click", function () {
     if (history.length > 1 && document.referrer) history.back();
     else window.location.href = "index.html";
   });
-
   document.getElementById("yr").textContent = new Date().getFullYear();
-
-  /* 공지 목록 렌더 (notices-data.js의 window.NOTICES 사용) */
-  var esc = function (s) {
-    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
-    });
-  };
-  var CATS = window.NOTICE_CATS || {};
-  var NOTICES = (window.NOTICES || []).slice().sort(function (a, b) { return b.id - a.id; });
-  var wrap = document.getElementById("noticeList");
-  if (!NOTICES.length) {
-    wrap.innerHTML = '<p class="notice-empty">아직 공지가 없어요.</p>';
-  } else {
-    wrap.innerHTML = NOTICES.map(function (n) {
-      var c = CATS[n.cat] || CATS.info || { label: "안내", color: "--c-broadcast" };
-      return '<div class="notice-item">'
-        + '<div class="notice-top">'
-        + '<span class="notice-cat" style="background:var(' + c.color + ')">' + esc(c.label) + '</span>'
-        + '<span class="notice-date">' + esc(n.date) + '</span>'
-        + '</div>'
-        + '<h4 class="notice-title">' + esc(n.title) + '</h4>'
-        + '<p class="notice-body">' + esc(n.body) + '</p>'
-        + '</div>';
-    }).join("");
-  }
 })();
 </script>
 </body>

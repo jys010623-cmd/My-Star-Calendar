@@ -29,7 +29,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <link rel="apple-touch-icon" href="apple-touch-icon.png?v=1">
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="css/fonts.css?v=13">
-<link rel="stylesheet" href="css/style.css?v=45">
+<link rel="stylesheet" href="css/style.css?v=47">
 </head>
 <body>
 <!-- Google Tag Manager (noscript) -->
@@ -615,7 +615,22 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <input type="file" id="importFile" accept=".json" hidden>
           <button class="btn btn-danger btn-sm" onclick="App.resetAll()">전체 초기화</button>
         </div>
-        <p class="hint">데이터는 이 브라우저(localStorage)에만 저장돼요. 기기를 옮길 땐 내보내기로 백업하세요.</p>
+        <div class="storage-box" id="storageBox"></div>
+        <p class="hint">데이터는 <b>지금 쓰는 브라우저에만</b> 저장돼요 — 크롬·엣지 등 브라우저마다 따로예요. 사이트 데이터를 지우면 초기화될 수 있으니, 한 브라우저를 정해 쓰고 가끔 내보내기로 백업하세요. <a href="faq.html" target="_blank" rel="noopener" style="color:var(--accent-deep)">자세히 →</a></p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">정보</div>
+        <p class="about-app">마이 스타 캘린더 <span class="about-ver" id="appVer"></span></p>
+        <p class="hint">모든 기록은 내 기기(브라우저)에만 저장되고 서버로 보내지 않아요.</p>
+        <div class="about-links">
+          <a href="notices.html" target="_blank" rel="noopener">공지사항</a>
+          <a href="faq.html" target="_blank" rel="noopener">Q&amp;A</a>
+          <a href="feedback.html" target="_blank" rel="noopener">건의함</a>
+          <a href="privacy.html" target="_blank" rel="noopener">개인정보처리방침</a>
+          <a href="terms.html" target="_blank" rel="noopener">이용약관</a>
+        </div>
+        <p class="about-copy">© 2026 마이 스타 캘린더 · mystarzip.com</p>
       </div>
     </section>
 
@@ -692,9 +707,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <div class="toast" id="toast"></div>
 
-<script src="script/notices-data.js?v=21"></script>
+<script src="script/notices-data.js?v=22"></script>
 <script src="script/lunar.js?v=1"></script>
-<script src="script/app.js?v=51"></script>
+<script src="script/app.js?v=53"></script>
 <!-- 서비스워커 등록 (오프라인 지원) — http(s)에서만, file://·미지원 브라우저는 건너뜀 -->
 <script>
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {

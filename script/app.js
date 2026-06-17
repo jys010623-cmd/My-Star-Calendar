@@ -3676,7 +3676,48 @@
   }
 
   /* ═══════════ 설정 ═══════════ */
+  // 저장 사용량 표시 (사진 포함 IndexedDB+localStorage 추정치) + 저장 보호 상태
+  function fmtBytes(n) {
+    if (n == null) return "?";
+    if (n >= 1073741824) return (n / 1073741824).toFixed(1) + "GB";
+    if (n >= 1048576) return (n / 1048576).toFixed(1) + "MB";
+    if (n >= 1024) return Math.round(n / 1024) + "KB";
+    return n + "B";
+  }
+  function renderStorage() {
+    const box = $("storageBox");
+    if (!box) return;
+    if (!navigator.storage || !navigator.storage.estimate) {
+      box.innerHTML = `<p class="hint" style="margin:0">이 브라우저에선 사용량을 표시할 수 없어요.</p>`;
+      return;
+    }
+    navigator.storage.estimate().then(async (est) => {
+      const used = est.usage || 0, quota = est.quota || 0;
+      const pct = quota ? Math.min(100, (used / quota) * 100) : 0;
+      let persisted = false;
+      try { if (navigator.storage.persisted) persisted = await navigator.storage.persisted(); } catch (e) {}
+      const high = used > 52428800; // 50MB 넘으면 백업 권유 강조
+      box.innerHTML =
+        `<div class="storage-head"><span>저장 사용량 <small>(사진 포함)</small></span>`
+        + `<strong>${fmtBytes(used)}${quota ? ` <span class="muted">· 여유 ${fmtBytes(Math.max(0, quota - used))}</span>` : ""}</strong></div>`
+        + `<div class="storage-bar"><i style="width:${Math.max(2, pct).toFixed(1)}%"></i></div>`
+        + `<div class="storage-foot"><span${persisted ? ' class="ok"' : ""}>${persisted ? "✓ 저장 보호 켜짐" : "저장 보호 꺼짐 — 공간 부족 시 브라우저가 지울 수 있어요"}</span>`
+        + `${persisted ? "" : `<button class="btn btn-ghost btn-sm" id="persistBtn">보호 켜기</button>`}</div>`
+        + `${high ? `<p class="storage-warn">사진이 꽤 쌓였어요. 가끔 '내보내기'로 백업해 두면 안전해요.</p>` : ""}`;
+      const pb = $("persistBtn");
+      if (pb) pb.onclick = () => {
+        if (!navigator.storage.persist) return;
+        navigator.storage.persist().then((ok) => {
+          toast(ok ? "저장 보호를 켰어요" : "브라우저가 보호를 허용하지 않았어요");
+          renderStorage();
+        });
+      };
+    }).catch(() => { box.innerHTML = `<p class="hint" style="margin:0">사용량을 불러오지 못했어요.</p>`; });
+  }
+
   function renderSettings() {
+    renderStorage(); // 저장 사용량·보호 상태
+    const verEl = $("appVer"); if (verEl) verEl.textContent = _runningVer ? "v" + _runningVer : ""; // 정보 섹션 버전
     // 덕질 유형 프리셋
     renderPresetButtons($("presetTabs"), S.preset || "idol", setPreset);
     // 최애 목록
