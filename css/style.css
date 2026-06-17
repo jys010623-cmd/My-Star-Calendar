@@ -2977,3 +2977,24 @@ input[type="range"].cp::-moz-range-thumb {
 .tt-reppick { display: flex; gap: 6px; }
 .tt-reppick button { flex: 1; padding: 10px; border-radius: 11px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 13px; font-weight: 700; }
 .tt-reppick button.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+
+/* ───────── 고대비 모드 대응 (Windows 고대비 / forced-colors) ─────────
+   시스템이 색을 강제로 바꿀 때, 색으로만 구분되던 요소에 경계·외곽선을 보장해
+   버튼·카드·입력칸·포커스·상태 점이 사라지지 않게 함 (접근성 표준) */
+@media (forced-colors: active) {
+  :focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
+  .card, .modal, .member-card, input, select, textarea,
+  .btn, .nav-btn, .bn-btn, .tab, .chip-btn, .f-chip, .more-row, .switch {
+    border: 1px solid CanvasText;
+  }
+  /* 색으로만 의미를 전달하던 점·배지·필터칩에 외곽선 부여 */
+  .dot, .wk-dot, .nt-dot, .cat-dot, .filter-chip, .badge-accent { outline: 1px solid CanvasText; }
+  /* 활성 탭·선택 상태가 강조색에 의존하므로 경계로도 표시 */
+  .nav-btn.active, .bn-btn.active, .tab.active { border-color: Highlight; }
+  /* 토글 스위치 켜짐 상태를 시스템 강조색으로 */
+  .switch.on { background: Highlight; }
+}
+/* 사용자가 '대비 높게'를 선호하면 경계선을 더 또렷하게 */
+@media (prefers-contrast: more) {
+  .card, input, select, textarea, .btn, .tab, .chip-btn { border-color: var(--text); }
+}

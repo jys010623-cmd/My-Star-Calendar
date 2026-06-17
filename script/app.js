@@ -356,6 +356,10 @@
   function load() {
     try { S = Object.assign(defaults(), JSON.parse(localStorage.getItem(LS_KEY)) || {}); }
     catch (e) { S = defaults(); }
+    normalizeState();
+  }
+  // 저장 데이터 정규화·구버전 마이그레이션 (load·가져오기 양쪽에서 공용)
+  function normalizeState() {
     if (!MODES.some(([id]) => id === (S.mode || ""))) S.mode = "";
     if (S.frame === "msgr") { S.retro = true; S.retroSkin = "msgr"; } // 구버전 프레임 → 창 스타일
     else if (S.frame === "retro") S.retro = true;
@@ -483,18 +487,33 @@
   /* D-day 계산 */
   function dPlus(dateStr) {
     if (!dateStr) return null;
-    const diff = Math.floor((stripTime(new Date()) - stripTime(new Date(dateStr))) / 86400000);
+    const diff = Math.floor((stripTime(new Date()) - stripTime(parseYMD(dateStr))) / 86400000);
     return diff >= 0 ? diff + 1 : null; // 덕질 시작일 = D+1
   }
   function dUntilAnniv(dateStr) {
-    if (!dateStr) return null;
-    const now = stripTime(new Date());
-    const src = new Date(dateStr);
-    let next = new Date(now.getFullYear(), src.getMonth(), src.getDate());
-    if (next < now) next = new Date(now.getFullYear() + 1, src.getMonth(), src.getDate());
-    return Math.round((next - now) / 86400000);
+    return dToAnniv(dateStr);
   }
   const stripTime = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  // "YYYY-MM-DD"를 로컬 자정으로 파싱 (new Date("YYYY-MM-DD")는 UTC라 시간대에 따라 하루 어긋남)
+  function parseYMD(v) {
+    if (v instanceof Date) return v;
+    const m = String(v || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(v);
+  }
+  // 다음 기념일까지 남은 일수 — 올해(지났으면 내년) 같은 월·일. 2/29는 평년이면 2/28로 보정해 하루 밀림 방지
+  function dToAnniv(ds, from) {
+    if (!ds) return null;
+    const t0 = stripTime(from ? parseYMD(from) : new Date());
+    const src = parseYMD(ds);
+    const make = (y) => {
+      const d = new Date(y, src.getMonth(), src.getDate());
+      if (d.getMonth() !== src.getMonth()) d.setDate(0); // 그 달에 없는 날(2/29 평년)이면 말일로
+      return d;
+    };
+    let d = make(t0.getFullYear());
+    if (d < t0) d = make(t0.getFullYear() + 1);
+    return Math.round((d - t0) / 86400000);
+  }
 
   function buildBadges(b, ddText) {
     const badges = [`<span class="badge-accent">덕질 ${ddText} ♥</span>`];
@@ -1151,13 +1170,7 @@
     const ym = today.slice(0, 7);
     const spend = byBias(S.expenses).filter((e) => (e.date || "").startsWith(ym))
       .reduce((a, e) => a + (+e.amount || 0), 0);
-    const dTo = (ds) => {
-      if (!ds) return null;
-      const t0 = new Date(today), d = new Date(ds);
-      d.setFullYear(t0.getFullYear());
-      if (d < t0) d.setFullYear(t0.getFullYear() + 1);
-      return Math.round((d - t0) / 86400000);
-    };
+    const dTo = (ds) => dToAnniv(ds, today);
     const annivs = [];
     if (b && b.birthday) annivs.push(["생일", dTo(b.birthday)]);
     if (b && b.debutDate) annivs.push(["데뷔일", dTo(b.debutDate)]);
@@ -1317,7 +1330,7 @@
 
     // 다가오는 일정 (7일)
     const upcoming = byBias(S.schedules)
-      .filter((s) => s.date > tk)
+      .filter((s) => s.date > todayKey())
       .sort((a, b2) => (a.date + (a.time || "")).localeCompare(b2.date + (b2.time || "")))
       .slice(0, 5);
     $("upcomingList").innerHTML = upcoming.length
@@ -1365,13 +1378,7 @@
     }
 
     // D-DAY 카운트다운
-    const dTo = (ds) => {
-      if (!ds) return null;
-      const t0 = new Date(today), d = new Date(ds);
-      d.setFullYear(t0.getFullYear());
-      if (d < t0) d.setFullYear(t0.getFullYear() + 1);
-      return Math.round((d - t0) / 86400000);
-    };
+    const dTo = (ds) => dToAnniv(ds, today);
     const ddays = [];
     if (b.birthday) ddays.push({ ic: I("cake"), label: `${b.name} 생일`, n: dTo(b.birthday), v: "--c-birthday" });
     if (b.debutDate) ddays.push({ ic: I("flag"), label: "데뷔 기념일", n: dTo(b.debutDate), v: "--c-comeback" });
@@ -2113,10 +2120,7 @@
     applyCoverFitTo($("profCover"), coverFit(b, "prof"));
     const dDayTo = (ds) => {
       if (!ds) return "";
-      const t0 = new Date(todayKey()), d = new Date(ds);
-      d.setFullYear(t0.getFullYear());
-      if (d < t0) d.setFullYear(t0.getFullYear() + 1);
-      const n = Math.round((d - t0) / 86400000);
+      const n = dToAnniv(ds);
       return n === 0 ? "D-DAY" : "D-" + n;
     };
     const rows = [["덕질 시작일", b.startDate || "—", ""], ["생일", b.birthday || "—", dDayTo(b.birthday)], ["데뷔일", b.debutDate || "—", dDayTo(b.debutDate)]];
@@ -2295,10 +2299,7 @@
 
   // 기념일까지 남은 일수 (매년 돌아오는 날짜 기준 D-)
   function ddayCountTo(ds) {
-    const today = new Date(todayKey());
-    const d = new Date(ds); d.setFullYear(today.getFullYear());
-    if (d < today) d.setFullYear(today.getFullYear() + 1);
-    return Math.round((d - today) / 86400000);
+    return dToAnniv(ds);
   }
   // 데코용 기념일 D-day 문구 (라이브로 계산)
   function decoDdayText(b, key) {
@@ -2929,7 +2930,7 @@
     renderBinder();
   }
 
-  function renderBinder() {
+  function renderBinder(skipReflow) {
     // 탭별 장수 표시 (보유/위시/교환)
     const allCards = byBias(S.photocards);
     const counts = { own: 0, wish: 0, trade: 0 };
@@ -2990,7 +2991,7 @@
     const pageCards = cards.slice(binderPage * PER_PAGE, binderPage * PER_PAGE + PER_PAGE);
     let html = pageCards.map((p) => `
       <div class="poca-slot ${p.img ? "" : "noimg"}" data-pid="${p.id}">
-        ${p.img ? `<img src="${p.img}" alt="" draggable="false">` : esc(p.name)}
+        ${p.img ? `<img src="${p.img}" alt="${p.name ? "" : "포토카드"}" draggable="false">` : esc(p.name)}
         ${p.img && p.name ? `<span class="pc-label">${esc(p.name)}</span>` : ""}
       </div>`).join("");
     const emptyCount = PER_PAGE - pageCards.length; // 남은 칸을 빈 포켓으로 채움 (모두 동일하게)
@@ -3008,12 +3009,13 @@
     }
     // 첫 진입 등에서 그리드 너비가 늦게 잡혀 보유/위시 탭 칸 수가 달라 보이는 문제 보정:
     // 다음 프레임에 실제 너비를 재확인해 달라졌으면 한 번만 다시 그려 항상 같은 배치로 통일
+    // skipReflow: 아래 보정으로 인한 재렌더에서는 다시 보정하지 않음 (프레임마다 무한 재렌더 방지)
     const pageBinder = $("page-binder");
-    if (pageBinder && pageBinder.classList.contains("active")) {
+    if (!skipReflow && pageBinder && pageBinder.classList.contains("active")) {
       requestAnimationFrame(() => {
         if (!pageBinder.classList.contains("active")) return;
         const w2 = grid.clientWidth;
-        if (w2 && Math.abs(w2 - availW) > 24) renderBinder();
+        if (w2 && Math.abs(w2 - availW) > 24) renderBinder(true); // 보정은 단 한 번만
       });
     }
 
@@ -3697,6 +3699,15 @@
         const data = JSON.parse(r.result);
         if (!data.biases) throw new Error("형식 오류");
         S = Object.assign(defaults(), data);
+        normalizeState();   // 구버전 마이그레이션·카테고리(buildCats)·필터 재구성
+        // 다른 기기의 IndexedDB를 가리키던 옛 사진 참조키 제거 → 백업에 담긴 사진(base64)을
+        // 이 기기 IndexedDB에 새로 저장하도록 함 (참조키만 남아 사진이 사라지는 문제 방지)
+        (S.photocards || []).forEach((p) => { if (p.img) delete p.imgKey; });
+        (S.archives || []).forEach((d) => { if (Array.isArray(d.imgs) && d.imgs.length) delete d.imgKeys; });
+        (S.biases || []).forEach((b) => { if (b.photo) delete b.photoKey; if (b.cover) delete b.coverKey; });
+        (S.styles || []).forEach((s) => { if (s.img) delete s.imgKey; });
+        if (S.membership && S.membership.photo) delete S.membership.photoKey;
+        imgStored.clear();  // 이 기기에 다시 써야 하므로 '이미 저장됨' 표시 초기화
         save(); applyTheme(); renderAll();
         toast("데이터를 불러왔어요!");
       } catch (e) { toast("백업 파일을 읽을 수 없어요"); }
@@ -3707,9 +3718,17 @@
   function resetAll() {
     if (!confirm("정말 모든 데이터를 삭제할까요?\n(되돌릴 수 없어요. 백업을 먼저 권장해요!)")) return;
     localStorage.removeItem(LS_KEY);
-    try { indexedDB.deleteDatabase(AUDIO_DB); } catch (e) {} // 저장한 음원 파일도 함께 삭제
-    try { indexedDB.deleteDatabase(IMG_DB); } catch (e) {} // 저장한 포카 사진도 함께 삭제
-    location.reload();
+    // IndexedDB 삭제는 비동기 — 음원·사진 blob까지 깔끔히 지워진 뒤 새로고침 (남는 데이터 방지)
+    const delDb = (name) => new Promise((res) => {
+      try {
+        const rq = indexedDB.deleteDatabase(name);
+        rq.onsuccess = rq.onerror = rq.onblocked = () => res();
+      } catch (e) { res(); }
+    });
+    let done = false;
+    const reload = () => { if (!done) { done = true; location.reload(); } };
+    Promise.all([delDb(AUDIO_DB), delDb(IMG_DB)]).then(reload);
+    setTimeout(reload, 1500); // 안전장치: 삭제가 막혀도 최대 1.5초 뒤엔 새로고침
   }
 
   /* ═══════════ 모달 ═══════════ */
@@ -3762,7 +3781,7 @@
       <label class="photo-pick" id="mpBox">
         <input type="file" accept="image/*" id="mpInput" hidden>
         <span id="mpHint">${label || "+ 사진 추가 (선택)"}</span>
-        <img id="mpPreview" class="hidden" alt="">
+        <img id="mpPreview" class="hidden" alt="선택한 사진 미리보기">
       </label>`;
   }
   function bindPhotoPick(maxW) {
@@ -3791,7 +3810,7 @@
     const g = $("mpsGrid");
     if (!g) return;
     g.innerHTML = modalPhotosData.map((d, i) => `
-      <span class="pp-thumb"><img src="${d}" alt=""><button class="pp-x" data-ppx="${i}">${I("x")}</button></span>`).join("")
+      <span class="pp-thumb"><img src="${d}" alt="첨부 사진 ${i + 1}"><button class="pp-x" data-ppx="${i}" aria-label="사진 삭제">${I("x")}</button></span>`).join("")
       + (modalPhotosData.length < 5 ? `<label class="pp-add"><input type="file" accept="image/*" multiple hidden id="mpsInput">+<small>사진 (${modalPhotosData.length}/5)</small></label>` : "");
     g.querySelectorAll("[data-ppx]").forEach((b) => {
       b.onclick = (e) => { e.preventDefault(); modalPhotosData.splice(+b.dataset.ppx, 1); renderPhotosGrid(); };
@@ -3966,13 +3985,27 @@
           if (rep) {
             const until = $("mRepEnd").value || data.date;
             const groupId = uid();
-            let d = new Date(data.date), n = 0;
-            while (fmtDate(d) <= until && n < 60) {
-              S.schedules.push({ id: uid(), biasId: S.currentBias, ...data, date: fmtDate(d), groupId });
-              if (rep === "w") d.setDate(d.getDate() + 7);
-              else if (rep === "2w") d.setDate(d.getDate() + 14);
-              else d.setMonth(d.getMonth() + 1);
-              n++;
+            const base = new Date(data.date + "T00:00:00"); // 로컬 자정 기준(시간대 오차 방지)
+            let n = 0;
+            if (rep === "w" || rep === "2w") {
+              const step = rep === "w" ? 7 : 14;
+              const d = new Date(base);
+              while (fmtDate(d) <= until && n < 60) {
+                S.schedules.push({ id: uid(), biasId: S.currentBias, ...data, date: fmtDate(d), groupId });
+                d.setDate(d.getDate() + step);
+                n++;
+              }
+            } else {
+              // 매달: 시작일의 '일'을 유지하되, 그 달에 없는 날(예: 31일)은 말일로 보정해 월을 건너뛰지 않음
+              const baseDay = base.getDate();
+              for (let k = 0; n < 60; k++) {
+                const d = new Date(base.getFullYear(), base.getMonth() + k, baseDay);
+                if (d.getDate() !== baseDay) d.setDate(0); // 다음 달로 넘어갔으면 해당 달 말일로 당김
+                const ds = fmtDate(d);
+                if (ds > until) break;
+                S.schedules.push({ id: uid(), biasId: S.currentBias, ...data, date: ds, groupId });
+                n++;
+              }
             }
             toast(`반복 일정 ${n}개를 등록했어요`);
           } else {
@@ -4323,6 +4356,7 @@
 
   /* ═══════════ 전체 렌더 ═══════════ */
   function renderAll() {
+    homeDay = null; // 전체 재렌더(최애 전환·가져오기 등) 때 홈 'TODAY' 카드는 오늘로 복귀
     renderHome();
     renderProfile();
     renderCalendar();
