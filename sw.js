@@ -1,9 +1,8 @@
 /* 마이 스타 캘린더 서비스워커
    목적: 오프라인에서도 앱이 켜지게 함.
-   전략: 캐시 우선 + 백그라운드 갱신(stale-while-revalidate) — 저장된 셸을 즉시 내줘
-         앱이 곧바로 떠서 스플래시가 순식간에 사라짐. 동시에 네트워크로 새 버전을 받아
-         캐시에 갱신해 두므로 다음 실행엔 최신이 반영됨(또는 '새로고침' 배너로 바로 알림).
-   주의: version.json은 절대 캐시하지 않음(버전 감지가 항상 실시간이어야 함).
+   전략: 네트워크 우선(network-first) — 온라인이면 항상 최신을 받고,
+         네트워크가 안 될 때만 캐시로 대체. 그래서 기존 '항상 최신' 동작과 충돌하지 않음.
+   주의: version.json·notices-data.js는 캐시를 거치지 않고 항상 네트워크 최신으로 받음.
    ▶ 앱 셸을 갱신하고 싶으면 아래 CACHE 버전 숫자만 올리면 됨. */
 const CACHE = "msc-shell-v4";
 const SHELL = [
@@ -40,7 +39,7 @@ self.addEventListener("fetch", (e) => {
   if (url.pathname.endsWith("version.json")) return; // 버전 감지는 항상 실시간 — 캐시 금지
 
   // 공지 데이터는 항상 네트워크에서 최신으로 받아옴 → 배포하면 다음 실행에 공지가 자동으로 바뀜.
-  // (앱 셸은 아래 캐시 우선이라 빠르게 뜨고, 공지만 따로 최신화. 오프라인이면 캐시로 대체.)
+  // (앱 셸은 아래 네트워크 우선, 공지만 캐시 우회로 항상 최신. 오프라인이면 캐시로 대체.)
   if (url.pathname.endsWith("notices-data.js")) {
     e.respondWith(
       fetch(url.pathname, { cache: "no-store" })
@@ -56,20 +55,18 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // 캐시 우선 + 백그라운드 갱신: 캐시에 있으면 즉시 내주고(→ 앱 즉시 표시 → 스플래시 순삭),
-  // 동시에 네트워크로 받아 캐시를 갱신. 캐시에 없으면 네트워크로 가져옴. 오프라인이면 캐시로 대체.
+  // 네트워크 우선: 성공하면 캐시에 갱신해 두고, 실패(오프라인)하면 캐시로 대체
   e.respondWith(
-    caches.match(req).then((cached) => {
-      const network = fetch(req)
-        .then((res) => {
-          if (res && res.ok && res.type === "basic") {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
-          }
-          return res;
-        })
-        .catch(() => cached || caches.match("./index.html"));
-      return cached || network;
-    })
+    fetch(req)
+      .then((res) => {
+        if (res && res.ok && res.type === "basic") {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+        }
+        return res;
+      })
+      .catch(() =>
+        caches.match(req).then((hit) => hit || caches.match("./index.html"))
+      )
   );
 });
