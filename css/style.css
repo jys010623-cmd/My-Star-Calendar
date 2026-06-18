@@ -3026,7 +3026,7 @@ input[type="range"].cp::-moz-range-thumb {
 
 /* 원형 24시 */
 /* 하루(원형) 뷰: 요일 세그먼트 바 (안 A) */
-.tt-daychips { display: flex; background: var(--bg-soft); border-radius: 12px; padding: 3px; margin: 2px 0 14px; }
+.tt-daychips { display: flex; max-width: 440px; margin: 2px auto 14px; background: var(--bg-soft); border-radius: 12px; padding: 3px; }
 .tt-daychips button { flex: 1; min-width: 0; height: 36px; border: none; background: none; border-radius: 9px; color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; transition: background .15s, color .15s; }
 .tt-daychips button.sat { color: #3d7bff; }
 .tt-daychips button.sun { color: #ff5c5c; }
