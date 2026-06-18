@@ -5155,7 +5155,7 @@
     const svg = `<svg viewBox="0 0 260 260" class="tt-clock" role="img" aria-label="${TT_DOW[ttDay]}요일 24시간 시간표">`
       + `<circle cx="${cx}" cy="${cy}" r="${rO}" class="tt-face"/>${arcs}${draftSvg}${hole}${ticks}${sel}${labels}${center}</svg>`;
     const hrStr = (totMin / 60).toFixed(totMin % 60 ? 1 : 0);
-    const cap = `<div class="tt-cap">${TT_DOW[ttDay]}요일 <span>· ${hrStr}시간</span></div>`;
+    const cap = `<div class="tt-cap">${hrStr}시간</div>`;
     const cstyle = `<div class="tt-cstyle" id="ttCStyle"><button type="button" class="${full ? "on" : ""}" data-cs="full">기본형</button><button type="button" class="${!full ? "on" : ""}" data-cs="donut">도넛형</button></div>`;
     let leg = `<ul class="tt-legend">`;
     if (!day.length) leg += `<li class="tt-empty2">이 요일엔 아직 일정이 없어요.</li>`;
