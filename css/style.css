@@ -979,7 +979,7 @@ input[type="color"] {
 .ch-side { display: flex; align-items: center; min-width: 0; }
 .ch-side.ch-right { justify-content: flex-end; }
 .cal-nav { display: flex; align-items: center; justify-content: center; gap: 14px; }
-.cal-head.slim { margin: 4px 0 12px; }
+.cal-head.slim { display: flex; justify-content: center; align-items: center; gap: 14px; margin: 4px 0 12px; }
 .cal-title { font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; cursor: pointer; margin: 0; line-height: 1; }
 .cal-nav .cal-title { border-radius: 8px; padding: 2px 6px; }
 .cal-nav .cal-title:active { background: var(--bg-soft); }
@@ -1002,6 +1002,15 @@ input[type="color"] {
 }
 .cal-arrow:hover { opacity: .55; }
 .cal-arrow:active { transform: scale(.88); }
+/* 외부 페이지 미니멀 뒤로가기 버튼 */
+.fb-back {
+  background: none; border: none; padding: 0; margin-left: -4px;
+  width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text); cursor: pointer; transition: opacity .15s, transform .12s;
+}
+.fb-back svg { width: 24px; height: 24px; }
+.fb-back:hover { opacity: .55; }
+.fb-back:active { transform: scale(.9); }
 .binder-hint { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
 .filter-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; cursor: grab; }
 .filter-row:active { cursor: grabbing; }
