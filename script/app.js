@@ -273,7 +273,8 @@
       </div>`;
     };
     const years = [], months = [], days = [];
-    for (let y = curY + yFwd; y >= curY - yBack; y--) years.push({ v: y, t: y + "년" });
+    if (opts.yearDesc) { for (let y = curY + yFwd; y >= curY - yBack; y--) years.push({ v: y, t: y + "년" }); }
+    else { for (let y = curY - yBack; y <= curY + yFwd; y++) years.push({ v: y, t: y + "년" }); }
     for (let m = 1; m <= 12; m++) months.push({ v: m, t: m + "월" });
     for (let d = 1; d <= 31; d++) days.push({ v: d, t: d + "일" });
     return `<div class="date-sel" id="${id}">
@@ -368,8 +369,15 @@
       if (willOpen) {
         list.classList.remove("hidden");
         positionDselList(btn, list);
-        const on = list.querySelector(".on");
-        if (on) on.scrollIntoView({ block: "center" });
+        // 선택값이 있으면 그 항목을, 없으면(연도 선택은) 현재 연도를 목록 가운데로
+        let target = list.querySelector(".on");
+        if (!target) {
+          const dsel = btn.closest(".dsel");
+          if (dsel && dsel.classList.contains("ds-y")) {
+            target = list.querySelector(`button[data-v="${new Date().getFullYear()}"]`);
+          }
+        }
+        if (target) list.scrollTop = target.offsetTop - list.clientHeight / 2 + target.offsetHeight / 2;
       }
       return;
     }
@@ -386,7 +394,7 @@
 
   function defaults() {
     return {
-      onboarded: false, preset: "idol", dark: false, retro: false, retroSkin: "browser", retroPos: "float", bg: "none", align: "left", widgets: {}, budget: 0, notifyTicket: false, haptics: true, veil: 0, mode: "", template: "profile", archView: "card", accent: "#141414",
+      onboarded: false, preset: "idol", dark: false, retro: false, retroSkin: "browser", retroPos: "float", bg: "none", align: "left", widgets: {}, budget: 0, notifyTicket: false, haptics: true, veil: 0, mode: "", template: "classic", archView: "card", accent: "#141414", weekStart: "sun", weekStartWeek: "mon", weekStartCircle: "sun", ttHideWeekend: false, ttCircleStyle: "full", ttLink: true,
       biases: [], currentBias: null,
       customArchTypes: { offline: [], online: [] },
       cats: [], recLabel: "기록", recColor: "#c3aee8", schedules: [], stickers: {}, photocards: [],
@@ -418,6 +426,16 @@
     delete S.frame;
     if (!SKINS.some(([id]) => id === S.retroSkin)) S.retroSkin = "browser";
     if (!POSES.some(([id]) => id === S.retroPos)) S.retroPos = "float";
+    if (!TEMPLATES.some((t) => t.id === S.template)) S.template = "classic"; // 삭제된 템플릿 선택 시 기본값 보정
+    // 시간표 요일을 '월 기준 상대(0=월)'에서 '절대 요일(0=일)'로 일회 전환
+    if (!S._ttAbsDay) {
+      (S.timetables || []).forEach((b) => { if (typeof b.day === "number") b.day = (b.day + 1) % 7; });
+      S._ttAbsDay = true;
+    }
+    // 주 시작: 뷰별 분리 (구버전 weekStartTt → 주간/원형)
+    if (S.weekStartWeek == null) S.weekStartWeek = S.weekStartTt || "mon";
+    if (S.weekStartCircle == null) S.weekStartCircle = S.weekStartTt || "sun";
+    if (S.ttLink == null) S.ttLink = true;
     if (S.retroBg) { S.bg = S.retroBg; delete S.retroBg; } // 구버전 (창 전용 → 공용)
     if (!BGS.some(([id]) => id === S.bg)) S.bg = "none";
     if (S.retroAlign) { S.align = S.retroAlign; delete S.retroAlign; } // 구버전 (구버전엔 align 키가 없었음)
@@ -514,7 +532,7 @@
     root.setAttribute("data-patstyle", S.patstyle || "scatter");
     root.setAttribute("data-hasbg", !NO_BG_MODES.includes(S.mode) ? "true" : "false");
     root.setAttribute("data-align", S.align || "left");
-    root.setAttribute("data-template", S.template || "profile");
+    root.setAttribute("data-template", S.template || "classic");
     root.setAttribute("data-mode", S.mode || "none");
     root.style.setProperty("--veil", (S.veil || 0) + "%"); // 콘텐츠 배경 불투명 막 농도
     if (!S.retro) { root.removeAttribute("data-retro-min"); root.removeAttribute("data-retro-max"); }
@@ -641,7 +659,7 @@
   let obStep = 0;
   let obPhotoData = null;
   let obColor = "#141414";
-  let obTpl = "profile";
+  let obTpl = "classic";
   let obPreset = "idol";
   function obRenderPreset() {
     renderPresetButtons($("obPresetRow"), obPreset, (id) => { obPreset = id; obRenderPreset(); });
@@ -658,6 +676,9 @@
   function obShowStep(n) {
     document.querySelectorAll(".ob-step").forEach((s) => s.classList.toggle("active", +s.dataset.step === n));
     obStep = n;
+    const back = $("obBack");
+    if (back) back.classList.toggle("hidden", n <= 0);
+    if ($("onboarding")) $("onboarding").scrollTop = 0;
   }
 
   function obNext() {
@@ -669,6 +690,11 @@
     }
     obShowStep(obStep + 1);
     if (obStep === 4) obRenderTpl();
+  }
+
+  function obPrev() {
+    if (obStep <= 0) return;
+    obShowStep(obStep - 1);
   }
 
   function obFinish() {
@@ -721,6 +747,12 @@
     toast("환영해요! 설정 → 최애 관리에서 언제든 등록할 수 있어요");
   }
 
+  function obSyncColorChip() {
+    const chip = $("obColorChip"), hx = $("obColorHex");
+    if (chip) chip.style.background = obColor;
+    if (hx) hx.textContent = (obColor || "").toUpperCase();
+  }
+
   function initOnboarding() {
     $("onboarding").classList.remove("hidden");
     $("obStartWrap").innerHTML = dateSelectHTML("obStart", todayKey(), { yearsFwd: 1 });
@@ -740,9 +772,11 @@
         grid.querySelectorAll(".swatch").forEach((s) => s.classList.remove("active"));
         b.classList.add("active");
         S.accent = hex; applyTheme();
+        obSyncColorChip();
       };
       grid.appendChild(b);
     });
+    obSyncColorChip();
     // 사진 (라벨이 파일 입력을 자동으로 열기 때문에 onclick으로 또 열지 않음)
     $("obPhotoInput").onchange = (e) => {
       const f = e.target.files[0];
@@ -766,6 +800,7 @@
       S.accent = hex;
       applyTheme(); save();
       renderSwatches();
+      if (mode === "ob") obSyncColorChip();
       toast(`사진에서 ${hex} 색을 추출했어요!`);
     });
   }
@@ -783,8 +818,10 @@
     if (decoMode) toggleDeco();
   }
 
+  let _moreAutoSettings = false; // PC 폭에서 '더보기'→'설정'으로 자동 전환됐는지 표시
   function go(page) {
     exitEditModes(); // 편집 모드가 켜진 채 떠나면 상태가 고착되는 문제 방지
+    _moreAutoSettings = false; // 사용자가 직접 이동하면 자동전환 플래그 해제 (자동전환은 go 호출 직후 다시 세팅)
     document.querySelectorAll(".page").forEach((p) => p.classList.toggle("active", p.id === "page-" + page));
     const navPage = page === "profile" ? "home" : page;
     document.querySelectorAll(".nav-btn, .bn-btn").forEach((b) => {
@@ -837,8 +874,20 @@
   /* 메인 템플릿 선택 */
   function setTemplate(t) {
     S.template = t;
-    save(); applyTheme(); renderSettings();
-    toast(t === "classic" ? "클래식 템플릿으로 바꿨어요" : "프로필형 템플릿으로 바꿨어요");
+    save(); applyTheme(); renderSettings(); renderHome();
+    const tn = (TEMPLATES.find((x) => x.id === t) || {}).name || "";
+    toast(`${tn} 템플릿으로 바꿨어요`);
+  }
+
+  /* 화면·테마(템플릿·감성모드·배경·색·정렬·미니홈피·다크)를 기본값으로 초기화.
+     덕질 유형·카테고리·기록 데이터는 건드리지 않음. */
+  function resetPresets() {
+    if (!confirm("화면·테마를 기본값으로 되돌릴까요?\n(템플릿·감성모드·배경·색·정렬·미니홈피·다크 등 꾸미기만 초기화돼요)")) return;
+    const d = defaults();
+    ["template", "mode", "bg", "align", "accent", "dark", "retro", "retroSkin", "retroPos", "veil"].forEach((k) => { S[k] = d[k]; });
+    S.patstyle = "scatter";
+    save(); applyTheme(); renderAll(); renderSettings();
+    toast("화면·테마를 기본값으로 되돌렸어요");
   }
 
   /* 감성 모드 (기본/키치/응원봉) */
@@ -1182,6 +1231,33 @@
     save(); applyTheme(); renderSettings();
     const found = ALIGNS.find(([id]) => id === a);
     toast(`${found ? found[1] : ""} 정렬로 바꿨어요`);
+  }
+  function setWeekStart(w) { // 캘린더(+홈 이번 주)
+    S.weekStart = w === "mon" ? "mon" : "sun";
+    save(); renderSettings(); renderCalendar(); renderHome();
+    toast(S.weekStart === "mon" ? "캘린더를 월요일 시작으로 바꿨어요" : "캘린더를 일요일 시작으로 바꿨어요");
+  }
+  function toggleCalWeekStart() { setWeekStart(S.weekStart === "mon" ? "sun" : "mon"); }
+  function setWeekStartWeek(w) { // 스케줄러 주간 뷰
+    S.weekStartWeek = w === "mon" ? "mon" : "sun";
+    ttWeekStart = null; // 주 시작(주 키) 재계산
+    save(); renderSettings(); renderTimetable();
+    toast(S.weekStartWeek === "mon" ? "주간을 월요일 시작으로 바꿨어요" : "주간을 일요일 시작으로 바꿨어요");
+  }
+  function setWeekStartCircle(w) { // 스케줄러 원형 뷰
+    S.weekStartCircle = w === "mon" ? "mon" : "sun";
+    save(); renderSettings(); renderTimetable();
+    toast(S.weekStartCircle === "mon" ? "하루를 월요일 시작으로 바꿨어요" : "하루를 일요일 시작으로 바꿨어요");
+  }
+  function toggleTtLink() {
+    S.ttLink = !S.ttLink;
+    save(); renderTimetable();
+    toast(S.ttLink ? "주간↔하루를 연동했어요 (일정 공유)" : "하루를 분리했어요 (별도 일정)");
+  }
+  function toggleTtWeekend() {
+    S.ttHideWeekend = !S.ttHideWeekend;
+    save(); renderSettings(); renderTimetable();
+    toast(S.ttHideWeekend ? "시간표에서 주말을 숨겼어요 (월~금)" : "시간표에 주말을 다시 표시해요");
   }
   function setPatStyle(p) {
     S.patstyle = p;
@@ -1662,6 +1738,7 @@
     (S.biases || []).forEach((b) => { assignImgKey(b, "photo", "photoKey"); assignImgKey(b, "cover", "coverKey"); });
     (S.styles || []).forEach((s) => { assignImgKey(s, "img", "imgKey"); });
     assignImgKey(S.membership, "photo", "photoKey");
+    assignImgKey(S.membership, "memberPhoto", "memberPhotoKey");
   }
   // localStorage에 저장할 때 쓰는 가벼운 사본: 포카 사진(base64)은 빼고 참조(imgKey)만 남김
   function persistState() {
@@ -1684,7 +1761,7 @@
     });
     lite.biases = (S.biases || []).map((b) => stripImgField(stripImgField(b, "photo", "photoKey"), "cover", "coverKey"));
     lite.styles = (S.styles || []).map((s) => stripImgField(s, "img", "imgKey"));
-    if (S.membership) lite.membership = stripImgField(S.membership, "photo", "photoKey");
+    if (S.membership) lite.membership = stripImgField(stripImgField(S.membership, "photo", "photoKey"), "memberPhoto", "memberPhotoKey");
     return lite;
   }
   // 시작할 때 IndexedDB에 있는 포카 사진을 메모리(S)로 다시 채워 넣음
@@ -1708,6 +1785,9 @@
     });
     if (S.membership && !S.membership.photo && S.membership.photoKey) {
       tasks.push(imgGet(S.membership.photoKey).then((v) => { if (v) S.membership.photo = v; }));
+    }
+    if (S.membership && !S.membership.memberPhoto && S.membership.memberPhotoKey) {
+      tasks.push(imgGet(S.membership.memberPhotoKey).then((v) => { if (v) S.membership.memberPhoto = v; }));
     }
     if (tasks.length) Promise.all(tasks).then(renderAll);
   }
@@ -2152,7 +2232,8 @@
     if (!wkEl) return;
     const today = todayKey();
     const now = new Date();
-    const start = new Date(now); start.setDate(now.getDate() - now.getDay());
+    const ws = S.weekStart === "mon" ? 1 : 0;
+    const start = new Date(now); start.setDate(now.getDate() - ((now.getDay() - ws + 7) % 7));
     const schedDates = new Set(byBias(S.schedules).map((s) => s.date));
     const names = ["일", "월", "화", "수", "목", "금", "토"];
     const sel = homeDay || today; // 현재 TODAY 카드가 보여주는 날짜
@@ -2160,8 +2241,9 @@
     for (let i = 0; i < 7; i++) {
       const d = new Date(start); d.setDate(start.getDate() + i);
       const key = fmtDate(d);
+      const wd = d.getDay();
       const cls = (key === today ? " today" : "") + (key === sel && key !== today ? " sel" : "");
-      wk += `<button class="wk-day${cls}" data-date="${key}"><span class="wk-name ${i === 0 ? "sun" : i === 6 ? "sat" : ""}">${names[i]}</span><span class="wk-num">${d.getDate()}</span><i class="wk-dot ${schedDates.has(key) ? "on" : ""}"></i></button>`;
+      wk += `<button class="wk-day${cls}" data-date="${key}"><span class="wk-name ${wd === 0 ? "sun" : wd === 6 ? "sat" : ""}">${names[wd]}</span><span class="wk-num">${d.getDate()}</span><i class="wk-dot ${schedDates.has(key) ? "on" : ""}"></i></button>`;
     }
     wkEl.innerHTML = wk;
     wkEl.querySelectorAll("[data-date]").forEach((btn) => {
@@ -2189,26 +2271,37 @@
 
   function renderMemberCard() {
     const m = S.membership;
-    const card = $("memberCard");
-    if (card) {
-      card.className = "member-card mc-style-" + (m.style || "gradient") + (m.photo ? " has-photo" : "");
+    const b = curBias();
+    const sinceText = "SINCE " + (b && b.startDate ? b.startDate.slice(0, 4) : "—");
+    const exp = m.expiry ? Math.round((new Date(m.expiry) - new Date(todayKey())) / 86400000) : null;
+    const noText = exp !== null
+      ? (exp < 0 ? "EXPIRED" : `EXP D-${exp}`) + " · NO. " + (m.no || "0001")
+      : "NO. " + (m.no || "0001");
+    // 홈·설정 두 곳의 카드 미리보기를 같이 채움
+    const fill = (cardId, iconId, titleId, nameId, sinceId, noId, photoId) => {
+      const card = $(cardId);
+      if (!card) return;
+      card.className = "member-card mc-style-" + (m.style || "gradient") + (m.photo ? " has-photo" : "") + (m.memberPhoto ? " has-idphoto" : "");
       card.style.backgroundImage = m.photo ? `linear-gradient(135deg, rgba(0,0,0,.55), rgba(0,0,0,.2)), url(${m.photo})` : "";
       card.style.backgroundSize = m.photo ? "cover" : "";
       card.style.backgroundPosition = m.photo ? "center" : "";
-    }
-    $("mcTitle").textContent = m.title || "MY STAR PASS";
-    $("mcName").textContent = m.name || "MY NAME";
-    $("mcIcon").textContent = m.icon || "✦";
-    const exp = m.expiry ? Math.round((new Date(m.expiry) - new Date(todayKey())) / 86400000) : null;
-    $("mcNo").textContent = exp !== null
-      ? (exp < 0 ? "EXPIRED" : `EXP D-${exp}`) + " · NO. " + (m.no || "0001")
-      : "NO. " + (m.no || "0001");
+      const pimg = $(photoId);
+      if (pimg) {
+        if (m.memberPhoto) { pimg.src = m.memberPhoto; pimg.classList.remove("hidden"); }
+        else { pimg.removeAttribute("src"); pimg.classList.add("hidden"); }
+      }
+      $(iconId).textContent = m.icon || "✦";
+      $(titleId).textContent = m.title || "MY STAR PASS";
+      $(nameId).textContent = m.name || "MY NAME";
+      $(sinceId).textContent = sinceText;
+      $(noId).textContent = noText;
+    };
+    fill("memberCard", "mcIcon", "mcTitle", "mcName", "mcSince", "mcNo", "mcPhotoImg");
+    fill("setMemberCard", "setMcIcon", "setMcTitle", "setMcName", "setMcSince", "setMcNo", "setMcPhotoImg");
     const mw2 = document.querySelector(".membership-wrap .hint");
     if (mw2) mw2.textContent = exp !== null && exp >= 0 && exp <= 30
       ? `멤버십 만료까지 ${exp}일! 갱신 잊지 마세요`
       : "카드를 누르면 수정할 수 있어요";
-    const b = curBias();
-    $("mcSince").textContent = "SINCE " + (b && b.startDate ? b.startDate.slice(0, 4) : "—");
   }
 
   /* ═══ 프로필 상세 페이지 ═══ */
@@ -2220,7 +2313,8 @@
     $("profName").textContent = b.name;
     $("profGroup").textContent = b.group || "MY BIAS";
     $("profBadges").innerHTML = buildBadges(b, ddText);
-    $("profAvatar").style.backgroundImage = b.photo ? `url(${b.photo})` : "";
+    const avBg = $("profAvatarBg");
+    if (avBg) { avBg.style.backgroundImage = b.photo ? `url(${b.photo})` : ""; applyCoverFitTo(avBg, coverFit(b, "avatar")); }
     $("profCover").style.backgroundImage = b.cover ? `url(${b.cover})` : "";
     applyCoverFitTo($("profCover"), coverFit(b, "prof"));
     const dDayTo = (ds) => {
@@ -2252,10 +2346,12 @@
   let posTarget = "prof";
   const posRefs = () => posTarget === "home"
     ? { wrap: $("homeCover"), cover: $("homeCoverBg"), btn: $("homePosBtn"), zoom: $("zoomHome") }
+    : posTarget === "avatar"
+    ? { wrap: $("profAvatar"), cover: $("profAvatarBg"), btn: $("avatarPosBtn"), zoom: $("zoomAvatar") }
     : { wrap: $("heroWrap"), cover: $("profCover"), btn: $("posBtn"), zoom: $("zoomProf") };
 
   /* 커버 조정값은 화면별로 따로 저장 (홈은 템플릿별, 프로필 상세는 별도) */
-  const fitKey = (target) => target === "home" ? "home:" + (S.template || "profile") : "prof";
+  const fitKey = (target) => target === "home" ? "home:" + (S.template || "classic") : target === "avatar" ? "avatar" : "prof";
   function coverFit(b, target) {
     if (!b.coverFit) b.coverFit = {};
     const k = fitKey(target);
@@ -2281,6 +2377,7 @@
     if (!b) return;
     applyCoverFitTo($("homeCoverBg"), coverFit(b, "home"));
     applyCoverFitTo($("profCover"), coverFit(b, "prof"));
+    applyCoverFitTo($("profAvatarBg"), coverFit(b, "avatar"));
   }
   function clampShift(fit) {
     const z = (fit.zoom || 100) / 100;
@@ -2302,16 +2399,18 @@
   function toggleCoverPos(target) {
     if (!posMode) {
       posTarget = target || "prof";
+      const isAv = posTarget === "avatar";
       const { wrap, btn } = posRefs();
       const b = curBias();
-      if (!b || !b.cover) return toast("먼저 배경 사진을 등록해 주세요!");
+      const img = isAv ? b && b.photo : b && b.cover;
+      if (!b || !img) return toast(isAv ? "먼저 프로필 사진을 등록해 주세요!" : "먼저 배경 사진을 등록해 주세요!");
       if (decoMode) toggleDeco();
       posMode = true;
       coverFit(b, posTarget); // fit 시드 보장
       coverRatio = null;
       const im = new Image();
       im.onload = () => { coverRatio = im.width / im.height; };
-      im.src = b.cover;
+      im.src = img;
       wrap.classList.add("pos-on");
       btn.innerHTML = I("check");
       btn.title = "위치 저장";
@@ -2322,29 +2421,31 @@
         zoom.querySelectorAll("button").forEach((zb) => {
           zb.onclick = (e) => {
             e.stopPropagation();
-            const cur = (curBias() && curBias().coverZoom) || 100;
+            const cur = coverFit(curBias(), posTarget).zoom || 100;
             setCoverZoom(cur + (zb.dataset.z === "+" ? 10 : -10));
           };
         });
       }
       toast("드래그로 위치, ＋−·휠로 확대/축소!");
     } else {
+      const isAv = posTarget === "avatar";
       const { wrap, btn, zoom } = posRefs();
       posMode = false;
       wrap.classList.remove("pos-on");
       btn.innerHTML = I("move");
-      btn.title = "배경 위치 조정";
+      btn.title = isAv ? "프로필 사진 위치 조정" : "배경 위치 조정";
       if (zoom) zoom.classList.add("hidden");
       save(); renderAll();
-      toast("배경 위치를 저장했어요");
+      toast(isAv ? "프로필 사진 위치를 저장했어요" : "배경 위치를 저장했어요");
     }
   }
 
   function coverDragStart(e) {
     if (!posMode) return;
-    if (e.target.closest && (e.target.closest(".zoom-btns") || e.target.closest(".cover-pos-btn") || e.target.closest(".hero-pos-btn") || e.target.closest(".hero-deco-btn"))) return;
+    if (e.target.closest && (e.target.closest(".zoom-btns") || e.target.closest(".cover-pos-btn") || e.target.closest(".hero-pos-btn") || e.target.closest(".hero-deco-btn") || e.target.closest(".av-pos-btn"))) return;
     const b = curBias();
-    if (!b || !b.cover) return;
+    const dragImg = posTarget === "avatar" ? b && b.photo : b && b.cover;
+    if (!b || !dragImg) return;
     e.preventDefault();
     const refs = posRefs();
     const rect = refs.wrap.getBoundingClientRect();
@@ -2853,7 +2954,17 @@
     }
 
     const first = new Date(y, m, 1);
-    const startDow = first.getDay();
+    const ws = S.weekStart === "mon" ? 1 : 0;
+    const startDow = (first.getDay() - ws + 7) % 7;
+    const wsBtn = $("calWsBtn");
+    if (wsBtn) wsBtn.textContent = ws === 1 ? "월" : "일";
+    // 요일 헤더도 주 시작 설정에 맞춰 재구성
+    const headEl = document.querySelector(".cal-grid-head");
+    if (headEl) {
+      const dows = [["일", "sun"], ["월", ""], ["화", ""], ["수", ""], ["목", ""], ["금", ""], ["토", "sat"]];
+      const ordered = ws === 1 ? dows.slice(1).concat(dows.slice(0, 1)) : dows;
+      headEl.innerHTML = ordered.map(([n, c]) => `<span${c ? ` class="${c}"` : ""}>${n}</span>`).join("");
+    }
     const daysIn = new Date(y, m + 1, 0).getDate();
     const prevDays = new Date(y, m, 0).getDate();
     const b = curBias();
@@ -3745,7 +3856,7 @@
     renderSwatches();
     const scc = $("setColorChip"), sch = $("setColorHex");
     if (scc) { scc.style.background = S.accent; sch.textContent = S.accent.toUpperCase(); }
-    renderTplThumbs($("setTplThumbs"), S.template || "profile", setTemplate);
+    renderTplThumbs($("setTplThumbs"), S.template || "classic", setTemplate);
     const mt = $("modeTabs");
     if (mt) {
       mt.innerHTML = MODES.map(([id, name]) =>
@@ -3799,6 +3910,16 @@
         b.onclick = () => setAlign(b.dataset.alignBtn);
       });
     }
+    const wsc = $("weekStartCalTabs");
+    if (wsc) wsc.querySelectorAll("[data-wsc]").forEach((b) => b.classList.toggle("active", b.dataset.wsc === (S.weekStart || "sun")));
+    const wsw = $("weekStartWeekTabs");
+    if (wsw) wsw.querySelectorAll("[data-wsw]").forEach((b) => b.classList.toggle("active", b.dataset.wsw === (S.weekStartWeek || "mon")));
+    const wsq = $("weekStartCircleTabs");
+    if (wsq) wsq.querySelectorAll("[data-wsq]").forEach((b) => b.classList.toggle("active", b.dataset.wsq === (S.weekStartCircle || "sun")));
+    const ttlk = $("ttLinkSwitch");
+    if (ttlk) ttlk.classList.toggle("on", !!S.ttLink);
+    const ttwk = $("ttWeekendSwitch");
+    if (ttwk) ttwk.classList.toggle("on", !!S.ttHideWeekend);
     const ps = $("patstyleTabs");
     if (ps) {
       ps.innerHTML = PATSTYLES.map(([id, name]) =>
@@ -4386,36 +4507,56 @@
       const m = S.membership;
       let mcStyle = m.style || "gradient";
       let mcPhoto = m.photo || null;
+      let mcIdPhoto = m.memberPhoto || null;
       openModalRaw("나만의 멤버십 카드", `
         <div class="mc-preview-wrap"><div class="member-card" id="mcPreview"></div></div>
         <p class="dt-label">카드 디자인</p>
         <div class="mc-presets" id="mcPresets">${MEMBERSHIP_STYLES.map(([k, l]) => `<button type="button" class="mc-preset mc-style-${k}" data-mcs="${k}">${l}</button>`).join("")}</div>
-        <div class="field"><label>배경 사진 <small>(선택 · 넣으면 디자인 위에 덮여요)</small></label>${photoPickHtml("+ 카드 배경 사진")}</div>
-        <button type="button" class="btn btn-ghost btn-sm${mcPhoto ? "" : " hidden"}" id="mcPhotoClear" style="margin:-4px 0 10px">사진 빼기</button>
         <div class="field"><label>카드 이름</label><input type="text" id="mTitle" value="${esc(m.title)}" maxlength="20"></div>
         <div class="field"><label>내 이름 (영문 추천)</label><input type="text" id="mName" value="${esc(m.name)}" maxlength="24"></div>
         <div class="field"><label>아이콘 (이모지 1개)</label><input type="text" id="mIcon" value="${esc(m.icon)}" maxlength="2"></div>
         <div class="field"><label>멤버 번호</label><input type="text" id="mNo" value="${esc(m.no)}" maxlength="10"></div>
-        <div class="field"><label>멤버십 만료일 <small>(팬클럽 기간 관리)</small></label>${dateSelectHTML("mExpiry", m.expiry || "", { yearsBack: 2, yearsFwd: 8 })}</div>
+        <div class="field"><label>멤버십 만료일 <small>(팬클럽 기간 관리)</small></label>${dateSelectHTML("mExpiry", m.expiry || "", { yearsBack: 100, yearsFwd: 10, yearDesc: true })}</div>
+        <div class="mc-photos">
+          <div class="field mc-photo-field">
+            <label>증명사진 <small>(선택)</small></label>
+            <div class="mc-pick-box">
+              <label class="photo-pick mc-id-pick" id="mmBox">
+                <input type="file" accept="image/*" id="mmInput" hidden>
+                <span id="mmHint">+ 사진</span>
+                <img id="mmPreview" class="hidden" alt="증명사진 미리보기">
+              </label>
+              <button type="button" class="pick-x${mcIdPhoto ? "" : " hidden"}" id="mmClear" aria-label="증명사진 빼기">✕</button>
+            </div>
+          </div>
+          <div class="field mc-photo-field">
+            <label>배경 사진 <small>(선택)</small></label>
+            <div class="mc-pick-box mc-bg-pick">
+              ${photoPickHtml("+ 배경 사진")}
+              <button type="button" class="pick-x${mcPhoto ? "" : " hidden"}" id="mcPhotoClear" aria-label="배경 사진 빼기">✕</button>
+            </div>
+          </div>
+        </div>
         <button class="btn btn-primary btn-lg" id="mSave">카드 발급</button>
       `);
       const prev = $("mcPreview");
       const updatePreview = () => {
         const b = curBias();
         const since = b && b.startDate ? b.startDate.slice(0, 4) : "—";
-        prev.className = "member-card mc-style-" + mcStyle + (mcPhoto ? " has-photo" : "");
+        prev.className = "member-card mc-style-" + mcStyle + (mcPhoto ? " has-photo" : "") + (mcIdPhoto ? " has-idphoto" : "");
         prev.style.backgroundImage = mcPhoto ? `linear-gradient(135deg, rgba(0,0,0,.55), rgba(0,0,0,.2)), url(${mcPhoto})` : "";
         prev.style.backgroundSize = mcPhoto ? "cover" : "";
         prev.style.backgroundPosition = mcPhoto ? "center" : "";
         prev.innerHTML =
           `<div class="mc-top"><span class="mc-logo">${esc($("mIcon").value || "✦")}</span><span class="mc-title">${esc($("mTitle").value || "MY STAR PASS")}</span></div>`
           + `<div class="mc-name">${esc($("mName").value || "MY NAME")}</div>`
-          + `<div class="mc-foot"><span>SINCE ${since}</span><span>NO. ${esc($("mNo").value || "0001")}</span></div>`;
+          + `<div class="mc-foot"><span>SINCE ${since}</span><span>NO. ${esc($("mNo").value || "0001")}</span></div>`
+          + (mcIdPhoto ? `<img class="mc-photo" src="${mcIdPhoto}" alt="">` : "");
         $("mcPresets").querySelectorAll("[data-mcs]").forEach((x) => x.classList.toggle("on", x.dataset.mcs === mcStyle));
       };
       ["mTitle", "mName", "mIcon", "mNo"].forEach((id) => { $(id).oninput = updatePreview; });
       $("mcPresets").querySelectorAll("[data-mcs]").forEach((x) => { x.onclick = () => { mcStyle = x.dataset.mcs; updatePreview(); }; });
-      // 배경 사진 업로드 (미리보기 즉시 반영) — 라벨이 입력을 자동으로 열므로 onclick 생략
+      // 배경 사진 업로드 (라벨이 입력을 자동으로 열므로 onclick 생략)
       $("mpInput").onchange = (e) => {
         const f = e.target.files[0];
         e.target.value = "";
@@ -4434,6 +4575,25 @@
         updatePreview();
       };
       if (mcPhoto) { $("mpPreview").src = mcPhoto; $("mpPreview").classList.remove("hidden"); $("mpHint").classList.add("hidden"); }
+      // 증명사진 업로드
+      $("mmInput").onchange = (e) => {
+        const f = e.target.files[0];
+        e.target.value = "";
+        if (!f) return;
+        fileToData(f, 500, (data) => {
+          mcIdPhoto = data;
+          $("mmPreview").src = data; $("mmPreview").classList.remove("hidden"); $("mmHint").classList.add("hidden");
+          $("mmClear").classList.remove("hidden");
+          updatePreview();
+        });
+      };
+      $("mmClear").onclick = () => {
+        mcIdPhoto = null;
+        $("mmPreview").classList.add("hidden"); $("mmHint").classList.remove("hidden");
+        $("mmClear").classList.add("hidden");
+        updatePreview();
+      };
+      if (mcIdPhoto) { $("mmPreview").src = mcIdPhoto; $("mmPreview").classList.remove("hidden"); $("mmHint").classList.add("hidden"); }
       updatePreview();
       $("mSave").onclick = () => {
         S.membership = {
@@ -4444,6 +4604,7 @@
           expiry: dateSelectVal("mExpiry") || "",
           style: mcStyle,
           photo: mcPhoto || null,
+          memberPhoto: mcIdPhoto || null,
         };
         save(); closeModal(); renderMemberCard();
         toast("나만의 멤버십 카드 저장 완료 ▥");
@@ -4623,7 +4784,7 @@
       if (!f) return;
       fileToData(f, 800, (data) => {
         const b = curBias();
-        if (b) { b.photo = data; save(); renderAll(); toast("프로필 사진을 바꿨어요"); }
+        if (b) { b.photo = data; if (b.coverFit) delete b.coverFit.avatar; save(); renderAll(); toast("프로필 사진을 바꿨어요"); }
       });
       e.target.value = "";
     });
@@ -4695,6 +4856,8 @@
     };
     if (hw) hw.addEventListener("wheel", wheelZoom, { passive: false });
     if (hcv) hcv.addEventListener("wheel", wheelZoom, { passive: false });
+    const pav = $("profAvatar");
+    if (pav) { pav.addEventListener("pointerdown", coverDragStart); pav.addEventListener("wheel", wheelZoom, { passive: false }); }
     clockTimer = setInterval(tickClock, 1000);
 
     // 전체화면 스탠바이 시계 진입점 · 보정 컨트롤
@@ -4714,13 +4877,32 @@
     // 커스텀 날짜 드롭다운 (열기/선택/바깥클릭 닫기)
     document.addEventListener("click", handleDselClick);
     document.addEventListener("click", handleCalToggle);
+    // 스케줄러 영역 바깥(페이지 배경) 클릭 시 선택/색칠 취소
+    document.addEventListener("click", (e) => {
+      const ap = document.querySelector(".page.active");
+      const onTt = ap && ap.id === "page-timetable";
+      if ((ttGridSel || ttGridDraft) && !e.target.closest("#ttGrid")) {
+        ttGridSel = null; ttGridDraft = null;
+        if (onTt && ttView !== "circle") renderTTGrid(ttView === "fixed");
+      }
+      if ((ttSelStart != null || ttDraft) && !e.target.closest("#ttCircle")) {
+        ttSelStart = null; ttDraft = null;
+        if (onTt && ttView === "circle") renderTTCircle();
+      }
+    });
 
-    // 모바일 전용 '더보기' 페이지를 보던 중 PC 폭으로 바뀌면 설정으로 이동 (빈 화면 방지)
+    // 모바일 전용 '더보기' 페이지를 보던 중 PC 폭으로 바뀌면 설정으로 이동 (빈 화면 방지).
+    // 다시 모바일 폭으로 줄이면, 자동 전환된 경우에 한해 '더보기'로 되돌림.
     if (window.matchMedia) {
       const mqDesk = window.matchMedia("(min-width: 980px)");
       const onDesk = (e) => {
-        const more = $("page-more");
-        if (e.matches && more && more.classList.contains("active")) go("settings");
+        const more = $("page-more"), settings = $("page-settings");
+        if (e.matches) {
+          if (more && more.classList.contains("active")) { go("settings"); _moreAutoSettings = true; }
+        } else {
+          if (_moreAutoSettings && settings && settings.classList.contains("active")) go("more");
+          _moreAutoSettings = false;
+        }
       };
       if (mqDesk.addEventListener) mqDesk.addEventListener("change", onDesk);
       else if (mqDesk.addListener) mqDesk.addListener(onDesk);
@@ -4743,25 +4925,40 @@
      데이터: S.timetables = [{id, biasId, week, day(0=월..6=일), start, end(0~1440 분), title, color}] */
   let ttWeekStart = null;   // 그 주 월요일 Date
   let ttView = "fixed";     // "fixed"(시간표) | "week"(주간) | "circle"(원형)
-  let ttDay = 0;            // 원형 뷰에서 보는 요일 (0=월)
+  let ttDay = new Date().getDay();  // 원형 뷰에서 보는 요일 (절대요일 0=일..6=토)
   let ttSelStart = null;    // 원형 뷰: 첫 클릭으로 잡은 시작 시각(분), null이면 선택 없음
   let ttDraft = null;       // 원형 뷰: 시작~끝을 잡은 회색 임시 칸 {start, end}. 탭하면 입력 모달
-  const TT_DOW = ["월", "화", "수", "목", "금", "토", "일"];
+  let ttGridSel = null;     // 그리드 뷰: 첫 클릭한 칸 {day, hour}
+  let ttGridDraft = null;   // 그리드 뷰: 시작~끝 잡은 임시 구간 {day, s, e, fixed}. 탭하면 입력 모달
+  const TT_DOW = ["일", "월", "화", "수", "목", "금", "토"]; // 절대요일 (0=일)
+  // 뷰별 주 시작 설정에 맞춘 표시 순서 (절대요일). 주말 제외 시 토·일 제거
+  const ttWeekOrder = (mode) => {
+    const ws = (mode === "circle" ? S.weekStartCircle : S.weekStartWeek) === "mon" ? 1 : 0;
+    const base = ws === 1 ? [1, 2, 3, 4, 5, 6, 0] : [0, 1, 2, 3, 4, 5, 6];
+    return S.ttHideWeekend ? base.filter((d) => d !== 0 && d !== 6) : base;
+  };
   const TT_COLORS = ["var(--accent)", "#f7a8c4", "#f6b9a8", "#fbd6a0", "#fdeaa8", "#bfe6c2", "#a8dadc", "#b8c8f0", "#cdbdf0", "#d9d9de"];
   // 밝은 파스텔엔 어두운 글자, 진한 색엔 흰 글자 (가독성)
   function ttTextOn(c) { if (!c || c[0] !== "#" || c.length < 7) return "#fff"; const r = parseInt(c.slice(1, 3), 16), g = parseInt(c.slice(3, 5), 16), b = parseInt(c.slice(5, 7), 16); return (0.299 * r + 0.587 * g + 0.114 * b) > 175 ? "#3a3a3a" : "#fff"; }
 
-  const ttMondayOf = (d) => {
+  const ttWeekStartOf = (d) => {
     const x = new Date(d); x.setHours(0, 0, 0, 0);
-    x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+    const ws = S.weekStartWeek === "mon" ? 1 : 0;
+    x.setDate(x.getDate() - ((x.getDay() - ws + 7) % 7));
     return x;
   };
-  const ttKeyOf = (d) => fmtDate(ttMondayOf(d));
+  const ttKeyOf = (d) => fmtDate(ttWeekStartOf(d));
   const ttKey = () => fmtDate(ttWeekStart);
   const ttHM = (m) => pad(Math.floor(m / 60)) + ":" + pad(m % 60);
   function ttBlocks() {
     const k = ttKey(), bid = S.currentBias;
     return (S.timetables || []).filter((b) => (b.week === k || b.week === "*") && (!b.biasId || b.biasId === bid));
+  }
+  // 원형 뷰 데이터: 연동 ON이면 주간과 공유, OFF면 원형 전용(week="circle")
+  function ttCircleBlocks() {
+    if (S.ttLink) return ttBlocks();
+    const bid = S.currentBias;
+    return (S.timetables || []).filter((b) => b.week === "circle" && (!b.biasId || b.biasId === bid));
   }
 
   // 주간/시간표 표에 보일 시간대 (S.ttRange, 기본 0~24)
@@ -4769,30 +4966,52 @@
 
   function renderTimetable() {
     if (!$("ttGrid")) return;
-    if (!ttWeekStart) ttWeekStart = ttMondayOf(new Date());
+    if (!ttWeekStart) ttWeekStart = ttWeekStartOf(new Date());
     const end = new Date(ttWeekStart); end.setDate(end.getDate() + 6);
     const cur = ttKey() === ttKeyOf(new Date());
-    $("ttTitle").innerHTML = `${ttWeekStart.getMonth() + 1}.${ttWeekStart.getDate()} – ${end.getMonth() + 1}.${end.getDate()}` + (cur ? ` <span class="tt-now">이번 주</span>` : "");
-    $("ttTabs").innerHTML = [["fixed", "시간표", I("bookmark")], ["week", "주간", I("grid")], ["circle", "원형 24시", I("clock")]]
+    const fixedV = ttView === "fixed";
+    // 주 날짜 줄은 항상 같은 높이로 유지(흔들림 방지). 고정 뷰에선 라벨로 대체, 날짜 이동 숨김
+    if (fixedV) $("ttTitle").textContent = "매주 반복 · 날짜 없음";
+    else $("ttTitle").innerHTML = `${ttWeekStart.getMonth() + 1}.${ttWeekStart.getDate()} – ${end.getMonth() + 1}.${end.getDate()}` + (cur ? ` <span class="tt-now">이번 주</span>` : "");
+    $("ttTabs").innerHTML = [["fixed", "고정", I("bookmark")], ["week", "주간", I("grid")], ["circle", "하루", I("clock")]]
       .map(([k, n, ic]) => `<button class="${ttView === k ? "active" : ""}" data-ttv="${k}">${ic} ${n}</button>`).join("");
     $("ttTabs").querySelectorAll("[data-ttv]").forEach((b) => { b.onclick = () => ttSetView(b.dataset.ttv); });
     renderTTTools();
-    const fixedView = ttView === "fixed";
     if (ttView === "circle") { $("ttGrid").classList.add("hidden"); $("ttCircle").classList.remove("hidden"); renderTTCircle(); }
-    else { $("ttGrid").classList.remove("hidden"); $("ttCircle").classList.add("hidden"); renderTTGrid(fixedView); }
-    if ($("ttWeekHead")) $("ttWeekHead").classList.toggle("hidden", fixedView); // 고정 시간표는 날짜·주차 없음
+    else { $("ttGrid").classList.remove("hidden"); $("ttCircle").classList.add("hidden"); renderTTGrid(fixedV); }
+    const wh = $("ttWeekHead");
+    if (wh) { wh.classList.remove("hidden"); wh.classList.toggle("tt-fixed", fixedV); } // 줄은 유지, 고정 뷰는 날짜 이동만 숨김
   }
 
   function renderTTTools() {
     const t = $("ttTools"); if (!t) return;
     const fixed = ttView === "fixed";
-    let h = `<button class="chip-btn" onclick="App.openTTBlock(${fixed ? "null, { fixed: true }" : ""})">${I("clock")} 일정 추가</button>`;
-    if (!fixed) h += `<button class="chip-btn" onclick="App.openTTCopy()">다른 주 복사</button>`;
-    if (ttView === "week" || fixed) {
-      const { s: rs, e: re } = ttRangeHours(fixed);
-      h += `<button class="chip-btn" onclick="App.openTTRange('${fixed ? "fixed" : "week"}')">시간 범위 ${rs}–${re}시</button>`;
-    }
-    t.innerHTML = h;
+    t.innerHTML =
+      `<button class="btn btn-dark btn-sm" onclick="App.openTTBlock(${fixed ? "null, { fixed: true }" : ""})">+ 일정</button>`
+      + `<button class="chip-btn" onclick="App.openTTOptions()" aria-label="스케줄러 옵션">${I("settings") || "⚙"} 옵션</button>`;
+  }
+
+  // 보조 옵션(주말 제외·주 시작·시간 범위·다른 주 복사)을 모은 메뉴
+  function openTTOptions() {
+    const fixed = ttView === "fixed";
+    const { s: rs, e: re } = ttRangeHours(fixed);
+    const wsRow = (id, val) => `<div class="tab-row" data-wsgrp="${id}" style="margin-bottom:0">
+        <button class="tab ${val !== "mon" ? "active" : ""}" data-w="sun">일요일</button>
+        <button class="tab ${val === "mon" ? "active" : ""}" data-w="mon">월요일</button></div>`;
+    openModalRaw("스케줄러 옵션", `
+      <div class="field row-field"><label>주간 ↔ 하루 연동 <small>(끄면 하루는 별도 일정)</small></label><button class="switch ${S.ttLink ? "on" : ""}" id="optLink"><span class="knob"></span></button></div>
+      <div class="field row-field"><label>주말 제외 <small>(월~금만 보기)</small></label><button class="switch ${S.ttHideWeekend ? "on" : ""}" id="optWeekend"><span class="knob"></span></button></div>
+      <div class="field"><label>주간 주 시작</label>${wsRow("week", S.weekStartWeek)}</div>
+      <div class="field"><label>하루 주 시작</label>${wsRow("circle", S.weekStartCircle)}</div>
+      ${(ttView === "week" || fixed) ? `<div class="field row-field"><label>시간 범위 <small>(표에 보일 시간대)</small></label><button class="btn btn-ghost btn-sm" id="optRange">${rs}–${re}시 변경</button></div>` : ""}
+      ${!fixed ? `<button class="btn btn-ghost btn-lg" id="optCopy">다른 주 일정 복사</button>` : ""}
+    `);
+    $("optLink").onclick = () => { toggleTtLink(); openTTOptions(); };
+    $("optWeekend").onclick = () => { toggleTtWeekend(); openTTOptions(); };
+    document.querySelectorAll('[data-wsgrp="week"] [data-w]').forEach((b) => { b.onclick = () => { setWeekStartWeek(b.dataset.w); openTTOptions(); }; });
+    document.querySelectorAll('[data-wsgrp="circle"] [data-w]').forEach((b) => { b.onclick = () => { setWeekStartCircle(b.dataset.w); openTTOptions(); }; });
+    if ($("optRange")) $("optRange").onclick = () => { closeModal(); openTTRange(fixed ? "fixed" : "week"); };
+    if ($("optCopy")) $("optCopy").onclick = () => { closeModal(); openTTCopy(); };
   }
 
   // 하루 안에서 겹치는 일정을 나란히 배치하기 위한 레인 계산
@@ -4818,37 +5037,75 @@
     blocks.forEach((b) => { minH = Math.min(minH, Math.floor(b.start / 60)); maxH = Math.max(maxH, Math.ceil(b.end / 60)); });
     if (maxH < minH + 1) maxH = minH + 1;
     const hh = 42;
-    const todayIdx = (!fixed && ttKey() === ttKeyOf(new Date())) ? (new Date().getDay() + 6) % 7 : -1;
+    const order = ttWeekOrder("week");
+    const todayAbs = new Date().getDay();
+    const showToday = (!fixed && ttKey() === ttKeyOf(new Date()));
     let heads = `<div class="tt-corner"></div>`;
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(ttWeekStart); d.setDate(d.getDate() + i);
-      const wk = i === 5 ? "sat" : i === 6 ? "sun" : "";
+    order.forEach((dayAbs, p) => {
+      const d = new Date(ttWeekStart); d.setDate(d.getDate() + p);
+      const wk = dayAbs === 6 ? "sat" : dayAbs === 0 ? "sun" : "";
+      const isToday = showToday && dayAbs === todayAbs;
       heads += fixed
-        ? `<div class="tt-dhead ${wk}"><b>${TT_DOW[i]}</b></div>`
-        : `<div class="tt-dhead ${wk} ${i === todayIdx ? "today" : ""}"><b>${TT_DOW[i]}</b><span>${d.getDate()}</span></div>`;
-    }
+        ? `<div class="tt-dhead ${wk}"><b>${TT_DOW[dayAbs]}</b></div>`
+        : `<div class="tt-dhead ${wk} ${isToday ? "today" : ""}"><b>${TT_DOW[dayAbs]}</b><span>${d.getDate()}</span></div>`;
+    });
     let axis = `<div class="tt-axis">`;
     for (let h = minH; h < maxH; h++) axis += `<div class="tt-hr" style="height:${hh}px"><span>${h}</span></div>`;
     axis += `</div>`;
     let cols = "";
-    for (let i = 0; i < 7; i++) {
+    order.forEach((dayAbs) => {
+      const isToday = showToday && dayAbs === todayAbs;
       let slots = "";
-      for (let h = minH; h < maxH; h++) slots += `<div class="tt-slot" data-day="${i}" data-hour="${h}" style="height:${hh}px"></div>`;
+      for (let h = minH; h < maxH; h++) {
+        const selCls = (ttGridSel && ttGridSel.day === dayAbs && ttGridSel.hour === h) ? " sel" : "";
+        slots += `<div class="tt-slot${selCls}" data-day="${dayAbs}" data-hour="${h}" style="height:${hh}px"></div>`;
+      }
       let bl = "";
-      ttLayout(blocks.filter((b) => b.day === i)).forEach((b) => {
+      // 시작~끝 선택 구간(임시 칸) — 탭하면 일정 등록
+      if (ttGridDraft && !!ttGridDraft.fixed === !!fixed && ttGridDraft.day === dayAbs) {
+        const dtop = (ttGridDraft.s - minH * 60) / 60 * hh;
+        const dht = Math.max((ttGridDraft.e - ttGridDraft.s) / 60 * hh, 18);
+        bl += `<button class="tt-draft" data-draft="1" style="top:${dtop}px;height:${dht - 2}px"><b>+ 일정 등록</b><i>${ttHM(ttGridDraft.s)}~${ttHM(ttGridDraft.e)}</i></button>`;
+      }
+      ttLayout(blocks.filter((b) => b.day === dayAbs)).forEach((b) => {
         const top = (b.start - minH * 60) / 60 * hh;
         const ht = Math.max((b.end - b.start) / 60 * hh, 17);
         const w = 100 / b._lanes, left = b._lane * w;
         bl += `<button class="tt-block" data-id="${b.id}" style="top:${top}px;height:${ht - 2}px;left:calc(${left}% + 1px);width:calc(${w}% - 2px);background:${b.color};color:${ttTextOn(b.color)}"><b>${b.week === "*" ? "↻ " : ""}${esc(b.title)}</b><i>${ttHM(b.start)}~${ttHM(b.end)}</i></button>`;
       });
-      cols += `<div class="tt-col ${i === todayIdx ? "today" : ""}">${slots}${bl}</div>`;
-    }
-    $("ttGrid").innerHTML = `<div class="tt-head">${heads}</div><div class="tt-body">${axis}${cols}</div>`;
-    $("ttGrid").querySelectorAll(".tt-slot").forEach((sl) => { sl.onclick = () => { const d = +sl.dataset.day, h = +sl.dataset.hour; openTTBlock(null, { day: d, start: h * 60, end: Math.min(h * 60 + 60, 1440), fixed: !!fixed }); }; });
-    $("ttGrid").querySelectorAll(".tt-block").forEach((bt) => { bt.onclick = (e) => { e.stopPropagation(); openTTBlock(bt.dataset.id, fixed ? { fixed: true } : undefined); }; });
+      cols += `<div class="tt-col ${isToday ? "today" : ""}">${slots}${bl}</div>`;
+    });
+    const gcols = `grid-template-columns:34px repeat(${order.length},1fr)`;
+    $("ttGrid").innerHTML = `<div class="tt-head" style="${gcols}">${heads}</div><div class="tt-body" style="${gcols}">${axis}${cols}</div>`;
+    // 클릭 위임: 색칠 구간=등록, 일정=수정, 빈 칸=시작/끝 선택, 그 외 배경=선택 취소
+    $("ttGrid").onclick = (e) => {
+      e.stopPropagation(); // 그리드 안 클릭은 '바깥 취소' 핸들러로 전파 금지 (재렌더 후 오취소 방지)
+      const draftEl = e.target.closest(".tt-draft");
+      if (draftEl) {
+        if (ttGridDraft) openTTBlock(null, { day: ttGridDraft.day, start: ttGridDraft.s, end: ttGridDraft.e, fixed: !!ttGridDraft.fixed });
+        return;
+      }
+      const blockEl = e.target.closest(".tt-block");
+      if (blockEl) { openTTBlock(blockEl.dataset.id, fixed ? { fixed: true } : undefined); return; }
+      const slot = e.target.closest(".tt-slot");
+      if (slot) {
+        const d = +slot.dataset.day, h = +slot.dataset.hour;
+        if (!ttGridSel || ttGridSel.day !== d) {
+          ttGridSel = { day: d, hour: h }; ttGridDraft = null; // 시작 칸 선택
+        } else {
+          const a = Math.min(ttGridSel.hour, h), b = Math.max(ttGridSel.hour, h);
+          ttGridDraft = { day: d, s: a * 60, e: Math.min((b + 1) * 60, 1440), fixed: !!fixed }; // 끝 칸 → 구간 색칠
+          ttGridSel = null;
+        }
+        renderTTGrid(fixed);
+        return;
+      }
+      // 배경(축·헤더·여백) 클릭 → 선택/색칠 취소
+      if (ttGridSel || ttGridDraft) { ttGridSel = null; ttGridDraft = null; renderTTGrid(fixed); }
+    };
     if (!blocks.length) $("ttGrid").insertAdjacentHTML("beforeend", fixed
-      ? `<p class="tt-empty">빈 칸을 탭해 매주 반복되는 고정 시간표를 짜요. 날짜 없이 매주 똑같이 적용돼요.</p>`
-      : `<p class="tt-empty">빈 시간 칸을 탭하면 그 시간에 일정이 생겨요. ‘매주 반복’으로 만들면 모든 주에 ↻ 표시로 떠요.</p>`);
+      ? `<p class="tt-empty">시작 칸과 끝 칸을 차례로 탭하면 그 구간이 색칠돼요. 색칠된 칸을 누르면 매주 반복되는 고정 일정이 등록돼요.</p>`
+      : `<p class="tt-empty">시작 칸과 끝 칸을 차례로 탭하면 그 구간이 색칠돼요. 색칠된 칸을 누르면 일정이 등록돼요.</p>`);
   }
 
   const ttPolar = (cx, cy, r, deg) => { const a = (deg - 90) * Math.PI / 180; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; };
@@ -4861,10 +5118,12 @@
   }
 
   function renderTTCircle() {
-    const all = ttBlocks();
+    const order = ttWeekOrder("circle");
+    if (!order.includes(ttDay)) ttDay = order[0]; // 주말 제외 시 주말 요일이 선택돼 있으면 보정
+    const all = ttCircleBlocks();
     const day = all.filter((b) => b.day === ttDay).sort((a, b) => a.start - b.start);
     let chips = `<div class="tt-daychips">`;
-    for (let i = 0; i < 7; i++) chips += `<button class="${i === ttDay ? "on" : ""} ${i === 5 ? "sat" : i === 6 ? "sun" : ""}" data-d="${i}">${TT_DOW[i]}</button>`;
+    order.forEach((dayAbs) => { chips += `<button class="${dayAbs === ttDay ? "on" : ""} ${dayAbs === 6 ? "sat" : dayAbs === 0 ? "sun" : ""}" data-d="${dayAbs}">${TT_DOW[dayAbs]}</button>`; });
     chips += `</div>`;
     const cx = 130, cy = 130, rO = 112;
     const full = S.ttCircleStyle !== "donut";
@@ -4903,15 +5162,21 @@
     day.forEach((b) => { leg += `<li data-id="${b.id}"><span class="tt-dot" style="background:${b.color}"></span><b>${ttHM(b.start)}~${ttHM(b.end)}</b> ${b.week === "*" ? "↻ " : ""}${esc(b.title)}</li>`; });
     leg += `</ul>`;
     $("ttCircle").innerHTML = chips + cstyle + cap + `<div class="tt-clockwrap">${svg}</div>` + leg;
-    $("ttCircle").querySelectorAll(".tt-daychips button").forEach((c) => { c.onclick = () => ttSetDay(+c.dataset.d); });
-    $("ttCircle").querySelectorAll(".tt-cstyle button").forEach((c) => { c.onclick = () => ttSetCircleStyle(c.dataset.cs); });
-    $("ttCircle").querySelectorAll(".tt-legend li[data-id]").forEach((el) => { el.onclick = () => openTTBlock(el.dataset.id); });
-    const svgEl = $("ttCircle").querySelector("svg.tt-clock");
-    if (svgEl) {
-      const draftEl = svgEl.querySelector(".tt-draft");
-      if (draftEl) draftEl.onclick = (e) => { e.stopPropagation(); ttOpenDraft(); };
-      svgEl.onclick = (e) => ttCircleClick(svgEl, e);
-    }
+    // 클릭 위임: 요일칩·스타일·범례·드래프트·시계 / 그 외 배경=선택 취소
+    $("ttCircle").onclick = (e) => {
+      e.stopPropagation(); // 바깥 취소 핸들러로 전파 금지 (재렌더 후 오취소 방지)
+      const chip = e.target.closest(".tt-daychips button");
+      if (chip) { ttSetDay(+chip.dataset.d); return; }
+      const cs = e.target.closest(".tt-cstyle button");
+      if (cs) { ttSetCircleStyle(cs.dataset.cs); return; }
+      const leg = e.target.closest(".tt-legend li[data-id]");
+      if (leg) { openTTBlock(leg.dataset.id); return; }
+      const draftPath = e.target.closest(".tt-draft");
+      if (draftPath) { ttOpenDraft(); return; }
+      const svgHit = e.target.closest("svg.tt-clock");
+      if (svgHit) { ttCircleClick(svgHit, e); return; }
+      if (ttSelStart != null || ttDraft) { ttSelStart = null; ttDraft = null; renderTTCircle(); } // 배경 → 취소
+    };
   }
 
   // 원형 뷰에서 클릭한 화면 좌표 → 시각(분, 30분 단위 스냅). 첫 클릭=시작, 두 번째 클릭=끝(→입력), 같은 지점=해제
@@ -4942,11 +5207,11 @@
     openTTBlock(null, { day: ttDay, start: ttDraft.start, end: ttDraft.end });
   }
 
-  function ttSetView(v) { ttView = v; ttSelStart = null; ttDraft = null; renderTimetable(); }
+  function ttSetView(v) { ttView = v; ttSelStart = null; ttDraft = null; ttGridSel = null; ttGridDraft = null; renderTimetable(); }
   function ttSetDay(d) { ttDay = d; ttSelStart = null; ttDraft = null; renderTTCircle(); }
   function ttSetCircleStyle(v) { S.ttCircleStyle = v === "full" ? "full" : "donut"; ttSelStart = null; ttDraft = null; save(); renderTTCircle(); }
-  function ttMove(dir) { const d = new Date(ttWeekStart); d.setDate(d.getDate() + dir * 7); ttWeekStart = ttMondayOf(d); ttSelStart = null; ttDraft = null; renderTimetable(); }
-  function ttThisWeek() { ttWeekStart = ttMondayOf(new Date()); ttSelStart = null; ttDraft = null; renderTimetable(); }
+  function ttMove(dir) { const d = new Date(ttWeekStart); d.setDate(d.getDate() + dir * 7); ttWeekStart = ttWeekStartOf(d); ttSelStart = null; ttDraft = null; ttGridSel = null; ttGridDraft = null; renderTimetable(); }
+  function ttThisWeek() { ttWeekStart = ttWeekStartOf(new Date()); ttSelStart = null; ttDraft = null; ttGridSel = null; ttGridDraft = null; renderTimetable(); }
   function openTTRange(mode) {
     const fixed = mode === "fixed", key = fixed ? "ttRangeFixed" : "ttRangeWeek", label = fixed ? "시간표" : "주간";
     const { s: curS, e: curE } = ttRangeHours(fixed);
@@ -4969,7 +5234,7 @@
   }
 
   function openTTCopy() {
-    if (!ttWeekStart) ttWeekStart = ttMondayOf(new Date());
+    if (!ttWeekStart) ttWeekStart = ttWeekStartOf(new Date());
     const prev = new Date(ttWeekStart); prev.setDate(prev.getDate() - 7);
     openModalRaw("다른 주 일정 복사", `
       <p class="hint" style="margin:0 0 12px">고른 날짜가 속한 주의 일정을 이번 주(${ttWeekStart.getMonth() + 1}.${ttWeekStart.getDate()} 주)로 가져와요.</p>
@@ -4979,7 +5244,7 @@
     $("ttCopyGo").onclick = () => {
       const v = $("ttCopyDate").value;
       if (!v) { toast("날짜를 골라주세요"); return; }
-      const src = ttMondayOf(new Date(v + "T00:00:00")), srcKey = fmtDate(src), bid = S.currentBias;
+      const src = ttWeekStartOf(new Date(v + "T00:00:00")), srcKey = fmtDate(src), bid = S.currentBias;
       if (srcKey === ttKey()) { toast("이번 주와 같은 주예요"); return; }
       const list = (S.timetables || []).filter((b) => b.week === srcKey && (!b.biasId || b.biasId === bid));
       if (!list.length) { toast("그 주엔 저장된 일정이 없어요"); return; }
@@ -4996,11 +5261,15 @@
   }
 
   function openTTBlock(editId, prefill) {
-    if (!ttWeekStart) ttWeekStart = ttMondayOf(new Date());
+    if (!ttWeekStart) ttWeekStart = ttWeekStartOf(new Date());
+    ttGridSel = null; ttGridDraft = null; // 그리드 임시 선택 정리
     const edit = editId ? (S.timetables || []).find((b) => b.id === editId) : null;
     prefill = prefill || {};
     const fixed = prefill.fixed === true;
-    const day = edit ? edit.day : (prefill.day != null ? prefill.day : (ttView === "circle" ? ttDay : 0));
+    const circleNew = !edit && ttView === "circle" && !S.ttLink; // 연동 OFF 원형: 별도 데이터(week="circle")
+    const noRepeat = fixed || circleNew || (edit && edit.week === "circle"); // 반복 토글 숨김
+    let day = edit ? edit.day : (prefill.day != null ? prefill.day : (ttView === "circle" ? ttDay : new Date().getDay()));
+    if (!edit) { const _ord = ttWeekOrder(ttView === "circle" ? "circle" : "week"); if (!_ord.includes(day)) day = _ord[0]; } // 주말 제외 시 기본 요일 보정
     const start = edit ? edit.start : (prefill.start != null ? prefill.start : 9 * 60);
     const end = edit ? edit.end : (prefill.end != null ? prefill.end : Math.min(start + 60, 1440));
     let selDay = day, selColor = edit ? edit.color : TT_COLORS[0];
@@ -5008,12 +5277,12 @@
     let selRep = fixed ? true : isRep;
     openModalRaw(edit ? "일정 수정" : "일정 추가", `
       <div class="field"><label>제목 *</label><input type="text" id="ttT" value="${edit ? esc(edit.title) : ""}" placeholder="예) 음악방송 스밍" maxlength="40"></div>
-      <div class="field"><label>요일</label><div class="tt-dowpick" id="ttDowPick">${TT_DOW.map((n, i) => `<button type="button" class="${i === day ? "on" : ""} ${i === 5 ? "sat" : i === 6 ? "sun" : ""}" data-d="${i}">${n}</button>`).join("")}</div></div>
+      <div class="field"><label>요일</label><div class="tt-dowpick" id="ttDowPick">${ttWeekOrder(ttView === "circle" ? "circle" : "week").map((dayAbs) => `<button type="button" class="${dayAbs === day ? "on" : ""} ${dayAbs === 6 ? "sat" : dayAbs === 0 ? "sun" : ""}" data-d="${dayAbs}">${TT_DOW[dayAbs]}</button>`).join("")}</div></div>
       <div class="tt-timerow">
         <div class="field"><label>시작</label>${ttTimeSelect("ttS", start)}</div>
         <div class="field"><label>종료</label>${ttTimeSelect("ttE", end)}</div>
       </div>
-      ${fixed ? "" : `<div class="field"><label>반복</label><div class="tt-reppick" id="ttRep"><button type="button" class="${!isRep ? "on" : ""}" data-r="0">이번 주만</button><button type="button" class="${isRep ? "on" : ""}" data-r="1">매주 반복</button></div></div>`}
+      ${noRepeat ? "" : `<div class="field"><label>반복</label><div class="tt-reppick" id="ttRep"><button type="button" class="${!isRep ? "on" : ""}" data-r="0">이번 주만</button><button type="button" class="${isRep ? "on" : ""}" data-r="1">매주 반복</button></div></div>`}
       <div class="field"><label>색상</label><div class="tt-colorpick" id="ttC">${TT_COLORS.map((c) => `<button type="button" class="${c === selColor ? "on" : ""}" data-c="${c}" style="background:${c}" aria-label="색상"></button>`).join("")}</div></div>
       <button class="btn btn-primary btn-lg" id="ttSave">${edit ? "수정 완료" : "추가"}</button>
       ${edit ? `<button class="btn btn-danger btn-lg" id="ttDel">이 일정 삭제</button>` : ""}
@@ -5026,7 +5295,9 @@
       if (!title) { toast("제목을 입력해 주세요"); $("ttT").focus(); return; }
       const s = +$("ttS").value, e = +$("ttE").value;
       if (e <= s) { toast("종료 시간이 시작보다 늦어야 해요"); return; }
-      const wk = (fixed || selRep) ? "*" : ttKey();
+      let wk;
+      if (edit) wk = (edit.week === "circle" || fixed) ? edit.week : (selRep ? "*" : ttKey());
+      else wk = fixed ? "*" : circleNew ? "circle" : (selRep ? "*" : ttKey());
       if (edit) { edit.title = title; edit.day = selDay; edit.start = s; edit.end = e; edit.color = selColor; edit.week = wk; }
       else S.timetables.push({ id: uid(), biasId: S.currentBias, week: wk, day: selDay, start: s, end: e, title, color: selColor });
       if (ttView === "circle") ttDay = selDay;
@@ -5042,10 +5313,10 @@
   }
 
   window.App = {
-    obNext, obFinish, obSkip, extractFromPhoto,
-    go, toggleFab, toggleDark, toggleRetro, setRetroSkin, setRetroPos, setBg, setAlign, setPatStyle, openFramePicker, openColorPicker, openBudget, openYearReview, toggleNotifyTicket, toggleHaptics, setVeil, setPreset, retroMin, retroMax, toggleDeco, toggleCoverPos, cardGo, coverDragStart, editCurrentBias, setTemplate, setMode,
+    obNext, obPrev, obFinish, obSkip, extractFromPhoto,
+    go, toggleFab, toggleDark, toggleRetro, setRetroSkin, setRetroPos, setBg, setAlign, setWeekStart, toggleCalWeekStart, setWeekStartWeek, setWeekStartCircle, toggleTtLink, toggleTtWeekend, setPatStyle, openFramePicker, openColorPicker, openBudget, openYearReview, toggleNotifyTicket, toggleHaptics, setVeil, setPreset, retroMin, retroMax, toggleDeco, toggleCoverPos, cardGo, coverDragStart, editCurrentBias, setTemplate, resetPresets, setMode,
     calMove, calToday, calJump, openStickerPicker, shareDay,
-    ttMove, ttThisWeek, ttSetView, ttSetDay, ttSetCircleStyle, openTTRange, openTTCopy, openTTBlock,
+    ttMove, ttThisWeek, ttSetView, ttSetDay, ttSetCircleStyle, openTTRange, openTTCopy, openTTBlock, openTTOptions,
     binderTab, ledgerMove, archiveTab, styleTab,
     addLink, openModal, closeModal, backdropClose,
     exportData, resetAll,
