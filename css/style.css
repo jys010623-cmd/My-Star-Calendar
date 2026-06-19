@@ -330,19 +330,24 @@ input[type="color"] {
 /* ───────── 앱 레이아웃 ───────── */
 .app { min-height: 100vh; min-height: 100dvh; }
 .main {
-  padding: 18px 18px calc(var(--nav-h) + 84px);
+  padding: 0 18px calc(var(--nav-h) + 84px);
   max-width: 1080px; margin: 0 auto;
 }
 .page { display: none; animation: fadeUp .3s ease; }
 .page.active { display: block; }
 .page-head { margin: 6px 0 18px; }
 .page-head h2 { font-size: 22px; font-weight: 800; }
+/* 페이지 헤더 뒤로가기(모바일·태블릿 전용 — PC는 사이드바가 있어 숨김) */
+.pg-head-back { display: flex; align-items: center; gap: 4px; }
+.pg-back { display: none; align-items: center; justify-content: center; width: 32px; height: 32px; margin-left: -8px; padding: 0; border: none; background: none; color: var(--text); cursor: pointer; }
+.pg-back svg { width: 22px; height: 22px; }
+@media (max-width: 979.98px) { .pg-back { display: inline-flex; } }
 .page-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
 
 /* 모바일 헤더 */
 .mobile-head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 4px 2px 14px;
+  padding: 14px 2px 12px;
   position: sticky; top: 0; background: var(--bg); z-index: 20;
 }
 .mh-left { display: flex; align-items: center; gap: 8px; cursor: pointer; }
@@ -373,12 +378,23 @@ input[type="color"] {
 @media (max-width: 979.98px) {
   html, body { scrollbar-width: none; -ms-overflow-style: none; }
   html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  /* iOS가 16px 미만 입력칸에 포커스하면 화면을 자동 확대 → 일정 입력 후 확대·화면 흔들림 발생.
+     모바일에선 입력칸·셀렉트를 16px로 올려 자동 확대를 막음 (데스크톱은 14px 유지). */
+  input, select, textarea { font-size: 16px; }
 }
 
 /* 사이드바 (데스크탑) */
 .sidebar { display: none; }
 
 /* 하단 탭 (모바일) */
+/* 모바일 하단 그룹 네비의 서브탭 (캘린더↔스케줄러 등). PC는 사이드바가 담당하므로 숨김 */
+.sub-tabs { display: flex; gap: 8px; padding: 2px 0 12px; overflow-x: auto; scrollbar-width: none; }
+.sub-tabs::-webkit-scrollbar { display: none; }
+.sub-tabs.hidden { display: none; }
+.sub-tab { flex: 0 0 auto; padding: 8px 15px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--muted); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.sub-tab.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-deep); }
+@media (min-width: 980px) { .sub-tabs { display: none !important; } }
+
 .bottom-nav {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
   height: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));

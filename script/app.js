@@ -28,25 +28,25 @@
   // cats=캘린더 카테고리 / arch=아카이브 오프라인 기록 유형 / archOn=온라인 기록 유형
   const PRESETS = {
     idol:    { name: "아이돌", cats: [["comeback", "컴백"], ["concert", "콘서트"], ["ticket", "티켓팅"], ["birthday", "생일·생카"], ["broadcast", "방송·버블"], ["release", "발매·굿즈"], ["personal", "개인"]],
-               arch: ["생카", "콘서트", "팝업", "전시", "팬싸", "기타"], archOn: ["영통 팬싸", "온라인 콘서트", "라이브 방송", "스트리밍 파티", "기타"] },
+               arch: ["콘서트", "팬미팅", "팬사인회", "생일카페", "팝업스토어", "기타"], archOn: ["컴백", "발매", "음악방송", "방송", "라이브", "버블", "자컨", "MD", "기타"] },
     actor:   { name: "배우", cats: [["airing", "방영·개봉"], ["stage", "무대인사·시사회"], ["award", "시상식"], ["fanmeet", "팬미팅"], ["abday", "생일"], ["press", "화보·인터뷰"], ["personal", "개인"]],
-               arch: ["무대인사", "시사회", "팬미팅", "전시·팝업", "기타"], archOn: ["온라인 팬미팅", "라이브 방송", "VOD·다시보기", "기타"] },
+               arch: ["무대인사", "시사회", "팬미팅", "전시·팝업", "기타"], archOn: ["방영·개봉", "시상식", "화보·인터뷰", "라이브 방송", "VOD·다시보기", "기타"] },
     vtuber:  { name: "버추얼", cats: [["stream", "방송·합방"], ["vconcert", "콘서트·행사"], ["vcontent", "신곡·컨텐츠"], ["vbday", "생일·기념일"], ["vgoods", "굿즈"], ["clip", "클립·다시보기"], ["personal", "개인"]],
-               arch: ["오프 콘서트", "팝업", "팬미팅", "기타"], archOn: ["방송·합방 시청", "콘서트 스밍", "기념 방송", "클립 정주행", "기타"] },
+               arch: ["오프 콘서트", "팝업", "팬미팅", "기타"], archOn: ["방송·합방", "신곡·컨텐츠", "생일·기념일", "콘서트 스밍", "클립·다시보기", "기타"] },
     musical: { name: "뮤지컬", cats: [["show", "공연"], ["ticket", "티켓팅"], ["casting", "캐스팅"], ["curtain", "커튼콜·이벤트"], ["mbday", "생일"], ["goods", "MD·굿즈"], ["personal", "개인"]],
-               arch: ["공연 관람", "커튼콜", "굿즈·전시", "기타"], archOn: ["온라인 중계", "라이브 방송", "기타"] },
+               arch: ["공연", "커튼콜·이벤트", "굿즈·전시", "시사회", "기타"], archOn: ["온라인 중계", "캐스팅 소식", "음반·MD", "기타"] },
     sports:  { name: "스포츠", cats: [["match", "경기"], ["ticket", "직관·예매"], ["sevent", "이벤트·팬싸"], ["sbday", "선수 생일"], ["broadcast", "중계·하이라이트"], ["uniform", "굿즈·유니폼"], ["personal", "개인"]],
-               arch: ["직관", "팬미팅·사인회", "이벤트", "기타"], archOn: ["중계 시청", "하이라이트", "온라인 이벤트", "기타"] },
+               arch: ["직관", "팬미팅·사인회", "이벤트", "기타"], archOn: ["중계·하이라이트", "선수 생일", "유니폼·굿즈", "기타"] },
     esports: { name: "e스포츠", cats: [["match", "경기·대회"], ["ticket", "직관·예매"], ["onair", "방송·중계"], ["ebday", "선수 생일"], ["eevent", "이벤트·팬미팅"], ["egoods", "굿즈"], ["personal", "개인"]],
-               arch: ["직관·현장", "팬미팅", "이벤트", "기타"], archOn: ["경기 시청", "방송·중계", "온라인 이벤트", "기타"] },
+               arch: ["직관·현장", "팬미팅", "이벤트", "기타"], archOn: ["경기·대회", "방송·중계", "선수 생일", "굿즈", "기타"] },
     content: { name: "애니", cats: [["release", "발매·연재"], ["cevent", "이벤트"], ["collab", "콜라보"], ["cbday", "캐릭터 생일"], ["cgoods", "굿즈"], ["media", "영상·자료"], ["personal", "개인"]],
-               arch: ["전시·팝업", "행사", "상영회", "기타"], archOn: ["스트리밍·정주행", "발매 감상", "온라인 이벤트", "기타"] },
+               arch: ["전시·팝업", "행사", "상영회", "기타"], archOn: ["발매·연재", "콜라보", "캐릭터 생일", "굿즈", "영상·자료", "기타"] },
     game:    { name: "게임", cats: [["update", "업데이트"], ["gevent", "이벤트"], ["gacha", "픽업·가챠"], ["gbday", "캐릭터 생일"], ["ggoods", "굿즈"], ["gstream", "방송·생중계"], ["personal", "개인"]],
-               arch: ["오프 이벤트", "팝업", "대회·행사", "기타"], archOn: ["인게임 이벤트", "생방송 시청", "업데이트", "기타"] },
+               arch: ["오프 이벤트", "팝업", "대회·행사", "기타"], archOn: ["업데이트", "이벤트", "픽업·가챠", "캐릭터 생일", "굿즈", "방송·생중계", "기타"] },
     hobby:   { name: "취미", cats: [["practice", "연습·활동"], ["lesson", "레슨·클래스"], ["recital", "발표·대회"], ["anniv", "기념일"], ["gear", "장비·자료"], ["personal", "개인"]],
-               arch: ["연습·활동", "레슨", "발표·대회", "기타"], archOn: ["온라인 클래스", "영상 학습", "기타"] },
+               arch: ["연습·활동", "레슨·클래스", "발표·대회", "기타"], archOn: ["온라인 클래스", "영상 학습", "기념일", "기타"] },
     free:    { name: "자유", cats: [["plan", "일정"], ["important", "중요"], ["fanniv", "기념일"], ["personal", "개인"]],
-               arch: ["기록", "방문", "기타"], archOn: ["온라인", "시청", "기타"] },
+               arch: ["일정", "모임", "기념일", "기타"], archOn: ["온라인", "시청", "기타"] },
   };
   let CATS = {}; // 활성 프리셋 카테고리 — buildCats()로 채움
   const CAT_FALLBACK = { name: "기타", v: "--cat-fallback" }; // 카테고리 삭제 등으로 못 찾을 때 안전 폴백
@@ -820,15 +820,26 @@
   }
 
   let _moreAutoSettings = false; // PC 폭에서 '더보기'→'설정'으로 자동 전환됐는지 표시
+  // 모바일 하단 바 그룹: 페이지 → 그룹 대표 버튼 / 그룹별 서브탭
+  const NAV_PRIMARY = { home: "home", profile: "home", calendar: "calendar", timetable: "calendar", binder: "binder", style: "binder", archive: "archive", ledger: "archive", settings: "more", more: "more" };
+  const NAV_SUBTABS = { calendar: [["calendar", "캘린더"], ["timetable", "스케줄러"]], binder: [["binder", "포카 바인더"], ["style", "스타일북"]], archive: [["archive", "아카이브"], ["ledger", "덕질 가계부"]] };
   function go(page) {
     exitEditModes(); // 편집 모드가 켜진 채 떠나면 상태가 고착되는 문제 방지
     _moreAutoSettings = false; // 사용자가 직접 이동하면 자동전환 플래그 해제 (자동전환은 go 호출 직후 다시 세팅)
     document.querySelectorAll(".page").forEach((p) => p.classList.toggle("active", p.id === "page-" + page));
     const navPage = page === "profile" ? "home" : page;
-    document.querySelectorAll(".nav-btn, .bn-btn").forEach((b) => {
-      b.classList.toggle("active", b.dataset.page === navPage ||
-        (b.dataset.page === "more" && ["timetable", "ledger", "style", "settings", "more"].includes(navPage) && b.classList.contains("bn-btn")));
-    });
+    // 사이드바(PC): 페이지 정확 일치로 활성 표시 (그대로)
+    document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.page === navPage));
+    // 하단 바(모바일): 그룹 대표 버튼 활성 표시
+    const bnPrimary = NAV_PRIMARY[navPage] || navPage;
+    document.querySelectorAll(".bn-btn").forEach((b) => b.classList.toggle("active", b.dataset.page === bnPrimary));
+    // 서브탭: 그룹 안에 페이지가 2개 이상이면 표시 (캘린더↔스케줄러 등)
+    const stEl = document.getElementById("subTabs");
+    if (stEl) {
+      const tabs = NAV_SUBTABS[bnPrimary];
+      if (tabs) { stEl.innerHTML = tabs.map((t) => `<button class="sub-tab${t[0] === navPage ? " on" : ""}" onclick="App.go('${t[0]}')">${esc(t[1])}</button>`).join(""); stEl.classList.remove("hidden"); }
+      else { stEl.innerHTML = ""; stEl.classList.add("hidden"); }
+    }
     closeFab();
     window.scrollTo({ top: 0 });
     const mainEl = document.querySelector(".main");
@@ -904,7 +915,7 @@
   function openBudget() {
     openModalRaw("이번 달 덕질 예산", `
       <div class="field"><label>월 예산 <small>(0이면 예산 끄기)</small></label>
-        <input type="number" id="mBudget" min="0" step="10000" value="${S.budget || ""}" placeholder="예) 300000"></div>
+        <input type="number" id="mBudget" min="0" step="10000" value="${S.budget || ""}" placeholder=""></div>
       <button class="btn btn-primary btn-lg" id="mSave">저장</button>`);
     $("mSave").onclick = () => {
       S.budget = Math.max(0, +$("mBudget").value || 0);
@@ -1929,7 +1940,7 @@
     let picked = null; // 선택한 음원 파일
     openModalRaw("음악 추가", `
       <p class="fp-desc">유튜브·스포티파이 링크를 붙여넣거나, 기기에 받은 음원 파일을 추가할 수 있어요. 링크는 재생할 때 인터넷이 필요해요.</p>
-      <div class="field"><label>이름 (선택 · 최대 6자)</label><input type="text" id="musicName" maxlength="6" placeholder="예: 출근길 플리"></div>
+      <div class="field"><label>이름 (선택 · 최대 6자)</label><input type="text" id="musicName" maxlength="6" placeholder=""></div>
       <div class="field"><label>링크</label><input type="url" id="musicInput" placeholder="https://open.spotify.com/playlist/… 또는 https://youtube.com/…"></div>
       <div class="field"><label>또는 기기에서 음원 파일</label>
         <label class="btn btn-ghost btn-sm" style="cursor:pointer">음원 파일 선택<input type="file" accept="audio/*" id="musicFile" hidden></label>
@@ -2594,7 +2605,7 @@
     const nm = b.name || "내 최애";
     const fills = [`${nm} ♥`, `since ${startYear}`, "♥", "내 최애 ♥", "D-DAY ♡"];
     openModalRaw(editing ? "텍스트 편집" : "텍스트 올리기", `
-      <div class="field"><input type="text" id="dtText" placeholder="예) ${esc(nm)} ♥ · since ${startYear}" maxlength="40" value="${editing ? esc(cur.s) : ""}"></div>
+      <div class="field"><input type="text" id="dtText" placeholder="" maxlength="40" value="${editing ? esc(cur.s) : ""}"></div>
       <div class="dt-chips" id="dtChips">${fills.map((f) => `<button data-fill="${esc(f)}">${esc(f)}</button>`).join("")}</div>
       <p class="dt-label">색상</p>
       ${decoColorRowHTML()}
@@ -3739,7 +3750,7 @@
   function openAddArchType() {
     const modeLabel = archMode === "online" ? "온라인" : "오프라인";
     openModalRaw(`${modeLabel} 유형 추가`, `
-      <div class="field"><label>새 유형 이름 *</label><input type="text" id="mNewType" maxlength="14" placeholder="예) 시구, 오프모임, 콜라보 카페"></div>
+      <div class="field"><label>새 유형 이름 *</label><input type="text" id="mNewType" maxlength="14" placeholder=""></div>
       <p class="hint">이 유형은 ${modeLabel} 기록에서 골라 쓸 수 있어요.</p>
       <button class="btn btn-primary btn-lg" id="mSaveType">추가</button>
     `);
@@ -4304,7 +4315,7 @@
     if (type === "schedule") {
       const edit = editId ? S.schedules.find((x) => x.id === editId) : null;
       openModalRaw(edit ? "일정 수정" : "일정 등록", `
-        <div class="field"><label>제목 *</label><input type="text" id="mTitle" placeholder="예) 컴백 쇼케이스"></div>
+        <div class="field"><label>제목 *</label><input type="text" id="mTitle" placeholder=""></div>
         <div class="field"><label>구분 <small>(오프라인 행사 / 온라인 활동)</small></label>
           <div class="seg" id="mSchedMode">
             <button type="button" data-sm="offline">${I("pin")} 오프라인</button>
@@ -4316,7 +4327,7 @@
         </div>
         <div class="field"><label>날짜 *</label><input type="date" id="mDate" value="${baseDate}"></div>
         <div class="field"><label>시간</label><input type="time" id="mTime"></div>
-        <div class="field"><label>장소</label><input type="text" id="mPlace" placeholder="예) 잠실실내체육관"></div>
+        <div class="field"><label>장소</label><input type="text" id="mPlace" placeholder=""></div>
         <div class="field"><label>링크 <small>(티켓팅이면 예매처 링크!)</small></label><input type="url" id="mLink" placeholder="https://"></div>
         <div class="field"><label>메모</label><input type="text" id="mMemo"></div>
         ${edit ? "" : `<div class="field"><label>반복 <small>(같은 요일·날짜로 미리 등록돼요)</small></label>
@@ -4425,8 +4436,8 @@
     if (type === "expense") {
       const edit = editId ? S.expenses.find((x) => x.id === editId) : null;
       openModalRaw(edit ? "지출 수정" : "지출 기록", `
-        <div class="field"><label>내용 *</label><input type="text" id="mTitle" placeholder="예) 미니앨범 5집 공구"></div>
-        <div class="field"><label>금액 (원) *</label><input type="number" id="mAmount" placeholder="35000" min="0"></div>
+        <div class="field"><label>내용 *</label><input type="text" id="mTitle" placeholder=""></div>
+        <div class="field"><label>금액 (원) *</label><input type="number" id="mAmount" placeholder="" min="0"></div>
         <div class="field"><label>카테고리</label>
           <select id="mCat">${EXP_CATS.map((c) => `<option>${c}</option>`).join("")}</select>
         </div>
@@ -4471,13 +4482,13 @@
           <button type="button" data-mm="online">${I("monitor")} 온라인</button>
         </div>
         ${photosPickHtml()}
-        <div class="field"><label>제목 *</label><input type="text" id="mTitle" placeholder="예) 첫 콘서트 다녀온 날"></div>
+        <div class="field"><label>제목 *</label><input type="text" id="mTitle" placeholder=""></div>
         <div class="field"><label>날짜</label><input type="date" id="mDate" value="${baseDate}"></div>
         <div class="field"><label>유형</label>
           <select id="mEtype">${effArchTypes("offline").map((t) => `<option>${esc(t)}</option>`).join("")}</select>
         </div>
-        <div class="field"><label>장소</label><input type="text" id="mPlace" placeholder="예) 고척돔"></div>
-        <div class="field"><label>오늘의 기록 *</label><textarea id="mContent" placeholder="현장의 공기, 최애의 표정, 잊고 싶지 않은 순간들…"></textarea></div>
+        <div class="field"><label>장소</label><input type="text" id="mPlace" placeholder=""></div>
+        <div class="field"><label>오늘의 기록 *</label><textarea id="mContent" placeholder=""></textarea></div>
         <button class="btn btn-primary btn-lg" id="mSave">기록 남기기</button>
       `);
       bindPhotosPick(edit ? edit.imgs : []);
@@ -4523,7 +4534,7 @@
     /* 커스텀 기념일 추가 */
     if (type === "anniv") {
       openModalRaw("기념일 추가", `
-        <div class="field"><label>이름 *</label><input type="text" id="mTitle" placeholder="예) 첫 팬미팅, 입덕일 1주년"></div>
+        <div class="field"><label>이름 *</label><input type="text" id="mTitle" placeholder=""></div>
         <div class="field"><label>날짜 * <small>(매년 돌아와요)</small></label>${dateSelectHTML("mDate", "", { yearsFwd: 1 })}</div>
         <button class="btn btn-primary btn-lg" id="mSave">추가</button>`);
       $("mSave").onclick = () => {
@@ -4544,8 +4555,8 @@
       const edit = editId ? S.photocards.find((x) => x.id === editId) : null;
       openModalRaw(edit ? "포카 수정" : "포카 등록", `
         ${photoPickHtml("+ 포카 사진 추가")}
-        <div class="field"><label>이름 / 버전 *</label><input type="text" id="mTitle" placeholder="예) 트레카 A버전"></div>
-        <div class="field"><label>앨범 / 출처</label><input type="text" id="mAlbum" placeholder="예) 미니 5집, 시즌그리팅"></div>
+        <div class="field"><label>이름 / 버전 *</label><input type="text" id="mTitle" placeholder=""></div>
+        <div class="field"><label>앨범 / 출처</label><input type="text" id="mAlbum" placeholder=""></div>
         <div class="field"><label>상태</label>
           <select id="mPStatus"><option value="own">보유</option><option value="wish">위시</option><option value="trade">교환 중</option></select>
         </div>
@@ -4583,11 +4594,11 @@
       const edit = editId ? S.styles.find((x) => x.id === editId) : null;
       openModalRaw(edit ? "스타일 아이템 수정" : "스타일 아이템 등록", `
         ${photoPickHtml("+ 아이템 사진 (선택)")}
-        <div class="field"><label>아이템 이름 *</label><input type="text" id="mTitle" placeholder="예) 무대 착장 스니커즈"></div>
+        <div class="field"><label>아이템 이름 *</label><input type="text" id="mTitle" placeholder=""></div>
         <div class="field"><label>분류</label>
           <select id="mCat">${ST_CATS.map((c) => `<option>${c}</option>`).join("")}</select>
         </div>
-        <div class="field"><label>브랜드 / 정보</label><input type="text" id="mInfo" placeholder="예) ○○브랜드, 12만원대"></div>
+        <div class="field"><label>브랜드 / 정보</label><input type="text" id="mInfo" placeholder=""></div>
         <div class="field"><label>구매처 링크 <small>(선택 · 사고 싶은 곳 / 산 곳)</small></label><input type="url" id="mLink2" placeholder="https://"></div>
         <div class="field"><label>상태</label>
           <select id="mStatus"><option value="wish">위시</option><option value="bought">구매 완료</option></select>
@@ -5412,7 +5423,7 @@
     let selRep = fixed ? true : (prefill.rep != null ? prefill.rep : isRep);
     const ttTitle = prefill.title != null ? prefill.title : (edit ? edit.title : "");
     openModalRaw(edit ? "일정 수정" : "일정 추가", `
-      <div class="field"><label>제목 *</label><input type="text" id="ttT" value="${esc(ttTitle)}" placeholder="예) 음악방송 스밍" maxlength="40"></div>
+      <div class="field"><label>제목 *</label><input type="text" id="ttT" value="${esc(ttTitle)}" placeholder="" maxlength="40"></div>
       <div class="field"><label>요일 <small>(여러 요일 선택 가능)</small></label><div class="tt-dowpick" id="ttDowPick">${ttWeekOrder(ttView === "circle" ? "circle" : "week").map((dayAbs) => `<button type="button" class="${selDays.has(dayAbs) ? "on" : ""} ${dayAbs === 6 ? "sat" : dayAbs === 0 ? "sun" : ""}" data-d="${dayAbs}">${TT_DOW[dayAbs]}</button>`).join("")}</div></div>
       <div class="tt-timerow">
         <div class="field"><label>시작</label>${ttTimeSelect("ttS", start)}</div>
