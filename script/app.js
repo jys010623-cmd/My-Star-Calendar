@@ -19,7 +19,7 @@
     maint:  { label: "점검",     color: "--c-birthday" },
   };
   const latestNoticeId = () => NOTICES.reduce((m, n) => Math.max(m, n.id), 0);
-  const hasUnseenNotices = () => NOTICES.some((n) => n.id > (S.seenNotice || 0));
+  const hasUnseenNotices = () => NOTICES.some((n) => n.cat !== "patch" && n.id > (S.seenNotice || 0)); // 패치는 빨간 점 안 띄움
 
   /* ── 카테고리 정의 ── */
   // 덕질 유형 프리셋 — 캘린더 카테고리가 주제에 맞게 바뀜 (색은 위치순 팔레트 재사용)
@@ -254,6 +254,7 @@
     grid: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
     bookmark: '<path d="M6.5 4.5h11A1 1 0 0 1 18.5 5.5V20l-6.5-4-6.5 4V5.5A1 1 0 0 1 6.5 4.5Z"/>',
     tag: '<path d="M3.5 11.6V6A2.5 2.5 0 0 1 6 3.5h5.6a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8l-5.6 5.6a2 2 0 0 1-2.8 0l-7-7a2 2 0 0 1-.6-1.4Z"/><circle cx="8.2" cy="8.2" r="1.3"/>',
+    settings: '<circle cx="12" cy="12" r="3"/><path d="M19.1 13.5a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5v.2a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H5a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H11a1.6 1.6 0 0 0 1-1.5V5a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V11a1.6 1.6 0 0 0 1.5 1h.2a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/>',
   };
   const I = (n, cls) => `<svg class="li${cls ? " " + cls : ""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]}</svg>`;
 
@@ -394,7 +395,7 @@
 
   function defaults() {
     return {
-      onboarded: false, preset: "idol", dark: false, retro: false, retroSkin: "browser", retroPos: "float", bg: "none", align: "left", widgets: {}, budget: 0, notifyTicket: false, haptics: true, veil: 0, mode: "", template: "classic", archView: "card", accent: "#141414", weekStart: "sun", weekStartWeek: "mon", weekStartCircle: "sun", ttHideWeekend: false, ttCircleStyle: "full", ttLink: true,
+      onboarded: false, preset: "idol", dark: false, retro: false, retroSkin: "browser", retroPos: "float", bg: "none", align: "left", widgets: {}, budget: 0, notifyTicket: false, notifyTicketLead: 10, notifyEvents: false, notifyEventsLead: 60, notifyBirthday: false, notifyBdayDays: 0, notifyDaily: false, notifyDailyHour: 9, haptics: true, veil: 0, mode: "", template: "classic", archView: "card", accent: "#141414", weekStart: "sun", weekStartWeek: "mon", weekStartCircle: "sun", ttHideWeekend: false, ttCircleStyle: "full", ttLink: true,
       biases: [], currentBias: null,
       customArchTypes: { offline: [], online: [] },
       cats: [], recLabel: "기록", recColor: "#c3aee8", schedules: [], stickers: {}, photocards: [],
@@ -844,6 +845,7 @@
     // 페이지 이동 시 문서 제목 갱신 (SPA 접근성·브라우저 기록)
     const titles = { home: "홈", profile: "최애 프로필", calendar: "캘린더", timetable: "스케줄러", binder: "포카 바인더", ledger: "덕질 가계부", archive: "아카이브", style: "스타일북", settings: "설정" };
     document.title = (titles[page] ? titles[page] + " · " : "") + "마이 스타 캘린더";
+    try { localStorage.setItem("msc_back_page", page); } catch (e) {} // 외부 페이지(공지·FAQ 등) 뒤로가기가 이 화면으로 돌아오게
   }
 
   function toggleFab() {
@@ -1045,7 +1047,9 @@
   }
 
   function openColorPicker(ctx) {
-    let [h, sv, vv] = hexToHsv(S.accent);
+    const generic = ctx && typeof ctx === "object"; // { initial, onDone } → 테마 안 건드리고 콜백만
+    let curHex = generic ? (ctx.initial && /^#[0-9a-fA-F]{6}$/.test(ctx.initial) ? ctx.initial.toUpperCase() : "#F7A8C4") : S.accent;
+    let [h, sv, vv] = hexToHsv(curHex);
     openModalRaw("나만의 컬러", `
       <div class="cp-sv" id="cpSV"><i class="cp-dot" id="cpDot"></i></div>
       <div class="field"><label>색조</label><input type="range" class="cp" id="cpH" min="0" max="360" value="${h}"></div>
@@ -1056,6 +1060,7 @@
       </div>
       <p class="hint">색상판을 드래그해 보세요 — 오른쪽 위가 가장 쨍한 색이에요.</p>
       <button class="btn btn-primary btn-lg" id="cpDone">이 색으로 할래요</button>`);
+    if (generic && ctx.onCancel) modalCancelHook = ctx.onCancel; // 닫기 시 이전 화면 복귀
     const apply = (exact) => {
       const hex = exact || hsvToHex(h, sv, vv);
       $("cpPrev").style.background = hex;
@@ -1065,9 +1070,8 @@
         `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, hsl(${h}, 100%, 50%))`;
       $("cpDot").style.left = sv + "%";
       $("cpDot").style.top = (100 - vv) + "%";
-      S.accent = hex;
-      if (ctx === "ob") obColor = hex;
-      applyTheme();
+      if (generic) { curHex = hex; }
+      else { S.accent = hex; if (ctx === "ob") obColor = hex; applyTheme(); }
     };
     const svEl = $("cpSV");
     const pick = (ev) => {
@@ -1091,6 +1095,7 @@
       else { toast("#RRGGBB 형식으로 입력해 주세요"); e.target.value = hsvToHex(h, sv, vv); }
     };
     $("cpDone").onclick = () => {
+      if (generic) { const cb = ctx.onDone; if (cb) cb(curHex); return; }
       if (ctx === "set") { save(); renderSettings(); }
       else {
         const oc = $("obColorChip"), oh = $("obColorHex");
@@ -1099,7 +1104,7 @@
       closeModal();
       toast("나만의 컬러를 적용했어요");
     };
-    apply(S.accent.toUpperCase());
+    apply(curHex.toUpperCase());
   }
 
   /* 창 모드 (화면을 감싸는 레트로 창) + 창 스타일 */
@@ -2716,12 +2721,22 @@
       } catch (e) { toast(`티켓팅 10분 전! ${t.title}`); }
     }
   }
-  // 햅틱 진동 — 설정에서 꺼져 있으면 울리지 않음
+  // 이 기기가 실제로 진동을 지원하는지 (iOS는 API 자체가 없고, 데스크톱은 진동 하드웨어가 없음)
+  function hapticsSupported() {
+    try {
+      if (!("vibrate" in navigator) || typeof navigator.vibrate !== "function") return false;
+      const coarse = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+      const touch = (navigator.maxTouchPoints || 0) > 0 || ("ontouchstart" in window);
+      return coarse || touch; // 진동은 사실상 터치(모바일) 기기에서만 동작
+    } catch (_) { return false; }
+  }
+  // 햅틱 진동 — 설정에서 꺼져 있거나 미지원 기기면 울리지 않음
   function buzz(ms) {
-    if (S.haptics === false) return;
+    if (S.haptics === false || !hapticsSupported()) return;
     try { navigator.vibrate && navigator.vibrate(ms); } catch (_) {}
   }
   function toggleHaptics() {
+    if (!hapticsSupported()) { toast("이 기기에서는 진동을 지원하지 않아요"); return; }
     S.haptics = (S.haptics === false) ? true : false;
     save();
     const hsw = $("hapticSwitch");
@@ -2737,19 +2752,122 @@
     if (vv) vv.textContent = S.veil + "%";
     save();
   }
-  function toggleNotifyTicket() {
-    if (S.notifyTicket) {
-      S.notifyTicket = false;
-      save(); renderSettings(); toast("티켓팅 알림을 껐어요");
-      return;
-    }
-    if (!("Notification" in window)) return toast("이 브라우저는 알림을 지원하지 않아요");
-    Notification.requestPermission().then((perm) => {
-      if (perm === "granted") {
-        S.notifyTicket = true;
-        save(); renderSettings(); toast("티켓팅 10분 전에 알려드릴게요 (탭이 열려 있을 때)");
-      } else toast("알림 권한이 거부됐어요. 브라우저 설정에서 허용해 주세요");
+  /* ───────── 알림 (브라우저 Notification) ───────── */
+  function notifSupported() { return ("Notification" in window); }
+  function notifGranted() { return notifSupported() && Notification.permission === "granted"; }
+  function ensureNotifPerm() {
+    if (!notifSupported()) return Promise.resolve(false);
+    if (Notification.permission === "granted") return Promise.resolve(true);
+    if (Notification.permission === "denied") return Promise.resolve(false);
+    return Notification.requestPermission().then((p) => p === "granted");
+  }
+  function fireNotif(title, body, tag) {
+    try { new Notification(title, { body: body || "", tag: tag }); }
+    catch (e) { toast(title + (body ? " · " + body : "")); }
+    buzz(20);
+  }
+  function toggleNotif(key, onMsg, offMsg) {
+    if (S[key]) { S[key] = false; save(); renderNotifyRows(); toast(offMsg); return; }
+    if (!notifSupported()) return toast("이 브라우저는 알림을 지원하지 않아요");
+    ensureNotifPerm().then((ok) => {
+      if (ok) { S[key] = true; save(); renderNotifyRows(); toast(onMsg + " (탭이 열려 있을 때)"); }
+      else { renderNotifyRows(); toast("알림 권한이 거부됐어요. 브라우저 설정에서 허용해 주세요"); }
     });
+  }
+  function toggleNotifyTicket() { toggleNotif("notifyTicket", "티켓팅 알림을 켰어요", "티켓팅 알림을 껐어요"); }
+
+  function renderNotifyRows() {
+    const host = $("notifyRows"); if (!host) return;
+    const sup = notifSupported();
+    const perm = sup ? Notification.permission : "unsupported";
+    const blocked = !sup || perm === "denied";
+    const dis = blocked ? "disabled" : "";
+    const sw = (id, on) => `<button class="switch ${on && !blocked ? "on" : ""}" id="${id}" ${dis}><span class="knob"></span></button>`;
+    const opt = (cur, list) => list.map(([v, l]) => `<option value="${v}" ${+cur === v ? "selected" : ""}>${l}</option>`).join("");
+    const sel = (id, cur, list) => `<select class="tt-time nf-sel" id="${id}" ${dis}>${opt(cur, list)}</select>`;
+    const sub = (show, label, selHtml) => `<div class="field row-field nf-sub ${show && !blocked ? "" : "nf-hidden"}"><label>${label}</label>${selHtml}</div>`;
+    let head = "";
+    if (!sup) head = `<p class="hint notif-warn">이 브라우저는 알림을 지원하지 않아요.</p>`;
+    else if (perm === "denied") head = `<p class="hint notif-warn">브라우저에서 이 사이트 알림이 차단돼 있어요. 주소창 자물쇠 → 알림을 '허용'으로 바꿔주세요.</p>`;
+    else if (perm === "default") head = `<button class="btn btn-sm nf-allow" id="notifAllow">🔔 알림 권한 허용하기</button>`;
+    host.innerHTML = head
+      + `<div class="field row-field"><label>티켓팅 알림</label>${sw("nfTicket", !!S.notifyTicket)}</div>`
+      + sub(S.notifyTicket, "알림 시점", sel("nfTicketLead", S.notifyTicketLead || 10, [[5, "5분 전"], [10, "10분 전"], [30, "30분 전"], [60, "1시간 전"]]))
+      + `<div class="field row-field"><label>일정 알림 <small>(콘서트·방송·발매 등)</small></label>${sw("nfEvents", !!S.notifyEvents)}</div>`
+      + sub(S.notifyEvents, "알림 시점", sel("nfEventsLead", S.notifyEventsLead || 60, [[10, "10분 전"], [30, "30분 전"], [60, "1시간 전"], [1440, "하루 전"]]))
+      + `<div class="field row-field"><label>생일·기념일 알림</label>${sw("nfBday", !!S.notifyBirthday)}</div>`
+      + sub(S.notifyBirthday, "알림 시점", sel("nfBdayLead", S.notifyBdayDays != null ? S.notifyBdayDays : 0, [[0, "당일 아침"], [1, "하루 전"], [3, "3일 전"], [7, "7일 전"]]))
+      + `<div class="field row-field"><label>아침 일정 요약</label>${sw("nfDaily", !!S.notifyDaily)}</div>`
+      + sub(S.notifyDaily, "요약 시각", sel("nfDailyTime", S.notifyDailyHour != null ? S.notifyDailyHour : 9, [[7, "오전 7시"], [8, "오전 8시"], [9, "오전 9시"], [10, "오전 10시"]]))
+      + `<p class="hint">알림은 탭(또는 설치한 앱)이 열려 있을 때만 떠요. 완전히 닫혀 있으면 오지 않아요.</p>`;
+    if ($("notifAllow")) $("notifAllow").onclick = () => ensureNotifPerm().then(() => renderNotifyRows());
+    if (!blocked) {
+      const bt = (id, key, on, off) => { const el = $(id); if (el) el.onclick = () => toggleNotif(key, on, off); };
+      bt("nfTicket", "notifyTicket", "티켓팅 알림을 켰어요", "티켓팅 알림을 껐어요");
+      bt("nfEvents", "notifyEvents", "일정 알림을 켰어요", "일정 알림을 껐어요");
+      bt("nfBday", "notifyBirthday", "생일·기념일 알림을 켰어요", "생일·기념일 알림을 껐어요");
+      bt("nfDaily", "notifyDaily", "아침 요약을 켰어요", "아침 요약을 껐어요");
+      const bs = (id, key) => { const el = $(id); if (el) el.onchange = () => { S[key] = +el.value; save(); }; };
+      bs("nfTicketLead", "notifyTicketLead");
+      bs("nfEventsLead", "notifyEventsLead");
+      bs("nfBdayLead", "notifyBdayDays");
+      bs("nfDailyTime", "notifyDailyHour");
+    }
+  }
+
+  // 매 초 tickClock에서 호출 — 예정 알림 점검 (탭 열려 있을 때만)
+  const notifFired = new Set();
+  function runNotifChecks(now) {
+    if (!notifGranted()) return;
+    // 1) 시간 있는 일정(티켓팅·기타) — lead분 전
+    (byBias(S.schedules) || []).forEach((s) => {
+      if (!s.date) return;
+      const isTicket = s.cat === "ticket";
+      if (isTicket ? !S.notifyTicket : !S.notifyEvents) return;
+      if (!isTicket && !s.time) return; // 시간 없는 일반 일정은 시점 알림 생략
+      const leadMin = isTicket ? (S.notifyTicketLead || 10) : (S.notifyEventsLead || 60);
+      const diff = new Date(s.date + "T" + (s.time || "00:00")) - now;
+      const key = "s:" + s.id + ":" + leadMin;
+      if (diff > 0 && diff <= leadMin * 60000 && !notifFired.has(key)) {
+        notifFired.add(key);
+        const m = Math.round(diff / 60000);
+        const when = m >= 60 ? Math.round(m / 60) + "시간 후" : (m <= 0 ? "곧" : m + "분 후");
+        fireNotif(isTicket ? "티켓팅 알림 🎫" : "일정 알림 🔔", `${s.title} — ${when}`, "msc-" + s.id);
+      }
+    });
+    // 2) 생일·기념일 — 지정 시점, 오전 9시 정각에 발송
+    if (S.notifyBirthday && now.getHours() === 9 && now.getMinutes() === 0) {
+      const want = S.notifyBdayDays != null ? S.notifyBdayDays : 0;
+      const tk = fmtDate(now);
+      (S.biases || []).forEach((b) => {
+        [["birthday", "생일", b.birthday], ["debut", "데뷔 기념일", b.debutDate]].forEach((row) => {
+          const kind = row[0], label = row[1], val = row[2];
+          if (!val) return;
+          const dd = kind === "birthday" ? birthdayDDay(b) : dToAnniv(val);
+          if (dd == null || dd !== want) return;
+          const key = "b:" + b.id + ":" + kind + ":" + tk;
+          if (notifFired.has(key)) return;
+          notifFired.add(key);
+          const nm = b.name || "최애";
+          fireNotif(label + " 🎂", dd === 0 ? `오늘은 ${nm} ${label}!` : `${nm} ${label}까지 D-${dd}`, key);
+        });
+      });
+    }
+    // 3) 아침 일정 요약 — 지정 시각 정각
+    if (S.notifyDaily) {
+      const hr = S.notifyDailyHour != null ? S.notifyDailyHour : 9;
+      if (now.getHours() === hr && now.getMinutes() === 0) {
+        const tk = fmtDate(now), key = "d:" + tk;
+        if (!notifFired.has(key)) {
+          notifFired.add(key);
+          const todays = (byBias(S.schedules) || []).filter((s) => s.date === tk);
+          if (todays.length) {
+            const names = todays.slice(0, 3).map((s) => s.title).join(", ");
+            fireNotif("오늘의 일정 📅", `${todays.length}개 — ${names}${todays.length > 3 ? " 외" : ""}`, key);
+          }
+        }
+      }
+    }
   }
 
   // 보정된 현재 시각 (기기 시간 + 사용자가 맞춘 보정값)
@@ -2773,7 +2891,8 @@
     const tn = $("ticketNext"), btn = $("ticketLinkBtn"), card = $("ticketCard");
     const mw = $("wTick");
     let diff = 0;
-    if (t) { diff = t.dt - now; maybeNotifyTicket(t, diff); }
+    if (t) { diff = t.dt - now; }
+    runNotifChecks(now);
     // 제목: 티켓팅이 잡혀 있으면 '티켓팅 타이머', 평소엔 '시계'
     const titleEl = $("ticketTitle");
     if (titleEl) titleEl.textContent = t ? "티켓팅 타이머" : "시계";
@@ -3813,8 +3932,9 @@
       const high = used > 52428800; // 50MB 넘으면 백업 권유 강조
       box.innerHTML =
         `<div class="storage-head"><span>저장 사용량 <small>(사진 포함)</small></span>`
-        + `<strong>${fmtBytes(used)}${quota ? ` <span class="muted">· 여유 ${fmtBytes(Math.max(0, quota - used))}</span>` : ""}</strong></div>`
+        + `<strong>${fmtBytes(used)}${quota ? ` <span class="muted">/ 최대 ${fmtBytes(quota)}까지(추정)</span>` : ""}</strong></div>`
         + `<div class="storage-bar"><i style="width:${Math.max(2, pct).toFixed(1)}%"></i></div>`
+        + `${quota ? `<p class="storage-note">최대치는 브라우저가 기기 전체 용량을 기준으로 잡은 추정값이라, 실제 빈 공간보다 클 수 있어요.</p>` : ""}`
         + `<div class="storage-foot"><span${persisted ? ' class="ok"' : ""}>${persisted ? "✓ 저장 보호 켜짐" : "저장 보호 꺼짐 — 공간 부족 시 브라우저가 지울 수 있어요"}</span>`
         + `${persisted ? "" : `<button class="btn btn-ghost btn-sm" id="persistBtn">보호 켜기</button>`}</div>`
         + `${high ? `<p class="storage-warn">사진이 꽤 쌓였어요. 가끔 '내보내기'로 백업해 두면 안전해요.</p>` : ""}`;
@@ -3873,10 +3993,15 @@
         b.onclick = () => setRetroSkin(b.dataset.skinBtn);
       });
     }
-    const ntsw = $("notifySwitch");
-    if (ntsw) ntsw.classList.toggle("on", !!S.notifyTicket);
+    renderNotifyRows();
     const hsw = $("hapticSwitch");
-    if (hsw) hsw.classList.toggle("on", S.haptics !== false);
+    if (hsw) {
+      const hOk = hapticsSupported();
+      hsw.classList.toggle("on", hOk && S.haptics !== false);
+      hsw.disabled = !hOk;
+      const row = hsw.closest(".row-field"), sm = row && row.querySelector("small");
+      if (sm) sm.textContent = hOk ? "(위젯 길게 누르기 등)" : "(이 기기에선 지원 안 돼요)";
+    }
     const vr = $("veilRange"), vv = $("veilVal");
     if (vr) vr.value = S.veil || 0;
     if (vv) vv.textContent = (S.veil || 0) + "%";
@@ -4016,7 +4141,9 @@
   }
 
   let modalLastFocus = null;
+  let modalCancelHook = null; // 설정 시 닫기(X·배경·ESC)가 닫지 않고 이 콜백을 실행(이전 화면으로 복귀)
   function openModalRaw(title, bodyHtml) {
+    modalCancelHook = null; // 새 모달 열릴 때마다 초기화
     modalLastFocus = document.activeElement; // 닫을 때 포커스 복원용
     $("modalTitle").textContent = title;
     $("modalBody").innerHTML = bodyHtml;
@@ -4033,6 +4160,7 @@
   }
 
   function closeModal() {
+    if (modalCancelHook) { const h = modalCancelHook; modalCancelHook = null; h(); return; } // 이전 화면으로 복귀
     $("modalBox").classList.remove("wide");
     $("modalBackdrop").classList.add("hidden");
     document.body.style.overflow = "";
@@ -4111,7 +4239,8 @@
     if (!NOTICES.length) return head + `<p class="notice-empty">아직 공지가 없어요.</p>`;
 
     const seen = S.seenNotice || 0;
-    const sorted = NOTICES.slice().sort((a, b) => b.id - a.id); // 최신순
+    const dKey = (n) => (String(n.date).match(/\d{4}\.\d{2}\.\d{2}/) || [""])[0]; // 날짜 문자열에 꼬리표가 붙어도 숫자 날짜만 뽑아 정렬
+    const sorted = NOTICES.slice().filter((n) => n.cat !== "patch").sort((a, b) => dKey(b).localeCompare(dKey(a)) || (b.id - a.id)); // 날짜 최신순(패치 제외 — 메인 팝업엔 안 띄움)
     const RECENT = 2;                                   // 위에는 최신 공지 2개만
     const pinned = sorted.find((n) => n.pin) || null;  // 맨 아래 고정(pin:true 표시한 공지 — '오픈 베타 시작')
     const recent = sorted.filter((n) => n !== pinned).slice(0, RECENT);
@@ -4772,6 +4901,11 @@
     } else {
       $("app").classList.remove("hidden");
       renderAll();
+      // 외부 페이지(공지·FAQ 등)에서 #해시로 돌아오면 그 화면을 복원, 없으면 기본(홈)
+      var _vp = ["home", "profile", "calendar", "timetable", "binder", "ledger", "archive", "style", "settings", "more"];
+      var _h = (location.hash || "").replace("#", "");
+      if (_h && _vp.indexOf(_h) >= 0) go(_h);
+      else { try { localStorage.setItem("msc_back_page", "home"); } catch (e) {} }
     }
     hydrateImages(); // IndexedDB에 보관된 포카 사진을 메모리로 복원 후 다시 그림
     linkFieldLabels(document); // 정적 폼(온보딩·설정·아카이브 등) 라벨 연결
@@ -5270,25 +5404,33 @@
     const noRepeat = fixed || circleNew || (edit && edit.week === "circle"); // 반복 토글 숨김
     let day = edit ? edit.day : (prefill.day != null ? prefill.day : (ttView === "circle" ? ttDay : new Date().getDay()));
     if (!edit) { const _ord = ttWeekOrder(ttView === "circle" ? "circle" : "week"); if (!_ord.includes(day)) day = _ord[0]; } // 주말 제외 시 기본 요일 보정
-    const start = edit ? edit.start : (prefill.start != null ? prefill.start : 9 * 60);
-    const end = edit ? edit.end : (prefill.end != null ? prefill.end : Math.min(start + 60, 1440));
-    let selDay = day, selColor = edit ? edit.color : TT_COLORS[0];
+    const start = prefill.start != null ? prefill.start : (edit ? edit.start : 9 * 60);
+    const end = prefill.end != null ? prefill.end : (edit ? edit.end : Math.min(start + 60, 1440));
+    let selDays = new Set(prefill.days && prefill.days.length ? prefill.days : [day]);
+    let selColor = prefill.color != null ? prefill.color : (edit ? edit.color : TT_COLORS[0]);
     const isRep = edit ? edit.week === "*" : false;
-    let selRep = fixed ? true : isRep;
+    let selRep = fixed ? true : (prefill.rep != null ? prefill.rep : isRep);
+    const ttTitle = prefill.title != null ? prefill.title : (edit ? edit.title : "");
     openModalRaw(edit ? "일정 수정" : "일정 추가", `
-      <div class="field"><label>제목 *</label><input type="text" id="ttT" value="${edit ? esc(edit.title) : ""}" placeholder="예) 음악방송 스밍" maxlength="40"></div>
-      <div class="field"><label>요일</label><div class="tt-dowpick" id="ttDowPick">${ttWeekOrder(ttView === "circle" ? "circle" : "week").map((dayAbs) => `<button type="button" class="${dayAbs === day ? "on" : ""} ${dayAbs === 6 ? "sat" : dayAbs === 0 ? "sun" : ""}" data-d="${dayAbs}">${TT_DOW[dayAbs]}</button>`).join("")}</div></div>
+      <div class="field"><label>제목 *</label><input type="text" id="ttT" value="${esc(ttTitle)}" placeholder="예) 음악방송 스밍" maxlength="40"></div>
+      <div class="field"><label>요일 <small>(여러 요일 선택 가능)</small></label><div class="tt-dowpick" id="ttDowPick">${ttWeekOrder(ttView === "circle" ? "circle" : "week").map((dayAbs) => `<button type="button" class="${selDays.has(dayAbs) ? "on" : ""} ${dayAbs === 6 ? "sat" : dayAbs === 0 ? "sun" : ""}" data-d="${dayAbs}">${TT_DOW[dayAbs]}</button>`).join("")}</div></div>
       <div class="tt-timerow">
         <div class="field"><label>시작</label>${ttTimeSelect("ttS", start)}</div>
         <div class="field"><label>종료</label>${ttTimeSelect("ttE", end)}</div>
       </div>
-      ${noRepeat ? "" : `<div class="field"><label>반복</label><div class="tt-reppick" id="ttRep"><button type="button" class="${!isRep ? "on" : ""}" data-r="0">이번 주만</button><button type="button" class="${isRep ? "on" : ""}" data-r="1">매주 반복</button></div></div>`}
-      <div class="field"><label>색상</label><div class="tt-colorpick" id="ttC">${TT_COLORS.map((c) => `<button type="button" class="${c === selColor ? "on" : ""}" data-c="${c}" style="background:${c}" aria-label="색상"></button>`).join("")}</div></div>
+      ${noRepeat ? "" : `<div class="field"><label>반복</label><div class="tt-reppick" id="ttRep"><button type="button" class="${!selRep ? "on" : ""}" data-r="0">이번 주만</button><button type="button" class="${selRep ? "on" : ""}" data-r="1">매주 반복</button></div></div>`}
+      <div class="field"><label>색상</label><div class="tt-colorpick" id="ttC">${TT_COLORS.map((c) => `<button type="button" class="${c === selColor ? "on" : ""}" data-c="${c}" style="background:${c}" aria-label="색상"></button>`).join("")}<button type="button" class="color-pick-btn tt-custom-btn ${selColor && !TT_COLORS.includes(selColor) ? "on" : ""}" id="ttCCustomBtn"><i id="ttCCustomChip" style="background:${selColor && selColor[0] === "#" ? selColor : "var(--accent)"}"></i><span>직접</span></button></div></div>
       <button class="btn btn-primary btn-lg" id="ttSave">${edit ? "수정 완료" : "추가"}</button>
       ${edit ? `<button class="btn btn-danger btn-lg" id="ttDel">이 일정 삭제</button>` : ""}
     `);
-    $("ttDowPick").querySelectorAll("button").forEach((b) => { b.onclick = () => { selDay = +b.dataset.d; $("ttDowPick").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); }; });
+    $("ttDowPick").querySelectorAll("button").forEach((b) => { b.onclick = () => { const d = +b.dataset.d; if (selDays.has(d)) { if (selDays.size > 1) selDays.delete(d); } else selDays.add(d); b.classList.toggle("on", selDays.has(d)); }; });
     $("ttC").querySelectorAll("button").forEach((b) => { b.onclick = () => { selColor = b.dataset.c; $("ttC").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); }; });
+    if ($("ttCCustomBtn")) $("ttCCustomBtn").onclick = () => {
+      const snap = { title: $("ttT").value, days: [...selDays], start: +$("ttS").value, end: +$("ttE").value, rep: selRep, fixed: !!fixed, color: selColor };
+      const reopen = (color) => openTTBlock(editId, { ...snap, color });
+      const initial = (selColor && /^#[0-9a-fA-F]{6}$/.test(selColor)) ? selColor : "#F7A8C4";
+      openColorPicker({ initial, onDone: reopen, onCancel: () => reopen(selColor) });
+    };
     if ($("ttRep")) $("ttRep").querySelectorAll("button").forEach((b) => { b.onclick = () => { selRep = b.dataset.r === "1"; $("ttRep").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); }; });
     $("ttSave").onclick = () => {
       const title = $("ttT").value.trim();
@@ -5298,9 +5440,14 @@
       let wk;
       if (edit) wk = (edit.week === "circle" || fixed) ? edit.week : (selRep ? "*" : ttKey());
       else wk = fixed ? "*" : circleNew ? "circle" : (selRep ? "*" : ttKey());
-      if (edit) { edit.title = title; edit.day = selDay; edit.start = s; edit.end = e; edit.color = selColor; edit.week = wk; }
-      else S.timetables.push({ id: uid(), biasId: S.currentBias, week: wk, day: selDay, start: s, end: e, title, color: selColor });
-      if (ttView === "circle") ttDay = selDay;
+      const days = [...selDays].sort((a, b) => a - b);
+      if (edit) {
+        edit.title = title; edit.day = days[0]; edit.start = s; edit.end = e; edit.color = selColor; edit.week = wk;
+        for (let i = 1; i < days.length; i++) S.timetables.push({ id: uid(), biasId: S.currentBias, week: wk, day: days[i], start: s, end: e, title, color: selColor });
+      } else {
+        days.forEach((d) => S.timetables.push({ id: uid(), biasId: S.currentBias, week: wk, day: d, start: s, end: e, title, color: selColor }));
+      }
+      if (ttView === "circle") ttDay = days[0];
       ttDraft = null; ttSelStart = null;
       save(); closeModal(); renderTimetable();
       toast(edit ? "일정을 수정했어요" : "일정을 추가했어요");
@@ -5327,3 +5474,4 @@
 
   document.addEventListener("DOMContentLoaded", init);
 })();
+

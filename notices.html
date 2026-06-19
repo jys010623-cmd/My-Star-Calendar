@@ -11,7 +11,7 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="apple-touch-icon" href="favicon.svg">
 <link rel="stylesheet" href="css/fonts.css?v=13">
-<link rel="stylesheet" href="css/style.css?v=16">
+<link rel="stylesheet" href="css/style.css?v=56">
 <style>
   /* 앱 style.css는 PC에서 body 스크롤을 잠그므로 단독 페이지에선 해제 */
   html, body { overflow: visible !important; height: auto !important; }
@@ -44,6 +44,10 @@
   .np-filter { margin: 0 0 16px; }
   .np-list { display: flex; flex-direction: column; gap: 12px; }
   .np-list .notice-body { display: block; }
+  .notice-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 20px 0 4px; }
+  .notice-pager .np-btn { padding: 7px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--text); font-size: 13px; font-weight: 700; cursor: pointer; }
+  .notice-pager .np-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .notice-pager .np-now { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
   .fb-foot { text-align: center; margin-top: 22px; font-size: 12px; color: var(--muted); }
   .fb-foot a { color: var(--accent-deep); text-decoration: none; }
@@ -70,7 +74,7 @@
   <div class="fb-hero">
     <p class="fb-eyebrow">Notice</p>
     <h1>공지사항</h1>
-    <p>업데이트 소식과 안내를 모아뒀어요. 최신 소식이 맨 위에 있어요.</p>
+    <p>업데이트 소식과 안내를 모아뒀어요. 최신 소식이 맨 위에 있고, 자잘한 수정 내역은 '패치' 탭에서 볼 수 있어요.</p>
   </div>
 
   <div class="filter-row np-filter" id="noticeFilter"></div>
@@ -79,7 +83,7 @@
   <p class="fb-foot">© <span id="yr"></span> 마이 스타 캘린더 · <a href="index.html">mystarzip.com</a> · <a href="privacy.html">개인정보처리방침</a> · <a href="terms.html">이용약관</a></p>
 </div>
 
-<script src="script/notices-data.js?v=25"></script>
+<script src="script/notices-data.js?v=39"></script>
 <script>
 (function () {
   "use strict";
@@ -117,6 +121,9 @@
   });
 
   $("#backBtn").addEventListener("click", function () {
+    var fromPage = "";
+    try { fromPage = localStorage.getItem("msc_back_page") || ""; } catch (e) {}
+    if (fromPage && fromPage !== "home") { window.location.href = "index.html#" + fromPage; return; }
     if (history.length > 1 && document.referrer) history.back();
     else window.location.href = "index.html";
   });
@@ -130,31 +137,54 @@
     });
   };
   var CATS = window.NOTICE_CATS || {};
-  var NOTICES = (window.NOTICES || []).slice().sort(function (a, b) { return b.id - a.id; });
+  function noticeDateKey(n) { var m = String(n.date).match(/\d{4}\.\d{2}\.\d{2}/); return m ? m[0] : ""; }
+  var NOTICES = (window.NOTICES || []).slice().sort(function (a, b) { return noticeDateKey(b).localeCompare(noticeDateKey(a)) || (b.id - a.id); });
   var wrap = document.getElementById("noticeList");
   var filterWrap = document.getElementById("noticeFilter");
 
-  function catGroup(cat) { return (cat === "update" || cat === "info") ? cat : "etc"; }
+  function catGroup(cat) { return (cat === "update" || cat === "info" || cat === "patch") ? cat : "etc"; }
 
-  function renderList(filter) {
+  var PAGE_SIZE = 10;       // 한 페이지에 보여줄 공지 개수
+  var curFilter = "all";
+  function itemHtml(n) {
+    var c = CATS[n.cat] || CATS.info || { label: "안내", color: "--c-broadcast" };
+    return '<div class="notice-item">'
+      + '<div class="notice-top">'
+      + '<span class="notice-cat" style="background:var(' + c.color + ')">' + esc(c.label) + '</span>'
+      + '<span class="notice-date">' + esc(n.date) + '</span>'
+      + '</div>'
+      + '<h4 class="notice-title">' + esc(n.title) + '</h4>'
+      + '<p class="notice-body">' + esc(n.body) + '</p>'
+      + '</div>';
+  }
+  function renderList(filter, page) {
+    curFilter = filter;
     var items = NOTICES.filter(function (n) {
-      return filter === "all" || catGroup(n.cat) === filter;
+      // '전체'에선 패치를 숨기고, '패치' 버튼을 눌렀을 때만 패치를 보여줘요
+      return filter === "all" ? n.cat !== "patch" : catGroup(n.cat) === filter;
     });
     if (!items.length) {
       wrap.innerHTML = '<p class="notice-empty">해당 분류의 공지가 없어요.</p>';
       return;
     }
-    wrap.innerHTML = items.map(function (n) {
-      var c = CATS[n.cat] || CATS.info || { label: "안내", color: "--c-broadcast" };
-      return '<div class="notice-item">'
-        + '<div class="notice-top">'
-        + '<span class="notice-cat" style="background:var(' + c.color + ')">' + esc(c.label) + '</span>'
-        + '<span class="notice-date">' + esc(n.date) + '</span>'
-        + '</div>'
-        + '<h4 class="notice-title">' + esc(n.title) + '</h4>'
-        + '<p class="notice-body">' + esc(n.body) + '</p>'
+    var pages = Math.ceil(items.length / PAGE_SIZE);
+    page = Math.min(Math.max(1, page || 1), pages);
+    var start = (page - 1) * PAGE_SIZE;
+    var html = items.slice(start, start + PAGE_SIZE).map(itemHtml).join("");
+    if (pages > 1) {
+      html += '<div class="notice-pager">'
+        + '<button class="np-btn" data-pg="' + (page - 1) + '"' + (page <= 1 ? ' disabled' : '') + '>← 이전</button>'
+        + '<span class="np-now">' + page + ' / ' + pages + '</span>'
+        + '<button class="np-btn" data-pg="' + (page + 1) + '"' + (page >= pages ? ' disabled' : '') + '>다음 →</button>'
         + '</div>';
-    }).join("");
+    }
+    wrap.innerHTML = html;
+    wrap.querySelectorAll(".np-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        renderList(curFilter, +b.getAttribute("data-pg"));
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    });
   }
 
   if (!NOTICES.length) {
@@ -164,6 +194,7 @@
     var chips = [{ k: "all", label: "전체" }];
     if (NOTICES.some(function (n) { return n.cat === "update"; })) chips.push({ k: "update", label: "업데이트" });
     if (NOTICES.some(function (n) { return n.cat === "info"; }))   chips.push({ k: "info", label: "안내" });
+    if (NOTICES.some(function (n) { return n.cat === "patch"; }))  chips.push({ k: "patch", label: "패치" });
     if (NOTICES.some(function (n) { return catGroup(n.cat) === "etc"; })) chips.push({ k: "etc", label: "그 외" });
 
     filterWrap.innerHTML = chips.map(function (ch, i) {
@@ -175,10 +206,10 @@
       if (!btn) return;
       filterWrap.querySelectorAll(".f-chip").forEach(function (b) { b.classList.remove("active"); });
       btn.classList.add("active");
-      renderList(btn.getAttribute("data-f"));
+      renderList(btn.getAttribute("data-f"), 1);
     });
 
-    renderList("all");
+    renderList("all", 1);
   }
 })();
 </script>

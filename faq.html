@@ -11,7 +11,7 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="apple-touch-icon" href="favicon.svg">
 <link rel="stylesheet" href="css/fonts.css?v=4">
-<link rel="stylesheet" href="css/style.css?v=5">
+<link rel="stylesheet" href="css/style.css?v=56">
 <style>
   /* 앱 style.css는 PC에서 body 스크롤을 잠그므로 단독 페이지에선 해제 */
   html, body { overflow: visible !important; height: auto !important; }
@@ -169,6 +169,9 @@
   });
 
   $("#backBtn").addEventListener("click", function () {
+    var fromPage = "";
+    try { fromPage = localStorage.getItem("msc_back_page") || ""; } catch (e) {}
+    if (fromPage && fromPage !== "home") { window.location.href = "index.html#" + fromPage; return; }
     if (history.length > 1 && document.referrer) history.back();
     else window.location.href = "index.html";
   });

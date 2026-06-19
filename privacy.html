@@ -11,7 +11,7 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="apple-touch-icon" href="apple-touch-icon.png?v=1">
 <link rel="stylesheet" href="css/fonts.css?v=4">
-<link rel="stylesheet" href="css/style.css?v=5">
+<link rel="stylesheet" href="css/style.css?v=56">
 <style>
   html, body { overflow: visible !important; height: auto !important; }
   .fb-wrap { max-width: 720px; margin: 0 auto; padding: 0 18px 80px; }
@@ -151,6 +151,9 @@
     syncTheme();
   });
   $("#backBtn").addEventListener("click", function () {
+    var fromPage = "";
+    try { fromPage = localStorage.getItem("msc_back_page") || ""; } catch (e) {}
+    if (fromPage && fromPage !== "home") { window.location.href = "index.html#" + fromPage; return; }
     if (history.length > 1 && document.referrer) history.back();
     else window.location.href = "index.html";
   });

@@ -57,7 +57,8 @@
 * { -webkit-tap-highlight-color: transparent; }
 button, a, .fab, [onclick], [role="button"] { -webkit-tap-highlight-color: transparent; }
 
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; } /* 스크롤바 자리 항상 예약 → 스크롤바 생겼다 사라질 때 화면 좌우 흔들림 방지 */
+html:has(.app) { scrollbar-gutter: auto; } /* 메인 앱(SPA)은 본문 .main이 스크롤을 맡으므로 문서 거터 불필요 → 오른쪽 빈 띠 방지 */
 
 body {
   font-family: var(--font-sans);
@@ -237,6 +238,14 @@ input[type="color"] {
   background: var(--muted); transition: left .2s, background-color .2s;
 }
 .switch.dim, .mini-toggle.dim, .tab-row.dim { opacity: .45; }
+.switch:disabled { opacity: .4; cursor: not-allowed; }
+.nf-sub { padding-left: 16px; }
+.nf-sub label { color: var(--muted); font-weight: 600; font-size: 12.5px; }
+.nf-hidden { display: none !important; }
+.nf-sel { width: auto; min-width: 108px; }
+.nf-sel:disabled { opacity: .4; cursor: not-allowed; }
+.notif-warn { color: #d4584a; }
+.nf-allow { margin-bottom: 8px; }
 .tab-row.dim { pointer-events: none; } /* 비활성화: 흐리게 + 클릭 차단 */
 .field.dim { opacity: .4; }
 .field.dim .veil-range { pointer-events: none; }
@@ -1572,6 +1581,7 @@ a.more-row { text-decoration: none; }
   .app { display: flex; height: 100vh; height: 100dvh; min-height: 0; position: relative; }
   .main {
     overflow-y: auto; min-height: 0;
+    scrollbar-gutter: stable; /* 본문 스크롤바 자리 항상 예약 → 페이지 전환 시 흔들림 방지 */
     scrollbar-width: thin; /* 화살표 없는 얇은 스크롤바 — 모서리 잘림 원천 차단 */
     scrollbar-color: color-mix(in srgb, var(--muted) 55%, transparent) transparent;
   }
@@ -3009,7 +3019,7 @@ input[type="range"].cp::-moz-range-thumb {
 .tt-col.today { background: color-mix(in srgb, var(--accent) 5%, transparent); }
 .tt-slot { box-sizing: border-box; border-bottom: 1px solid var(--line); cursor: pointer; }
 .tt-slot:hover { background: var(--accent-softer); }
-.tt-slot.sel { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+.tt-slot.sel { background: var(--accent-softer); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 38%, transparent); }
 /* 시작~끝 선택 임시 칸 */
 .tt-draft {
   position: absolute; left: 1px; right: 1px; box-sizing: border-box;
@@ -3058,6 +3068,7 @@ input[type="range"].cp::-moz-range-thumb {
 
 /* 일정 추가 모달 */
 .tt-dowpick, .tt-colorpick { display: flex; gap: 6px; flex-wrap: wrap; }
+.tt-colorpick { align-items: center; }
 .tt-dowpick button { width: 40px; height: 40px; border-radius: 11px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 14px; font-weight: 700; }
 .tt-dowpick button.sat { color: #3d7bff; }
 .tt-dowpick button.sun { color: #ff5c5c; }
@@ -3067,6 +3078,10 @@ input[type="range"].cp::-moz-range-thumb {
 .tt-time { width: 100%; }
 .tt-colorpick button { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; padding: 0; }
 .tt-colorpick button.on { border-color: var(--text); box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--text); }
+.tt-colorpick .tt-custom-btn { padding: 0 11px 0 3px; border-radius: 999px; gap: 6px; white-space: nowrap; flex: 0 0 auto; height: 30px; }
+.tt-colorpick .tt-custom-btn i { width: 22px; height: 22px; border: 1px solid var(--line); flex: 0 0 auto; }
+.tt-colorpick .tt-custom-btn span { line-height: 1; }
+.tt-colorpick .tt-custom-btn.on { border-color: var(--text); box-shadow: 0 0 0 2px var(--card), 0 0 0 3px var(--text); }
 
 @media (max-width: 480px) {
   .tt-head, .tt-body { grid-template-columns: 28px repeat(7, 1fr); }
@@ -3120,6 +3135,7 @@ input[type="range"].cp::-moz-range-thumb {
 .storage-foot .ok { color: var(--accent-deep); font-weight: 600; }
 .storage-foot .btn { flex: none; }
 .storage-warn { margin: 8px 0 0; font-size: 12.5px; font-weight: 600; color: var(--c-birthday); }
+.storage-note { margin: -2px 0 8px; font-size: 11.5px; line-height: 1.45; color: var(--muted); }
 
 /* 설정 '정보' 섹션 */
 .about-app { font-size: 14px; font-weight: 700; }
