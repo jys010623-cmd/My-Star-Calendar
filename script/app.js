@@ -1129,7 +1129,14 @@
   function openFramePicker() {
     $("modalBox").classList.add("wide");
     openModalRaw("미니홈피 모드", `
-      <p class="fp-desc">누르면 뒤 화면에 바로 적용돼요. 이것저것 눌러보고 정하세요!</p>
+      <div class="fp-tophead">
+        <p class="fp-desc">누르면 뒤 화면에 바로 적용돼요. 이것저것 눌러보고 정하세요!</p>
+        <button class="fp-dark" onclick="App.toggleDark()"><svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14A8.5 8.5 0 1 1 10 3.5a7 7 0 0 0 10.5 10.5Z"/></svg><svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M4.4 4.4l1.85 1.85M17.75 17.75l1.85 1.85M2.5 12h2.6M18.9 12h2.6M4.4 19.6l1.85-1.85M17.75 6.25l1.85-1.85"/></svg><span class="fpd-on">다크 모드</span><span class="fpd-off">라이트 모드</span></button>
+      </div>
+      <div class="field" style="margin-bottom:14px">
+        <label>퍼스널 컬러</label>
+        <div class="swatch-grid" id="fpSwatches"></div>
+      </div>
       <div class="field" style="margin-bottom:14px">
         <label>감성 모드</label>
         <div class="tab-row" id="fpModeRow" style="margin-bottom:0;flex-wrap:wrap"></div>
@@ -1184,6 +1191,14 @@
         <label>배경 패턴 <small>(응원봉·스타더스트 제외)</small></label>
         <div class="tab-row" id="fpBgRow" style="margin-bottom:0;flex-wrap:wrap"></div>
       </div>
+      <div class="field" style="margin:14px 0 0">
+        <label>배경 농도 <small>(패턴 위 글씨 가독성)</small> <span id="fpVeilVal" class="veil-val">0%</span></label>
+        <input type="range" id="fpVeilRange" class="veil-range" min="0" max="100" step="5" value="0" oninput="App.setVeil(this.value)">
+      </div>
+      <div class="field" style="margin:14px 0 0">
+        <label>메인 템플릿</label>
+        <div class="tpl-thumbs" id="fpTplThumbs"></div>
+      </div>
       <button class="btn btn-primary btn-lg" id="fpDone">이걸로 할래요</button>
     `);
     const sync = () => {
@@ -1216,6 +1231,11 @@
         save(); applyTheme(); renderSettings(); sync();
       };
     });
+    renderSwatches(); // 퍼스널 컬러 팔레트
+    const fvr = $("fpVeilRange"); if (fvr) fvr.value = S.veil || 0;
+    const fvv = $("fpVeilVal"); if (fvv) fvv.textContent = (S.veil || 0) + "%";
+    const ftt = $("fpTplThumbs"); // 메인 템플릿 썸네일
+    if (ftt) { const drawTpl = () => renderTplThumbs(ftt, S.template || "classic", (t) => { setTemplate(t); drawTpl(); }); drawTpl(); }
     $("fpDone").onclick = closeModal;
     sync();
   }
@@ -2761,6 +2781,8 @@
     document.documentElement.style.setProperty("--veil", S.veil + "%");
     const vv = $("veilVal");
     if (vv) vv.textContent = S.veil + "%";
+    const fvv = $("fpVeilVal"); // 미니홈피 모드 모달의 농도 표시도 같이 갱신
+    if (fvv) fvv.textContent = S.veil + "%";
     save();
   }
   /* ───────── 알림 (브라우저 Notification) ───────── */
@@ -3311,7 +3333,7 @@
     if (!availW || availW < 80) availW = Math.min(940, window.innerWidth - (window.innerWidth >= 980 ? 300 : 36));
     const vw = window.innerWidth;
     let cols, rows;
-    if (vw < 640) { cols = 2; rows = 3; }        // 모바일: 2×3 = 6
+    if (vw < 640) { cols = 3; rows = 2; }        // 모바일: 3×2 = 6
     else if (vw < 980) { cols = 4; rows = 2; }   // 태블릿: 4×2 = 8
     else { cols = 6; rows = 2; }                 // 데스크톱: 6×2 = 12
     const PER_PAGE = cols * rows;
@@ -3456,7 +3478,7 @@
     if (!p) return;
     const stName = { own: "보유", wish: "위시", trade: "교환 중" };
     openModalRaw(p.name || "포토카드", `
-      ${p.img ? `<img src="${p.img}" alt="${esc(p.name) || "포토카드"} 사진" style="width:100%;max-height:50vh;object-fit:contain;border-radius:12px;margin-bottom:14px">` : ""}
+      ${p.img ? `<img src="${p.img}" alt="${esc(p.name) || "포토카드"} 사진" style="max-width:100%;max-height:72vh;object-fit:contain;border-radius:12px;margin:0 auto 14px;display:block">` : ""}
       <p style="font-size:12px;color:var(--muted);margin-bottom:14px">${p.album ? esc(p.album) + " · " : ""}${stName[p.status] || ""}${p.memo ? " · " + esc(p.memo) : ""}</p>
       <div class="btn-row">
         <button class="btn btn-primary btn-sm" id="pcMove">${p.status === "own" ? "위시로 이동" : "보유로 이동 (겟 완료!)"}</button>
@@ -4068,24 +4090,25 @@
   }
 
   function renderSwatches() {
-    const grid = $("setSwatches");
-    if (!grid) return;
-    grid.innerHTML = "";
-    SWATCHES.forEach(([name, hex]) => {
-      const b = document.createElement("button");
-      b.className = "swatch" + (hex.toLowerCase() === S.accent.toLowerCase() ? " active" : "");
-      b.title = name;
-      b.style.background = hex;
-      b.onclick = () => {
-        S.accent = hex; save(); applyTheme(); renderSwatches();
-        // 직접 선택 칩·코드도 같이 갱신 (설정·온보딩 둘 다)
-        [["setColorChip", "setColorHex"], ["obColorChip", "obColorHex"]].forEach(([c, h]) => {
-          const chip = $(c), hx = $(h);
-          if (chip) chip.style.background = S.accent;
-          if (hx) hx.textContent = S.accent.toUpperCase();
-        });
-      };
-      grid.appendChild(b);
+    // .swatch-grid 가 있는 모든 곳(설정·미니홈피 모드)에 팔레트를 그림
+    document.querySelectorAll(".swatch-grid").forEach((grid) => {
+      grid.innerHTML = "";
+      SWATCHES.forEach(([name, hex]) => {
+        const b = document.createElement("button");
+        b.className = "swatch" + (hex.toLowerCase() === S.accent.toLowerCase() ? " active" : "");
+        b.title = name;
+        b.style.background = hex;
+        b.onclick = () => {
+          S.accent = hex; save(); applyTheme(); renderSwatches();
+          // 직접 선택 칩·코드도 같이 갱신 (설정·온보딩 둘 다)
+          [["setColorChip", "setColorHex"], ["obColorChip", "obColorHex"]].forEach(([c, h]) => {
+            const chip = $(c), hx = $(h);
+            if (chip) chip.style.background = S.accent;
+            if (hx) hx.textContent = S.accent.toUpperCase();
+          });
+        };
+        grid.appendChild(b);
+      });
     });
   }
 
@@ -4280,6 +4303,7 @@
     if (pinned) html += `<div class="notice-pinned">` + itemHtml(pinned) + `</div>`; // 안내 고정
     html += `</div>`;
     html += `<a class="notice-allbtn" href="notices.html">공지사항 전체 보기${restCount > 0 ? ` <span>지난 공지 ${restCount}개</span>` : ""} →</a>`;
+    html += `<a class="notice-allbtn notice-fbbtn" href="feedback.html" target="_blank" rel="noopener">💬 건의함 — 의견 남기기 →</a>`;
     return html;
   }
 

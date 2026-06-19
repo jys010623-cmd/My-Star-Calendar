@@ -343,6 +343,8 @@ input[type="color"] {
 .pg-back svg { width: 22px; height: 22px; }
 @media (max-width: 979.98px) { .pg-back { display: inline-flex; } }
 .page-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+/* 모바일·태블릿: 상단을 가볍게 — 제목은 두고 설명(부제)만 숨김 */
+@media (max-width: 979.98px) { .page-head .page-sub { display: none; } }
 
 /* 모바일 헤더 */
 .mobile-head {
@@ -2411,6 +2413,16 @@ input[type="range"].cp::-moz-range-thumb {
 
 /* ───────── 화면 꾸미기 팝업 ───────── */
 .fp-desc { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.fp-tophead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.fp-tophead .fp-desc { margin: 0; flex: 1; }
+.fp-dark { display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; white-space: nowrap; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 999px; padding: 7px 13px; font-size: 12.5px; font-weight: 700; color: var(--text); cursor: pointer; }
+.fp-dark svg { width: 15px; height: 15px; }
+.fp-dark:hover { background: var(--accent-softer); }
+/* 다크 상태에 따라 달↔해 + 라벨 전환 (상단 바와 동일) */
+.fp-dark .ico-sun, .fp-dark .fpd-off { display: none; }
+[data-dark="true"] .fp-dark .ico-moon, [data-dark="true"] .fp-dark .fpd-on { display: none; }
+[data-dark="true"] .fp-dark .ico-sun, [data-dark="true"] .fp-dark .fpd-off { display: inline; }
+[data-dark="true"] .fp-dark .ico-sun { color: #ffd34d; }
 .fp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 @media (max-width: 520px) { .fp-grid { grid-template-columns: repeat(2, 1fr); } }
 .fp-card {
