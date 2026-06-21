@@ -448,11 +448,11 @@ input[type="color"] {
 @media (min-width: 980px) { .sub-tabs { display: none !important; } }
 /* B안: 모바일·태블릿에선 서브탭이 페이지 제목 역할 → 중복되는 큰 제목 숨김 (PC는 사이드바라 서브탭이 없어 제목 유지) */
 @media (max-width: 979.98px) { body.has-subtabs .page.active > .page-head { display: none; } }
-/* 모바일·태블릿: 캘린더·스케줄러·가계부 날짜 내비를 서브탭 줄로 옮김 → 페이지 안 원래 줄 숨김. 캘린더 '일'은 모드 줄 오른쪽으로 (PC는 원래대로) */
+/* 모바일·태블릿: 날짜 내비를 다시 페이지 안 가운데 정렬 줄(.cal-head)로 복귀(이전 디자인). 글씨 크기는 현재(작은) 크기에 맞춤. 캘린더 '일'은 모드 줄에 있으므로 날짜 줄 좌측은 자리만 유지(가운데 정렬 보존) */
 @media (max-width: 979.98px) {
-  #ttWeekHead { display: none; }
-  #page-calendar > .cal-head { display: none; }
-  #page-ledger > .cal-head { display: none; }
+  .cal-head { margin: 4px 0 12px; }
+  .cal-head .cal-title { font-size: 18px; }
+  #page-calendar > .cal-head .ch-left { visibility: hidden; }
   .cal-ws-m { display: inline-flex; margin-left: auto; }
   .cal-today.on { background: transparent; color: var(--accent); border-color: var(--line); }
 }
@@ -3209,6 +3209,9 @@ input[type="range"].cp::-moz-range-thumb {
 .tt-dowpick button.sat { color: #3d7bff; }
 .tt-dowpick button.sun { color: #ff5c5c; }
 .tt-dowpick button.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.tt-emojipick { display: flex; gap: 6px; flex-wrap: wrap; }
+.tt-emojipick button { width: 40px; height: 40px; border-radius: 11px; border: 1px solid var(--line); background: var(--card); font-size: 20px; line-height: 1; padding: 0; cursor: pointer; }
+.tt-emojipick button:active { transform: scale(.92); background: var(--bg-soft); }
 .tt-timerow { display: flex; gap: 12px; }
 .tt-timerow .field { flex: 1; min-width: 0; }
 .tt-time { width: 100%; }

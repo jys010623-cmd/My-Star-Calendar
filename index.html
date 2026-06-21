@@ -75,7 +75,7 @@
 <link rel="apple-touch-startup-image" media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="splash/splash-2732x2048.png?v=1">
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="css/fonts.css?v=13">
-<link rel="stylesheet" href="css/style.css?v=78">
+<link rel="stylesheet" href="css/style.css?v=79">
 </head>
 <body>
 <!-- 스타더스트 전용 하늘 레이어 (콘텐츠와 분리된 합성층) -->
@@ -710,6 +710,10 @@
           </div>
         </div>
         <div class="field row-field">
+          <label>고정 ↔ 주간 연동 <small>(끄면 주간에 고정 일정 숨김)</small></label>
+          <button class="switch" id="ttFixedLinkSwitch" onclick="App.toggleTtFixedLink()"><span class="knob"></span></button>
+        </div>
+        <div class="field row-field">
           <label>주간 ↔ 하루 연동 <small>(끄면 하루 별도 일정)</small></label>
           <button class="switch" id="ttLinkSwitch" onclick="App.toggleTtLink()"><span class="knob"></span></button>
         </div>
@@ -857,9 +861,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="script/notices-data.js?v=42"></script>
+<script src="script/notices-data.js?v=43"></script>
 <script src="script/lunar.js?v=1"></script>
-<script src="script/app.js?v=77"></script>
+<script src="script/app.js?v=78"></script>
 <!-- 서비스워커 등록 (오프라인 지원) — http(s)에서만, file://·미지원 브라우저는 건너뜀 -->
 <script>
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
