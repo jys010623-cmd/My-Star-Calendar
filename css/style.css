@@ -3132,6 +3132,7 @@ input[type="range"].cp::-moz-range-thumb {
 /* ───────── 시간표 (주간 + 원형 24시) ───────── */
 .tt-week { margin-top: 2px; }
 .tt-now { font-size: 11px; font-weight: 700; color: var(--accent-deep); background: var(--accent-soft); padding: 2px 7px; border-radius: 20px; vertical-align: middle; margin-left: 4px; }
+@media (max-width: 979.98px) { .tt-now { display: none; } } /* 모바일·태블릿: 날짜 안 '이번 주' 표시 숨김 (PC는 유지) */
 .tt-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 4px 0 12px; }
 .tt-tools { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip-btn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-deep); }
