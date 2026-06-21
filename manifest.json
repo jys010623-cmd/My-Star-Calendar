@@ -15,5 +15,16 @@
     { "src": "icons/icon-192.png?v=1", "type": "image/png", "sizes": "192x192", "purpose": "any" },
     { "src": "icons/icon-512.png?v=1", "type": "image/png", "sizes": "512x512", "purpose": "any" },
     { "src": "icons/icon-maskable-512.png?v=1", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
-  ]
+  ],
+  "shortcuts": [
+    { "name": "일정 추가", "short_name": "일정 추가", "url": "./index.html#add", "icons": [{ "src": "icons/icon-192.png?v=1", "sizes": "192x192" }] },
+    { "name": "캘린더", "short_name": "캘린더", "url": "./index.html#calendar", "icons": [{ "src": "icons/icon-192.png?v=1", "sizes": "192x192" }] },
+    { "name": "스케줄러", "short_name": "스케줄러", "url": "./index.html#timetable", "icons": [{ "src": "icons/icon-192.png?v=1", "sizes": "192x192" }] },
+    { "name": "포카 바인더", "short_name": "포카 바인더", "url": "./index.html#binder", "icons": [{ "src": "icons/icon-192.png?v=1", "sizes": "192x192" }] }
+  ],
+  "share_target": {
+    "action": "./index.html",
+    "method": "GET",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  }
 }

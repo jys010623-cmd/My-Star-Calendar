@@ -75,7 +75,7 @@
 <link rel="apple-touch-startup-image" media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="splash/splash-2732x2048.png?v=1">
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="css/fonts.css?v=13">
-<link rel="stylesheet" href="css/style.css?v=57">
+<link rel="stylesheet" href="css/style.css?v=78">
 </head>
 <body>
 <!-- 스타더스트 전용 하늘 레이어 (콘텐츠와 분리된 합성층) -->
@@ -152,7 +152,7 @@
         <label>직접 선택</label>
         <button class="color-pick-btn" onclick="App.openColorPicker('ob')"><i id="obColorChip"></i><span id="obColorHex">#141414</span></button>
       </div>
-      <button class="btn btn-ghost" id="obExtractBtn" onclick="App.extractFromPhoto('ob')"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5V18a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18Z"/><circle cx="12" cy="13" r="3.2"/></svg> 등록한 사진에서 색 추출하기</button>
+      <button class="btn btn-ghost" id="obExtractBtn" onclick="App.openColorFromPhoto('ob')"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5V18a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18Z"/><circle cx="12" cy="13" r="3.2"/></svg> 등록한 사진에서 색 추출하기</button>
       <button class="btn btn-primary btn-lg" onclick="App.obNext()">다음</button>
     </section>
     <!-- step 4 : 템플릿 선택 -->
@@ -234,8 +234,8 @@
       <button class="nav-btn" data-page="calendar" onclick="App.go('calendar')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M8 3v4M16 3v4M3.5 10.5h17"/></svg></span>캘린더</button>
       <button class="nav-btn" data-page="timetable" onclick="App.go('timetable')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>스케줄러</button>
       <button class="nav-btn" data-page="archive" onclick="App.go('archive')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="5" rx="1.2"/><path d="M5.5 9v9.5A1.5 1.5 0 0 0 7 20h10a1.5 1.5 0 0 0 1.5-1.5V9"/><path d="M10 13h4"/></svg></span>아카이브</button>
-      <button class="nav-btn" data-page="binder" onclick="App.go('binder')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7.5" y="3.5" width="13" height="17" rx="2"/><path d="M3.5 7.5v11a2 2 0 0 0 2 2H14"/></svg></span>포카 바인더</button>
       <button class="nav-btn" data-page="ledger" onclick="App.go('ledger')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20v-7M12 20V6M19 20v-10"/></svg></span>덕질 가계부</button>
+      <button class="nav-btn" data-page="binder" onclick="App.go('binder')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7.5" y="3.5" width="13" height="17" rx="2"/><path d="M3.5 7.5v11a2 2 0 0 0 2 2H14"/></svg></span>포카 바인더</button>
       <button class="nav-btn" data-page="style" onclick="App.go('style')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 11.6V6A2.5 2.5 0 0 1 6 3.5h5.6a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8l-5.6 5.6a2 2 0 0 1-2.8 0l-7-7a2 2 0 0 1-.6-1.4Z"/><circle cx="8.2" cy="8.2" r="1.3"/></svg></span>스타일북</button>
       <button class="nav-btn" data-page="settings" onclick="App.go('settings')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7.5h3.3M11.7 7.5H20"/><circle cx="9.5" cy="7.5" r="2.2"/><path d="M4 16.5h8.3M16.7 16.5H20"/><circle cx="14.5" cy="16.5" r="2.2"/></svg></span>설정</button>
       <div class="side-tools">
@@ -255,6 +255,7 @@
     <!-- 모바일 헤더 -->
     <header class="mobile-head">
       <div class="mh-left" onclick="App.go('home')">
+        <svg class="mh-logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M32 6 C34.5 23 41 29.5 58 32 C41 34.5 34.5 41 32 58 C29.5 41 23 34.5 6 32 C23 29.5 29.5 23 32 6 Z" fill="var(--accent)"/><circle cx="50" cy="14" r="2.6" fill="var(--accent)"/><circle cx="14" cy="50" r="2.6" fill="var(--accent)"/></svg>
         <span class="mh-name" id="mhName">최애</span>
         <span class="mh-dday badge-accent" id="mhDday">D+0</span>
       </div>
@@ -292,9 +293,9 @@
       </div>
 
       <div class="home-tools">
+        <p class="home-edit-hint" id="homeEditHint">손잡이(⠿)를 끌어 옮기고, ✕로 빼면 아래 '숨긴 블록'에 모여요. 거기서 다시 추가할 수 있어요. '완료'를 누르면 저장돼요.</p>
         <button class="home-edit-btn" id="homeEditBtn" onclick="App.toggleEditHome()"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg> 홈 편집</button>
       </div>
-      <p class="home-edit-hint" id="homeEditHint">손잡이(⠿)를 끌어 옮기고, ✕로 빼면 아래 '숨긴 블록'에 모여요. 거기서 다시 추가할 수 있어요. '완료'를 누르면 저장돼요.</p>
 
       <div id="homeBlocks">
         <div class="home-block" data-block="cheer">
@@ -308,7 +309,14 @@
         </div>
 
         <div class="home-block" data-block="week">
-          <div class="section-head"><h3>이번 주</h3></div>
+          <div class="section-head hw-head">
+            <h3 id="homeWeekTitle">이번 주</h3>
+            <span class="hw-nav">
+              <button class="hw-reset hidden" id="homeWeekToday">이번 주</button>
+              <button class="hw-arrow" id="homeWeekPrev" aria-label="지난 주">‹</button>
+              <button class="hw-arrow" id="homeWeekNext" aria-label="다음 주">›</button>
+            </span>
+          </div>
           <div class="week-strip" id="homeWeek"></div>
         </div>
 
@@ -328,6 +336,7 @@
           <div class="card" id="ticketCard">
             <div class="card-title" id="ticketTitle">시계</div>
             <div class="clock" id="liveClock" title="탭하면 전체화면 시계로 커져요" role="button" tabindex="0">00:00:00</div>
+            <div class="clock-tz" id="clockTz">한국 시간 (KST)</div>
             <button class="sb-open" id="sbOpenBtn"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg> 전체화면 시계</button>
             <div class="ticket-next" id="ticketNext">예정된 티켓팅이 없어요</div>
             <a class="btn btn-dark btn-sm hidden" id="ticketLinkBtn" target="_blank" rel="noopener">예매 사이트 바로가기 <svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a>
@@ -391,9 +400,9 @@
       <div class="deco-palette hidden" id="decoPalette"></div>
       <div class="prof-id">
         <div class="prof-avatar" id="profAvatar">
-          <span class="av-clip"><i class="av-bg" id="profAvatarBg"></i></span>
+          <span class="av-clip" onclick="App.openAvatarViewer()"><i class="av-bg" id="profAvatarBg"></i></span>
           <span class="zoom-btns hidden" id="zoomAvatar"><button type="button" title="확대" aria-label="프로필 사진 확대" data-z="+">＋</button><button type="button" title="축소" aria-label="프로필 사진 축소" data-z="-">−</button></span>
-          <button class="av-pos-btn chip-btn icon-only" id="avatarPosBtn" title="프로필 사진 위치 조정" aria-label="프로필 사진 위치 조정" onclick="App.toggleCoverPos('avatar')"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></svg></button>
+          <button class="av-pos-btn chip-btn icon-only" id="avatarPosBtn" title="프로필 사진 위치 조정" aria-label="프로필 사진 위치 조정" onclick="App.openAvatarViewer()"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></svg></button>
         </div>
         <h2 id="profName">최애</h2>
         <p id="profGroup"></p>
@@ -424,7 +433,10 @@
         </div>
         <div class="ch-side ch-right"><button class="cal-today" onclick="App.calToday()">오늘</button></div>
       </div>
-      <div class="mode-tabs cal-mode" id="calModeSeg"></div>
+      <div class="cal-mode-row">
+        <div class="mode-tabs cal-mode" id="calModeSeg"></div>
+        <button class="cal-today cal-ws cal-ws-m" id="calWsBtnM" onclick="App.toggleCalWeekStart()" title="주 시작 요일 (탭하여 변경)">일</button>
+      </div>
       <div class="filter-row" id="catFilters"></div>
       <div class="cal-grid-head">
         <span class="sun">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="sat">토</span>
@@ -452,7 +464,7 @@
           <h2 class="cal-title" id="ttTitle">이번 주</h2>
           <button class="cal-arrow" onclick="App.ttMove(1)" aria-label="다음 주">›</button>
         </div>
-        <div class="ch-side ch-right"><button class="cal-today" onclick="App.ttThisWeek()">이번 주</button></div>
+        <div class="ch-side ch-right"><button class="cal-today" id="ttNowBtn" onclick="App.ttThisWeek()">이번 주</button></div>
       </div>
       <div class="tt-bar">
         <div class="tt-tabs mode-tabs" id="ttTabs"></div>
@@ -485,10 +497,14 @@
         <h2>덕질 가계부</h2>
         <p class="page-sub">이번 달 나의 행복 비용</p>
       </div>
-      <div class="cal-head slim">
-        <button class="cal-arrow" onclick="App.ledgerMove(-1)">‹</button>
-        <h3 class="cal-title sm" id="ledgerTitle">2026.06</h3>
-        <button class="cal-arrow" onclick="App.ledgerMove(1)">›</button>
+      <div class="cal-head">
+        <div class="ch-side ch-left"></div>
+        <div class="cal-nav">
+          <button class="cal-arrow" onclick="App.ledgerMove(-1)">‹</button>
+          <h3 class="cal-title" id="ledgerTitle">2026.06</h3>
+          <button class="cal-arrow" onclick="App.ledgerMove(1)">›</button>
+        </div>
+        <div class="ch-side ch-right"><button class="cal-today" onclick="App.ledgerToday()">이번 달</button></div>
       </div>
       <div class="card ledger-total-card">
         <div class="card-title">총 지출</div>
@@ -613,7 +629,7 @@
         </div>
         <div class="field row-field">
           <label>최애 사진에서 색 추출</label>
-          <button class="btn btn-ghost btn-sm" onclick="App.extractFromPhoto('set')"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5V18a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18Z"/><circle cx="12" cy="13" r="3.2"/></svg> 추출하기</button>
+          <button class="btn btn-ghost btn-sm" onclick="App.openColorFromPhoto('set')"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5V18a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18Z"/><circle cx="12" cy="13" r="3.2"/></svg> 추출하기</button>
         </div>
         <div class="field row-field">
           <label>다크 모드</label>
@@ -746,17 +762,27 @@
     <section class="page" id="page-more">
       <div class="page-head"><h2>더보기</h2></div>
       <div class="more-list">
-        <p class="more-group-label">기능</p>
-        <button class="more-row" onclick="App.openModal('membership')"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3 10h18M6.5 14.5h4"/></svg> 나만의 멤버십</span><span>›</span></button>
-
-        <p class="more-group-label">화면</p>
-        <button class="more-row" onclick="App.toggleDark()"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14A8.5 8.5 0 1 1 10 3.5a7 7 0 0 0 10.5 10.5Z"/></svg> 다크 모드</span><span>›</span></button>
-        <button class="more-row" onclick="App.openFramePicker()"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="12.5" rx="2"/><path d="M9 20.5h6M12 17v3.5"/></svg> 미니홈피 모드</span><span>›</span></button>
-
-        <p class="more-group-label">기타</p>
+        <p class="more-group-label">일반</p>
         <button class="more-row" onclick="App.go('settings')"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7.5h3.3M11.7 7.5H20"/><circle cx="9.5" cy="7.5" r="2.2"/><path d="M4 16.5h8.3M16.7 16.5H20"/><circle cx="14.5" cy="16.5" r="2.2"/></svg> 설정</span><span>›</span></button>
+
+        <button class="more-row" id="installRow" hidden onclick="App.promptInstall()"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M12 8v6M9.5 11.5 12 14l2.5-2.5"/></svg> 앱 설치 <small style="color:var(--muted);font-weight:500">홈 화면에 추가</small></span><span>›</span></button>
+
+        <p class="more-group-label">알림</p>
+        <button class="more-row" onclick="App.openModal('notices')"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg> 공지사항</span><span class="mr-tail"><span class="nt-dot hidden" id="noticeDotMore"></span>›</span></button>
+
+        <p class="more-group-label">데이터</p>
+        <button class="more-row" onclick="App.exportData()"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M8 11l4 4 4-4M5 20h14"/></svg> 데이터 백업 <small style="color:var(--muted);font-weight:500">내보내기</small></span><span>›</span></button>
+        <button class="more-row" onclick="document.getElementById('importFile').click()"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V9M8 13l4-4 4 4M5 4h14"/></svg> 데이터 복원 <small style="color:var(--muted);font-weight:500">가져오기</small></span><span>›</span></button>
+
+        <p class="more-group-label">지원</p>
+        <a class="more-row" href="feedback.html" target="_blank" rel="noopener"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 5.5h15A1.5 1.5 0 0 1 21 7v8a1.5 1.5 0 0 1-1.5 1.5H10l-4 3.3V16.5H4.5A1.5 1.5 0 0 1 3 15V7a1.5 1.5 0 0 1 1.5-1.5Z"/></svg> 건의하기 <small style="color:var(--muted);font-weight:500">문의·피드백</small></span><span>›</span></a>
         <a class="more-row" href="guide.html" target="_blank" rel="noopener"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h9a2 2 0 0 1 2 2V20l-4-2.2L8 20V6.5a2 2 0 0 0-2-2H5Z"/><path d="M16 6.5h3a0 0 0 0 1 0 0V20l-3-1.6"/></svg> 사용 설명서 <small style="color:var(--muted);font-weight:500">웹앱 사용법 &amp; 테마</small></span><span>›</span></a>
         <a class="more-row" href="faq.html" target="_blank" rel="noopener"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .8c0 1.7-2.5 2.3-2.5 4"/><circle cx="12" cy="17.2" r=".6" fill="currentColor" stroke="none"/></svg> Q&A <small style="color:var(--muted);font-weight:500">자주 묻는 질문</small></span><span>›</span></a>
+
+        <p class="more-group-label">정보</p>
+        <a class="more-row" href="privacy.html" target="_blank" rel="noopener"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3.1 7.7-7 9-3.9-1.3-7-4.4-7-9V6l7-3Z"/><path d="M9.2 12l2 2 3.6-3.8"/></svg> 개인정보처리방침</span><span>›</span></a>
+        <a class="more-row" href="terms.html" target="_blank" rel="noopener"><span class="mr-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M13 3v5h5M9 13h6M9 16.5h4"/></svg> 이용약관</span><span>›</span></a>
+        <p class="more-about">© 2026 마이 스타 캘린더 · mystarzip.com<br><span class="about-ver" id="appVerMore"></span></p>
       </div>
     </section>
   </main>
@@ -799,8 +825,19 @@
   </div>
   <div class="sb-inner">
     <div class="sb-tklabel hidden" id="sbTkLabel"></div>
-    <div class="sb-date" id="sbDate"></div>
-    <div class="sb-clock" id="sbClock">00:00:00</div>
+    <div class="sb-compare" id="sbCompare">
+      <div class="sb-zone">
+        <div class="sb-zlabel">한국 시간 (KST)</div>
+        <div class="sb-clock" id="sbClock">00:00:00</div>
+        <div class="sb-zdate" id="sbZ1Date"></div>
+      </div>
+      <div class="sb-zone sb-zone2 hidden" id="sbZone2">
+        <div class="sb-zlabel"><span class="sb-tzwrap"><button type="button" id="sbTz2Btn" class="sb-tzsel" aria-haspopup="listbox" aria-label="비교할 도시"></button><div class="sb-tzmenu hidden" id="sbTz2Menu" role="listbox"></div></span><button class="sb-tzx" id="sbTzX" aria-label="비교 끄기">✕</button><span class="sb-diff" id="sbDiff"></span></div>
+        <div class="sb-clock sb-clock2" id="sbClock2">00:00:00</div>
+        <div class="sb-zdate" id="sbZ2Date"></div>
+      </div>
+    </div>
+    <button class="sb-addtz" id="sbAddTz">＋ 다른 나라 시간 비교</button>
     <div class="sb-sub" id="sbSub"></div>
     <a class="sb-tkbtn hidden" id="sbTkBtn" target="_blank" rel="noopener">예매처 바로가기 <svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a>
   </div>
@@ -820,9 +857,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="script/notices-data.js?v=41"></script>
+<script src="script/notices-data.js?v=42"></script>
 <script src="script/lunar.js?v=1"></script>
-<script src="script/app.js?v=64"></script>
+<script src="script/app.js?v=77"></script>
 <!-- 서비스워커 등록 (오프라인 지원) — http(s)에서만, file://·미지원 브라우저는 건너뜀 -->
 <script>
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
