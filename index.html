@@ -75,7 +75,7 @@
 <link rel="apple-touch-startup-image" media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="splash/splash-2732x2048.png?v=1">
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="css/fonts.css?v=13">
-<link rel="stylesheet" href="css/style.css?v=80">
+<link rel="stylesheet" href="css/style.css?v=81">
 </head>
 <body>
 <!-- 스타더스트 전용 하늘 레이어 (콘텐츠와 분리된 합성층) -->
@@ -412,6 +412,7 @@
         <button class="btn btn-ghost btn-sm" onclick="document.getElementById('profPhotoInput').click()">프로필 사진 변경</button>
         <button class="btn btn-ghost btn-sm" onclick="document.getElementById('profCoverInput').click()">배경 사진 변경</button>
         <button class="btn btn-ghost btn-sm" onclick="App.editCurrentBias()">정보 수정</button>
+        <button class="btn btn-ghost btn-sm" onclick="App.openProfileShare()">이미지로 보기·공유</button>
       </div>
       <input type="file" id="profPhotoInput" accept="image/*" hidden>
       <input type="file" id="profCoverInput" accept="image/*" hidden>
@@ -484,6 +485,16 @@
         <button class="tab active" data-btab="own" onclick="App.binderTab('own')">보유</button>
         <button class="tab" data-btab="wish" onclick="App.binderTab('wish')">위시</button>
         <button class="tab" data-btab="trade" onclick="App.binderTab('trade')">교환 중</button>
+      </div>
+      <div class="list-tools">
+        <input type="search" id="binderSearch" class="list-search" placeholder="이름·앨범 검색" autocomplete="off">
+        <select id="binderSort" class="list-sort" aria-label="정렬">
+          <option value="manual">직접 정렬</option>
+          <option value="recent">최신순</option>
+          <option value="old">오래된순</option>
+          <option value="name">이름순</option>
+        </select>
+        <button class="chip-btn" id="binderWishExport" type="button">위시 내보내기</button>
       </div>
       <div class="filter-row" id="albumRow"></div>
       <p class="binder-hint hidden" id="binderHint">포카를 꾹 눌러 끌면 순서를 바꿀 수 있어요</p>
@@ -581,6 +592,15 @@
         <button class="tab active" data-stab="all" onclick="App.styleTab('all')">전체</button>
         <button class="tab" data-stab="wish" onclick="App.styleTab('wish')">위시</button>
         <button class="tab" data-stab="bought" onclick="App.styleTab('bought')">구매 완료</button>
+      </div>
+      <div class="list-tools">
+        <input type="search" id="styleSearch" class="list-search" placeholder="이름·브랜드 검색" autocomplete="off">
+        <select id="styleSort" class="list-sort" aria-label="정렬">
+          <option value="recent">최신순</option>
+          <option value="old">오래된순</option>
+          <option value="name">이름순</option>
+          <option value="cat">분류순</option>
+        </select>
       </div>
       <p class="style-stats" id="styleStats"></p>
       <div class="style-grid" id="styleList"></div>
@@ -717,9 +737,17 @@
           <label>주간 ↔ 하루 연동 <small>(끄면 하루 별도 일정)</small></label>
           <button class="switch" id="ttLinkSwitch" onclick="App.toggleTtLink()"><span class="knob"></span></button>
         </div>
+        <div class="field row-field">
+          <label>주말 제외 · 고정 <small>(월~금만 보기)</small></label>
+          <button class="switch" id="ttWeekendSwitch_fixed" onclick="App.toggleTtWeekendView('fixed')"><span class="knob"></span></button>
+        </div>
+        <div class="field row-field">
+          <label>주말 제외 · 주간 <small>(월~금만 보기)</small></label>
+          <button class="switch" id="ttWeekendSwitch_week" onclick="App.toggleTtWeekendView('week')"><span class="knob"></span></button>
+        </div>
         <div class="field row-field" style="margin-bottom:0">
-          <label>시간표 주말 제외 <small>(월~금만 보기)</small></label>
-          <button class="switch" id="ttWeekendSwitch" onclick="App.toggleTtWeekend()"><span class="knob"></span></button>
+          <label>주말 제외 · 하루 <small>(월~금만 보기)</small></label>
+          <button class="switch" id="ttWeekendSwitch_circle" onclick="App.toggleTtWeekendView('circle')"><span class="knob"></span></button>
         </div>
       </div>
 
@@ -863,7 +891,7 @@
 
 <script src="script/notices-data.js?v=44"></script>
 <script src="script/lunar.js?v=1"></script>
-<script src="script/app.js?v=78"></script>
+<script src="script/app.js?v=80"></script>
 <!-- 서비스워커 등록 (오프라인 지원) — http(s)에서만, file://·미지원 브라우저는 건너뜀 -->
 <script>
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {

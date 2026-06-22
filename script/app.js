@@ -114,6 +114,17 @@
   const EXP_CATS = ["앨범", "굿즈·MD", "콘서트·티켓", "생카·이벤트", "교통·숙박", "구독·멤버십", "기타"];
   const EXP_COLORS = ["#ff7aa2", "#7a86ff", "#ff5c5c", "#ffb13d", "#3dbdff", "#2ecc9a", "#9b9b9b"];
   const PAY_METHODS = ["카드", "현금", "계좌이체", "기타"];
+  // 수동 고정 환율용 통화 — [코드, 원화환산표기 시 단위, 입력칸 접미사, 셀렉트 라벨]
+  const CURRENCIES = [
+    ["KRW", "원", "원", "원 (KRW)", 0],
+    ["USD", "달러", "달러", "$ 달러 (USD)", 2],
+    ["JPY", "엔", "엔", "¥ 엔 (JPY)", 0],
+    ["EUR", "유로", "유로", "€ 유로 (EUR)", 2],
+    ["CNY", "위안", "위안", "¥ 위안 (CNY)", 2],
+  ];
+  const _cur = (code) => CURRENCIES.find((c) => c[0] === code) || CURRENCIES[0];
+  const curUnit = (code) => _cur(code)[1];
+  const curDec = (code) => _cur(code)[4];
   const STICKERS = ["🎂","🎤","🎟️","💚","💜","💙","🩷","⭐","✨","🐰","🐻","🦁","📸","🎧","✈️","🍰","🔥","🏟️"];
   // 데코용 — 앱과 통일된 라인아이콘 스티커 + 텍스트 색상 팔레트
   const DECO_ICONS = ["heart", "sparkles", "music", "camera", "cake", "flag", "bell", "play", "bookmark", "tag"];
@@ -129,6 +140,7 @@
     ["레드", "#F0383F"], ["와인", "#9B2242"], ["피치", "#FFA98A"], ["옐로", "#FFD84D"],
   ];
   const ST_CATS = ["의류", "신발", "액세서리", "모자", "가방", "음식·카페", "기타"];
+  const effStyleCats = () => ST_CATS.concat(Array.isArray(S && S.customStyleCats) ? S.customStyleCats : []);
   // 아카이브 기록 유형 — 프리셋에 맞춰 buildCats()에서 채움 (캘린더와 한 세트)
   let ARCH_TYPES = ["생카", "콘서트", "팝업", "전시", "팬싸", "기타"];
   let ARCH_TYPES_ON = ["영통 팬싸", "온라인 콘서트", "라이브 방송", "스트리밍 파티", "기타"];
@@ -199,6 +211,8 @@
   let archSearch = "";
   let binderAlbum = "all";
   let binderPage = 0; // 바인더 현재 페이지 (9칸=3×3 단위)
+  let binderSearch = "", binderSort = "manual"; // 바인더 검색·정렬
+  let styleSearch = "", styleSort = "recent"; // 스타일북 검색·정렬
   let ledgerCatFilter = "all"; // 가계부 지출 내역 카테고리 필터
   let ledgerChartMode = "recent"; // 월별 그래프: recent(최근 6개월) | h1(상반기) | h2(하반기)
   let linkFilter = "all"; // 링크 보관함 필터: all | unread | p:<platform>
@@ -214,6 +228,38 @@
   const fmtDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const todayKey = () => fmtDate(new Date());
   const won = (n) => "₩" + Number(n || 0).toLocaleString("ko-KR");
+  // 금액 입력: 천 단위 콤마 + "원" 자동 표기. 입력칸은 type="text" inputmode="numeric" 여야 함
+  // 금액 문자열 포맷: 천 단위 콤마 + 소수 dec자리 허용 + 접미사
+  function fmtAmount(raw, suffix, dec) {
+    suffix = suffix || ""; dec = dec || 0;
+    let c = String(raw == null ? "" : raw).replace(/[^\d.]/g, "");
+    if (dec > 0) {
+      const fd = c.indexOf(".");
+      if (fd >= 0) c = c.slice(0, fd).replace(/\./g, "") + "." + c.slice(fd + 1).replace(/\./g, "").slice(0, dec);
+    } else { c = c.replace(/\./g, ""); }
+    if (c === "" || c === ".") return "";
+    const parts = c.split(".");
+    const out = (parts[0] === "" ? "0" : Number(parts[0]).toLocaleString("ko-KR")) + (parts.length > 1 ? "." + parts[1] : "");
+    return out + suffix;
+  }
+  function attachAmountInput(el, initial, suffix, dec, onChange) {
+    if (!el) return;
+    if (typeof dec === "function") { onChange = dec; dec = 0; } // 하위호환: dec 자리에 콜백을 넘긴 옛 호출 지원
+    suffix = suffix || ""; dec = dec || 0;
+    el.setAttribute("inputmode", dec > 0 ? "decimal" : "numeric");
+    el.value = (initial != null && initial !== "" && +initial > 0) ? fmtAmount(initial, suffix, dec) : "";
+    el.oninput = () => {
+      el.value = fmtAmount(el.value, suffix, dec);
+      const pos = el.value.length - (suffix && el.value.endsWith(suffix) ? suffix.length : 0); // 캐럿을 접미사 앞에
+      try { el.setSelectionRange(pos, pos); } catch (e) {}
+      if (onChange) onChange();
+    };
+  }
+  const attachWonInput = (el, initial) => attachAmountInput(el, initial, "원", 0);
+  // 금액 입력칸에서 숫자(소수 포함)만 뽑아 수치로
+  const amtNum = (el) => { if (!el) return 0; const n = parseFloat((el.value || "").replace(/[^\d.]/g, "")); return isFinite(n) && n > 0 ? n : 0; };
+  // 금액 입력칸에서 숫자만 뽑아 정수로
+  const wonValue = (el) => el ? Math.max(0, +(el.value.replace(/[^\d]/g, "") || 0)) : 0;
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   // http/https(+mailto/tel)만 허용 — javascript: 등 위험 스킴 차단 (자가 XSS 방지)
   const safeUrl = (u) => {
@@ -396,9 +442,9 @@
 
   function defaults() {
     return {
-      onboarded: false, preset: "idol", dark: false, retro: false, retroSkin: "browser", retroPos: "float", bg: "none", align: "left", widgets: {}, budget: 0, notifyTicket: false, notifyTicketLead: 10, notifyEvents: false, notifyEventsLead: 60, notifyBirthday: false, notifyBdayDays: 0, notifyDaily: false, notifyDailyHour: 9, haptics: true, veil: 0, mode: "", template: "classic", archView: "card", accent: "#141414", weekStart: "sun", weekStartWeek: "mon", weekStartCircle: "mon", ttHideWeekend: false, ttCircleStyle: "full", ttLink: true, ttFixedLink: true,
+      onboarded: false, preset: "idol", dark: false, retro: false, retroSkin: "browser", retroPos: "float", bg: "none", align: "left", widgets: {}, budget: 0, notifyTicket: false, notifyTicketLead: 10, notifyEvents: false, notifyEventsLead: 60, notifyBirthday: false, notifyBdayDays: 0, notifyDaily: false, notifyDailyHour: 9, haptics: true, veil: 0, mode: "", template: "classic", archView: "card", accent: "#141414", weekStart: "sun", weekStartWeek: "mon", weekStartCircle: "mon", ttHideWeekend: false, ttHideWeekendFixed: null, ttHideWeekendWeek: null, ttHideWeekendCircle: null, ttCircleStyle: "full", ttLink: true, ttFixedLink: true, lastFx: {},
       biases: [], currentBias: null,
-      customArchTypes: { offline: [], online: [] },
+      customArchTypes: { offline: [], online: [] }, customStyleCats: [],
       cats: [], recLabel: "기록", recColor: "#c3aee8", schedules: [], stickers: {}, photocards: [],
       expenses: [], archives: [], links: [], styles: [],
       timetables: [], ttRange: { s: 0, e: 24 },
@@ -983,10 +1029,11 @@
   function openBudget() {
     openModalRaw("이번 달 덕질 예산", `
       <div class="field"><label>월 예산 <small>(0이면 예산 끄기)</small></label>
-        <input type="number" id="mBudget" min="0" step="10000" value="${S.budget || ""}" placeholder=""></div>
+        <input type="text" id="mBudget" inputmode="numeric" placeholder="0원"></div>
       <button class="btn btn-primary btn-lg" id="mSave">저장</button>`);
+    attachWonInput($("mBudget"), S.budget);
     $("mSave").onclick = () => {
-      S.budget = Math.max(0, +$("mBudget").value || 0);
+      S.budget = wonValue($("mBudget"));
       save(); closeModal(); renderLedger(); renderHome();
       toast(S.budget ? `예산을 ${won(S.budget)}으로 설정했어요` : "예산을 껐어요");
     };
@@ -1008,6 +1055,8 @@
     const yByCat = {};
     exps.forEach((e) => (yByCat[e.category] = (yByCat[e.category] || 0) + +e.amount));
     const topCat = Object.entries(yByCat).sort((a, b2) => b2[1] - a[1])[0];
+    const fxExps = exps.filter((e) => e.cur && e.cur !== "KRW");
+    const fxTotal = fxExps.reduce((a, e) => a + (+e.amount || 0), 0);
     openModalRaw(`${yr} 나의 덕질 결산`, `
       <div class="yr-card">
         <p class="yr-eyebrow">MY STAR WRAPPED · ${yr}</p>
@@ -1022,12 +1071,14 @@
           <div><small>겟한 최애템</small><b>${gots}개</b></div>
           <div><small>남긴 후기</small><b>${events.length}편</b></div>
         </div>
+        ${fxTotal > 0 ? `<p class="yr-foreign">이 중 해외 결제 ${won(fxTotal)} <small>(${fxExps.length}건)</small></p>` : ""}
       </div>
       <button class="btn btn-primary btn-lg" id="yrShare">결산 텍스트 복사 (SNS 공유)</button>`);
     $("yrShare").onclick = () => {
       let text = `✦ ${yr} 나의 덕질 결산 ✦\n`;
       text += `최애: ${b ? b.name : "최애"}${b && b.startDate ? ` (D+${dPlus(b.startDate)})` : ""}\n\n`;
       text += `💸 행복 비용 ${won(total)}\n🎪 오프라인 ${offline}회 · 온라인 ${online}회\n`;
+      if (fxTotal > 0) text += `🌐 해외 결제 ${won(fxTotal)} (${fxExps.length}건)\n`;
       text += `🗓 일정 ${scheds}개 · 📸 포카 ${pocas}장 · 🛍 최애템 ${gots}개\n\n#마이스타캘린더 #덕질결산`;
       if (navigator.clipboard) {
         navigator.clipboard.writeText(text)
@@ -1363,11 +1414,22 @@
     save(); renderSettings(); renderTimetable();
     toast(S.ttFixedLink ? "고정↔주간을 연동했어요 (고정 일정 함께 표시)" : "고정 시간표를 분리했어요 (주간엔 안 보여요)");
   }
-  function toggleTtWeekend() {
-    S.ttHideWeekend = !S.ttHideWeekend;
-    save(); renderSettings(); renderTimetable();
-    toast(S.ttHideWeekend ? "시간표에서 주말을 숨겼어요 (월~금)" : "시간표에 주말을 다시 표시해요");
+  // 주말 제외 — 고정·주간·하루 뷰별 독립 설정. 값이 없으면 구버전 공용값(S.ttHideWeekend)로 폴백
+  const TTWK_KEY = { fixed: "ttHideWeekendFixed", week: "ttHideWeekendWeek", circle: "ttHideWeekendCircle" };
+  const TTWK_LABEL = { fixed: "고정", week: "주간", circle: "하루" };
+  function ttHideWeekendFor(view) {
+    const k = TTWK_KEY[view] || TTWK_KEY.week;
+    return S[k] == null ? !!S.ttHideWeekend : !!S[k];
   }
+  function toggleTtWeekendView(view) {
+    const k = TTWK_KEY[view]; if (!k) return;
+    S[k] = !ttHideWeekendFor(view);
+    save(); renderSettings(); renderTimetable();
+    const label = TTWK_LABEL[view];
+    toast(S[k] ? `${label} 시간표에서 주말을 숨겼어요 (월~금)` : `${label} 시간표에 주말을 다시 표시해요`);
+  }
+  // 구버전 호환: 현재 보고 있는 뷰의 주말 제외를 토글
+  function toggleTtWeekend() { toggleTtWeekendView(ttView); }
   function setPatStyle(p) {
     S.patstyle = p;
     save(); applyTheme(); renderSettings();
@@ -1567,9 +1629,9 @@
     ["sideName", "mhName", "heroName"].forEach((id) => ($(id).textContent = b.name));
     ["sideDday", "mhDday"].forEach((id) => ($(id).textContent = ddText));
     $("heroGroup").textContent = b.group || "MY BIAS";
-    const photoCss = b.photo ? `url(${b.photo})` : "";
-    $("heroPhoto").style.backgroundImage = photoCss;
-    $("sideAvatar").style.backgroundImage = photoCss;
+    // 홈/사이드바 아바타: 프로필 상세와 같은 coverFit("avatar") 적용 → 크기·위치 조정이 그대로 반영(WYSIWYG)
+    applyAvatarPhoto($("heroPhoto"), b);
+    applyAvatarPhoto($("sideAvatar"), b);
 
     $("heroBadges").innerHTML = buildBadges(b, ddText);
     const hc = $("homeCover");
@@ -1845,7 +1907,12 @@
       });
     });
     (S.biases || []).forEach((b) => { assignImgKey(b, "photo", "photoKey"); assignImgKey(b, "cover", "coverKey"); });
-    (S.styles || []).forEach((s) => { assignImgKey(s, "img", "imgKey"); });
+    (S.styles || []).forEach((s) => {
+      assignImgKey(s, "img", "imgKey");
+      if (Array.isArray(s.imgs) && s.imgs.length && s.imgs.every((im) => typeof im === "string" && im.indexOf("data:") === 0)) {
+        s.imgKeys = s.imgs.map((im) => { const key = imgKeyOf(im); if (!imgStored.has(key)) { imgStored.add(key); imgPut(key, im); } return key; });
+      }
+    });
     assignImgKey(S.membership, "photo", "photoKey");
     assignImgKey(S.membership, "memberPhoto", "memberPhotoKey");
   }
@@ -1869,7 +1936,11 @@
       return d;
     });
     lite.biases = (S.biases || []).map((b) => stripImgField(stripImgField(b, "photo", "photoKey"), "cover", "coverKey"));
-    lite.styles = (S.styles || []).map((s) => stripImgField(s, "img", "imgKey"));
+    lite.styles = (S.styles || []).map((s) => {
+      let q = stripImgField(s, "img", "imgKey");
+      if (Array.isArray(s.imgs) && s.imgs.length && Array.isArray(s.imgKeys) && s.imgKeys.length === s.imgs.length) { q = Object.assign({}, q); delete q.imgs; }
+      return q;
+    });
     if (S.membership) lite.membership = stripImgField(stripImgField(S.membership, "photo", "photoKey"), "memberPhoto", "memberPhotoKey");
     return lite;
   }
@@ -1891,6 +1962,9 @@
     });
     (S.styles || []).forEach((s) => {
       if (!s.img && s.imgKey) tasks.push(imgGet(s.imgKey).then((v) => { if (v) s.img = v; }));
+      if ((!Array.isArray(s.imgs) || !s.imgs.length) && Array.isArray(s.imgKeys) && s.imgKeys.length) {
+        tasks.push(Promise.all(s.imgKeys.map((k) => { imgStored.add(k); return imgGet(k); })).then((vals) => { s.imgs = vals.filter((v) => v != null); }));
+      }
     });
     if (S.membership && !S.membership.photo && S.membership.photoKey) {
       tasks.push(imgGet(S.membership.photoKey).then((v) => { if (v) S.membership.photo = v; }));
@@ -2424,6 +2498,84 @@
   }
 
   /* ═══ 프로필 상세 페이지 ═══ */
+  // 위치·크기(coverFit) 그대로 반영해 캔버스에 이미지를 그림 (background cover + position + zoom/shift)
+  function drawCoverFit(ctx, img, bx, by, W, H, fit) {
+    const scale = Math.max(W / img.width, H / img.height);
+    const dw = img.width * scale, dh = img.height * scale;
+    const px = (fit && fit.pos ? fit.pos.x : 50) / 100, py = (fit && fit.pos ? fit.pos.y : 50) / 100;
+    const posX = (W - dw) * px, posY = (H - dh) * py;
+    const z = (fit && fit.zoom ? fit.zoom : 100) / 100;
+    const shx = (fit && fit.shift ? fit.shift.x : 0) * W, shy = (fit && fit.shift ? fit.shift.y : 0) * H;
+    const cx = bx + W / 2, cy = by + H / 2;
+    ctx.save();
+    ctx.translate(cx, cy); ctx.translate(shx, shy); ctx.scale(z, z); ctx.translate(-cx, -cy);
+    ctx.drawImage(img, bx + posX, by + posY, dw, dh);
+    ctx.restore();
+  }
+  function roundRectPath(ctx, x, y, w, h, r) {
+    ctx.beginPath(); ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+  const _loadImg = (src) => new Promise((res) => { if (!src) return res(null); const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+  // 프로필(배경+프로필 사진)을 공유용 카드 이미지로 합성 → 보기/저장/공유 모달
+  function openProfileShare() {
+    const b = curBias();
+    if (!b) return;
+    if (!b.cover && !b.photo) return toast("프로필 사진이나 배경을 먼저 등록해 주세요!");
+    toast("카드 이미지를 만드는 중…");
+    const W = 720, coverH = 330, avD = 168, r = avD / 2;
+    const avCY = coverH, textTop = coverH + r + 30, H = textTop + 130;
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
+    Promise.all([_loadImg(b.cover), _loadImg(b.photo)]).then(([ci, ai]) => {
+      // 배경
+      if (ci) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, coverH); ctx.clip(); drawCoverFit(ctx, ci, 0, 0, W, coverH, coverFit(b, "prof")); ctx.restore(); }
+      else { ctx.fillStyle = "#d9d9de"; ctx.fillRect(0, 0, W, coverH); }
+      // 아바타 흰 링
+      ctx.save(); ctx.beginPath(); ctx.arc(W / 2, avCY, r + 7, 0, Math.PI * 2); ctx.fillStyle = "#ffffff"; ctx.fill(); ctx.restore();
+      ctx.save(); ctx.beginPath(); ctx.arc(W / 2, avCY, r, 0, Math.PI * 2); ctx.clip();
+      if (ai) drawCoverFit(ctx, ai, W / 2 - r, avCY - r, avD, avD, coverFit(b, "avatar"));
+      else { ctx.fillStyle = "#e9e9ee"; ctx.fillRect(W / 2 - r, avCY - r, avD, avD); }
+      ctx.restore();
+      // 텍스트
+      ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = "#141414"; ctx.font = "bold 36px sans-serif"; ctx.fillText(b.name || "최애", W / 2, textTop + 20);
+      ctx.fillStyle = "#9a9aa0"; ctx.font = "bold 15px sans-serif"; ctx.fillText((b.group || "MY BIAS").toUpperCase(), W / 2, textTop + 46);
+      const dd = dPlus(b.startDate); const ddText = dd ? `덕질 D+${dd} ♥` : "덕질 ♥";
+      ctx.font = "bold 15px sans-serif";
+      const bw = ctx.measureText(ddText).width + 30, bh = 32, bx = W / 2 - bw / 2, by = textTop + 64;
+      ctx.fillStyle = "#141414"; roundRectPath(ctx, bx, by, bw, bh, 16); ctx.fill();
+      ctx.fillStyle = "#ffffff"; ctx.fillText(ddText, W / 2, by + 21);
+      ctx.fillStyle = "#c4c4cc"; ctx.font = "600 12px sans-serif"; ctx.fillText("MY STAR CALENDAR", W / 2, H - 16);
+      showProfileCard(c, b);
+    });
+  }
+  function showProfileCard(canvas, b) {
+    canvas.toBlob((blob) => {
+      if (!blob) return toast("이미지를 만들지 못했어요");
+      const url = URL.createObjectURL(blob);
+      const fname = `프로필_${b.name || "최애"}.png`;
+      openModalRaw("프로필 카드", `
+        <img src="${url}" alt="프로필 카드" style="width:100%;border-radius:12px;margin-bottom:14px;display:block">
+        <div class="btn-row">
+          <button class="btn btn-primary btn-sm" id="pcardSave">이미지 저장</button>
+          ${navigator.share ? `<button class="btn btn-ghost btn-sm" id="pcardShare">${I("share")} 공유</button>` : ""}
+        </div>`);
+      $("pcardSave").onclick = () => { const a = document.createElement("a"); a.href = url; a.download = fname; document.body.appendChild(a); a.click(); a.remove(); toast("이미지를 저장했어요"); };
+      const sh = $("pcardShare");
+      if (sh) sh.onclick = async () => {
+        try {
+          const file = new File([blob], fname, { type: "image/png" });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: b.name || "프로필" });
+          else await navigator.share({ title: b.name || "프로필" });
+        } catch (e) {}
+      };
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }, "image/png");
+  }
+
   function renderProfile() {
     const b = curBias();
     if (!b || !$("profName")) return;
@@ -2492,11 +2644,30 @@
       ? `translate(${(fit.shift.x * 100).toFixed(2)}%, ${(fit.shift.y * 100).toFixed(2)}%) scale(${z})`
       : "";
   }
+  // 작은 원형 아바타(홈 hero·사이드바)도 프로필 상세와 같은 avatar coverFit을 적용 — 내부 .av-bg를 만들어 변형
+  function applyAvatarPhoto(el, b) {
+    if (!el) return;
+    let bg = el.querySelector(":scope > .av-bg");
+    if (b && b.photo) {
+      if (!bg) { bg = document.createElement("i"); bg.className = "av-bg"; el.appendChild(bg); }
+      bg.style.backgroundImage = `url(${b.photo})`;
+      applyCoverFitTo(bg, coverFit(b, "avatar"));
+      el.style.backgroundImage = "";
+    } else {
+      if (bg) bg.remove();
+      el.style.backgroundImage = "";
+    }
+  }
   function applyAllCoverFits(b) {
     if (!b) return;
     applyCoverFitTo($("homeCoverBg"), coverFit(b, "home"));
     applyCoverFitTo($("profCover"), coverFit(b, "prof"));
     applyCoverFitTo($("profAvatarBg"), coverFit(b, "avatar"));
+    // 홈/사이드바 아바타도 같은 avatar 값으로 즉시 갱신
+    ["heroPhoto", "sideAvatar"].forEach((id) => {
+      const wrap = $(id); const bg = wrap && wrap.querySelector(":scope > .av-bg");
+      if (bg) applyCoverFitTo(bg, coverFit(b, "avatar"));
+    });
   }
   function clampShift(fit) {
     const z = (fit.zoom || 100) / 100;
@@ -3505,6 +3676,60 @@
   }
 
   /* ═══════════ 포카 바인더 ═══════════ */
+  // 캔버스에 이미지를 박스에 꽉 차게(cover) 그림
+  function coverDrawImg(ctx, img, x, y, w, h) {
+    const ir = img.width / img.height, br = w / h;
+    let sw, sh, sx, sy;
+    if (ir > br) { sh = img.height; sw = sh * br; sx = (img.width - sw) / 2; sy = 0; }
+    else { sw = img.width; sh = sw / br; sx = 0; sy = (img.height - sh) / 2; }
+    ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+  }
+  function roundRectClip(ctx, x, y, w, h, r) {
+    ctx.beginPath(); ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); ctx.clip();
+  }
+  // 위시 포카를 한 장 이미지로 합성해 저장 (교환글·공유용)
+  function exportWishPocas() {
+    const wish = byBias(S.photocards).filter((p) => p.status === "wish");
+    if (!wish.length) return toast("위시 포카가 없어요");
+    const b = curBias();
+    const cw = 240, ch = Math.round(cw * 8.5 / 5.5), pad = 18, lblH = 34;
+    const cols = Math.min(4, wish.length), rows = Math.ceil(wish.length / cols), headH = 70;
+    const W = cols * cw + (cols + 1) * pad;
+    const H = headH + rows * (ch + lblH) + (rows + 1) * pad;
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#141414"; ctx.font = "bold 24px sans-serif"; ctx.textBaseline = "middle"; ctx.textAlign = "left";
+    ctx.fillText(`${b ? b.name : "최애"} 위시 포카 (${wish.length})`, pad, headH / 2 + 4);
+    const cellXY = (i) => { const r = Math.floor(i / cols), cl = i % cols; return { x: pad + cl * (cw + pad), y: headH + pad + r * (ch + lblH + pad) }; };
+    let i = 0;
+    const finish = () => {
+      c.toBlob((blob) => {
+        if (!blob) return toast("이미지를 만들지 못했어요");
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url; a.download = `위시포카_${b ? b.name : "최애"}.png`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+        toast("위시 포카 이미지를 저장했어요");
+      }, "image/png");
+    };
+    const next = () => {
+      if (i >= wish.length) return finish();
+      const p = wish[i]; const { x, y } = cellXY(i); i++;
+      const label = () => { ctx.fillStyle = "#141414"; ctx.font = "14px sans-serif"; ctx.textAlign = "center"; ctx.fillText((p.name || "").slice(0, 16), x + cw / 2, y + ch + lblH / 2); ctx.textAlign = "left"; };
+      const ph = () => { ctx.fillStyle = "#f2f2f2"; ctx.fillRect(x, y, cw, ch); ctx.fillStyle = "#aaaaaa"; ctx.font = "15px sans-serif"; ctx.textAlign = "center"; ctx.fillText((p.name || "포카").slice(0, 12), x + cw / 2, y + ch / 2); ctx.textAlign = "left"; };
+      if (p.img) {
+        const im = new Image();
+        im.onload = () => { ctx.save(); roundRectClip(ctx, x, y, cw, ch, 12); coverDrawImg(ctx, im, x, y, cw, ch); ctx.restore(); label(); next(); };
+        im.onerror = () => { ph(); label(); next(); };
+        im.src = p.img;
+      } else { ph(); label(); next(); }
+    };
+    next();
+  }
+
   function binderTab(mode) {
     binderMode = mode;
     binderPage = 0;
@@ -3539,6 +3764,19 @@
       });
     }
     if (binderAlbum !== "all") cards = cards.filter((p) => p.album === binderAlbum);
+
+    // 검색·정렬 툴바 연결(정적 요소라 한 번만 연결)
+    const bSearch = $("binderSearch"), bSort = $("binderSort"), bWx = $("binderWishExport");
+    if (bSearch) { if (document.activeElement !== bSearch && bSearch.value !== binderSearch) bSearch.value = binderSearch; bSearch.oninput = () => { binderSearch = bSearch.value; binderPage = 0; renderBinder(); }; }
+    if (bSort) { bSort.value = binderSort; bSort.onchange = () => { binderSort = bSort.value; binderPage = 0; renderBinder(); }; }
+    if (bWx) bWx.onclick = exportWishPocas;
+    // 검색어 필터
+    const bq = (binderSearch || "").trim().toLowerCase();
+    if (bq) cards = cards.filter((p) => (p.name || "").toLowerCase().includes(bq) || (p.album || "").toLowerCase().includes(bq));
+    // 정렬 (manual=배열 순서 그대로, 드래그 정렬 가능)
+    if (binderSort === "name") cards = cards.slice().sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
+    else if (binderSort === "recent") cards = cards.slice().reverse();
+    const canDrag = binderSort === "manual" && !bq;
 
     // ── 페이지 단위 바인더: 열 수는 화면 폭을 채우고(모바일 3×3, PC 다열), 한 페이지가 한 화면에 들어오게 ──
     const grid = $("binderGrid");
@@ -3575,6 +3813,8 @@
       <div class="poca-slot ${p.img ? "" : "noimg"}" data-pid="${p.id}">
         ${p.img ? `<img src="${p.img}" alt="${p.name ? "" : "포토카드"}" draggable="false">` : esc(p.name)}
         ${p.img && p.name ? `<span class="pc-label">${esc(p.name)}</span>` : ""}
+        ${(+p.qty > 1) ? `<span class="pc-qty">×${+p.qty}</span>` : ""}
+        ${p.imgBack ? `<span class="pc-twoside">양면</span>` : ""}
       </div>`).join("");
     const emptyCount = PER_PAGE - pageCards.length; // 남은 칸을 빈 포켓으로 채움 (모두 동일하게)
     for (let i = 0; i < emptyCount; i++) {
@@ -3582,11 +3822,12 @@
     }
     grid.innerHTML = html;
     grid.querySelectorAll("[data-add]").forEach((el) => { el.onclick = () => openModal("poca"); });
-    bindPocaCards(grid);
+    bindPocaCards(grid, canDrag);
     const bHint = $("binderHint");
     if (bHint) {
-      if (cards.length === 0) { bHint.textContent = "빈 칸을 눌러 첫 포카를 등록해 보세요"; bHint.classList.remove("hidden"); }
-      else if (cards.length >= 2) { bHint.textContent = "포카를 꾹 눌러 끌면 순서를 바꿀 수 있어요"; bHint.classList.remove("hidden"); }
+      if (cards.length === 0) { bHint.textContent = bq ? "검색 결과가 없어요" : "빈 칸을 눌러 첫 포카를 등록해 보세요"; bHint.classList.remove("hidden"); }
+      else if (canDrag && cards.length >= 2) { bHint.textContent = "포카를 꾹 눌러 끌면 순서를 바꿀 수 있어요"; bHint.classList.remove("hidden"); }
+      else if (!canDrag && cards.length >= 1) { bHint.textContent = "‘직접 정렬’일 때만 순서를 바꿀 수 있어요"; bHint.classList.remove("hidden"); }
       else bHint.classList.add("hidden");
     }
     // 첫 진입 등에서 그리드 너비가 늦게 잡혀 보유/위시 탭 칸 수가 달라 보이는 문제 보정:
@@ -3615,13 +3856,13 @@
   }
 
   // 포카 카드: 탭=상세보기 / 꾹 눌러 드래그=순서 변경
-  function bindPocaCards(grid) {
+  function bindPocaCards(grid, canDrag) {
     grid.querySelectorAll(".poca-slot[data-pid]").forEach((el) => {
       let down = null, lp = null;
       el.addEventListener("pointerdown", (e) => {
         if (e.button && e.button !== 0) return;
         down = { x: e.clientX, y: e.clientY };
-        lp = setTimeout(() => { lp = null; down = null; startPocaDrag(e, el, grid); }, 380);
+        if (canDrag) lp = setTimeout(() => { lp = null; down = null; startPocaDrag(e, el, grid); }, 380);
       });
       el.addEventListener("pointermove", (e) => {
         if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 10) {
@@ -3691,9 +3932,20 @@
     const p = S.photocards.find((x) => x.id === id);
     if (!p) return;
     const stName = { own: "보유", wish: "위시", trade: "교환 중" };
+    const prName = { 1: "높음 ★", 2: "보통", 3: "낮음" };
+    const sub = [
+      p.album ? esc(p.album) : "",
+      stName[p.status] || "",
+      (+p.qty > 1) ? `${+p.qty}장` : "",
+      p.price ? won(p.price) : "",
+      (p.status === "wish" && p.priority) ? `우선순위 ${prName[p.priority] || "보통"}` : "",
+      (p.status === "trade" && p.tradeWith) ? `교환: ${esc(p.tradeWith)}` : "",
+      p.memo ? esc(p.memo) : "",
+    ].filter(Boolean).join(" · ");
     openModalRaw(p.name || "포토카드", `
-      ${p.img ? `<img src="${p.img}" alt="${esc(p.name) || "포토카드"} 사진" style="max-width:100%;max-height:72vh;object-fit:contain;border-radius:12px;margin:0 auto 14px;display:block">` : ""}
-      <p style="font-size:12px;color:var(--muted);margin-bottom:14px">${p.album ? esc(p.album) + " · " : ""}${stName[p.status] || ""}${p.memo ? " · " + esc(p.memo) : ""}</p>
+      ${p.img ? `<img id="pcViewImg" src="${p.img}" data-front="${p.img}" ${p.imgBack ? `data-back="${p.imgBack}"` : ""} alt="${esc(p.name) || "포토카드"} 사진" style="max-width:100%;max-height:72vh;object-fit:contain;border-radius:12px;margin:0 auto 10px;display:block">` : ""}
+      ${p.imgBack ? `<div style="text-align:center;margin-bottom:10px"><button class="btn btn-ghost btn-sm" id="pcFlip">${I("refresh") || "↺"} 앞/뒤 뒤집기</button></div>` : ""}
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px">${sub}</p>
       <div class="btn-row">
         <button class="btn btn-primary btn-sm" id="pcMove">${p.status === "own" ? "위시로 이동" : "보유로 이동 (겟 완료!)"}</button>
         <button class="btn btn-ghost btn-sm" id="pcTrade">${p.status === "trade" ? "교환 완료 (보유로)" : "교환 중으로"}</button>
@@ -3702,6 +3954,8 @@
         <button class="btn btn-danger btn-sm" id="pcDel">삭제</button>
       </div>
     `);
+    const pcFlip = $("pcFlip");
+    if (pcFlip) pcFlip.onclick = () => { const im = $("pcViewImg"); if (!im) return; const showingBack = im.src === im.dataset.back; im.src = showingBack ? im.dataset.front : im.dataset.back; };
     $("pcTrade").onclick = () => {
       p.status = p.status === "trade" ? "own" : "trade";
       save(); closeModal(); binderTab(p.status); renderHome();
@@ -3802,10 +4056,13 @@
       const yByCat = {};
       yearExps.forEach((e) => (yByCat[e.category] = (yByCat[e.category] || 0) + +e.amount));
       const topCat = Object.entries(yByCat).sort((a, b2) => b2[1] - a[1])[0];
+      const yFx = yearExps.filter((e) => e.cur && e.cur !== "KRW");
+      const yFxTotal = yFx.reduce((a, e) => a + (+e.amount || 0), 0);
       ys.innerHTML = `
         <div class="ys-row"><span>${yearStr}년 총 지출</span><b>${won(yTotal)}</b></div>
         <div class="ys-row"><span>월평균 <small>(지출 있는 달 기준)</small></span><b>${won(Math.round(yTotal / activeMonths))}</b></div>
-        <div class="ys-row"><span>최다 카테고리</span><b>${topCat ? esc(topCat[0]) + " (" + won(topCat[1]) + ")" : "—"}</b></div>`;
+        <div class="ys-row"><span>최다 카테고리</span><b>${topCat ? esc(topCat[0]) + " (" + won(topCat[1]) + ")" : "—"}</b></div>`
+        + (yFxTotal > 0 ? `<div class="ys-row"><span>이 중 해외 결제 <small>(${yFx.length}건)</small></span><b>${won(yFxTotal)}</b></div>` : "");
     }
 
     // 카테고리 분해
@@ -3894,7 +4151,7 @@
             <span class="dot" style="background:${EXP_COLORS[i]}"></span>
             <div class="ex-main">
               <div class="ex-title">${esc(e.title)}</div>
-              <div class="ex-sub">${e.date} · ${esc(e.category)}${e.pay ? " · " + esc(e.pay) : ""}${e.memo ? " · " + esc(e.memo) : ""}</div>
+              <div class="ex-sub">${e.date} · ${esc(e.category)}${e.pay ? " · " + esc(e.pay) : ""}${e.cur && e.cur !== "KRW" ? ` · ${Number(e.fxAmount || 0).toLocaleString("ko-KR")}${curUnit(e.cur)} @${Number(e.fx || 0).toLocaleString("ko-KR")}원` : ""}${e.memo ? " · " + esc(e.memo) : ""}</div>
             </div>
             <span class="ex-amt">${won(e.amount)}</span>
             <button class="dl-del" data-eexp="${e.id}">${I("pencil")}</button>
@@ -4137,23 +4394,35 @@
     const all = byBias(S.styles);
     let items = all;
     if (styleMode !== "all") items = all.filter((s) => s.status === styleMode);
+    // 검색·정렬 툴바 연결
+    const sSearch = $("styleSearch"), sSort = $("styleSort");
+    if (sSearch) { if (document.activeElement !== sSearch && sSearch.value !== styleSearch) sSearch.value = styleSearch; sSearch.oninput = () => { styleSearch = sSearch.value; renderStyle(); }; }
+    if (sSort) { sSort.value = styleSort; sSort.onchange = () => { styleSort = sSort.value; renderStyle(); }; }
+    const sq = (styleSearch || "").trim().toLowerCase();
+    if (sq) items = items.filter((s) => [s.name, s.category, s.info, s.look, s.size, s.wornInfo].some((t) => (t || "").toLowerCase().includes(sq)));
+    if (styleSort === "name") items = items.slice().sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
+    else if (styleSort === "cat") items = items.slice().sort((a, b) => (a.category || "").localeCompare(b.category || "", "ko") || (a.name || "").localeCompare(b.name || "", "ko"));
+    else if (styleSort === "recent") items = items.slice().reverse();
     const stats = $("styleStats");
     if (stats) {
       const got = all.filter((s) => s.status === "bought").length;
       stats.textContent = all.length ? `전체 ${all.length} · 위시 ${all.length - got} · 겟 ${got}` : "";
     }
+    const stCover = (s) => (Array.isArray(s.imgs) && s.imgs[0]) || s.img || "";
     $("styleList").innerHTML = items.length
-      ? items.map((s) => `
+      ? items.map((s) => { const cover = stCover(s); return `
         <div class="st-card" data-sedit="${s.id}">
-          <div class="st-img" ${s.img ? `style="background-image:url(${s.img})"` : ""}>${s.img ? "" : I("tag")}</div>
+          <div class="st-img" ${cover ? `style="background-image:url(${cover})"` : ""}>${cover ? "" : I("tag")}${(Array.isArray(s.imgs) && s.imgs.length > 1) ? `<span class="st-imgcount">${s.imgs.length}</span>` : ""}</div>
           <button class="st-status ${s.status}" data-id="${s.id}">${s.status === "bought" ? `${I("check")} 겟!` : `${I("heart")} 위시`}</button>
           <div class="st-body">
-            <div class="st-name">${esc(s.name)}</div>
-            <div class="st-info">${esc(s.category || "")}${s.info ? " · " + esc(s.info) : ""}</div>
+            <div class="st-name">${esc(s.name)}${(s.status === "wish" && s.priority == 1) ? ` <span class="st-prio">★</span>` : ""}</div>
+            <div class="st-info">${esc(s.category || "")}${s.info ? " · " + esc(s.info) : ""}${s.size ? " · " + esc(s.size) : ""}${s.price ? " · " + won(s.price) : ""}</div>
+            ${(s.wornDate || s.wornInfo) ? `<div class="st-worn">${I("pin")} ${esc([s.wornDate, s.wornInfo].filter(Boolean).join(" "))}</div>` : ""}
+            ${s.look ? `<div class="st-look">#${esc(s.look)}</div>` : ""}
             ${s.link ? `<a class="st-link" href="${esc(safeUrl(s.link))}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${I("link")} 구매처</a>` : ""}
           </div>
-        </div>`).join("")
-      : `<div class="style-empty">최애가 입은 옷, 신발, 액세서리를 기록해 보세요 ✦<br>직접 구매하면 '겟!'으로 바꿀 수 있어요</div>`;
+        </div>`; }).join("")
+      : `<div class="style-empty">${sq ? "검색 결과가 없어요" : "최애가 입은 옷, 신발, 액세서리를 기록해 보세요 ✦<br>직접 구매하면 '겟!'으로 바꿀 수 있어요"}</div>`;
     $("styleList").querySelectorAll(".st-status").forEach((b) => {
       b.onclick = (e) => {
         e.stopPropagation();
@@ -4308,8 +4577,10 @@
     if (ttfl) ttfl.classList.toggle("on", S.ttFixedLink !== false);
     const ttlk = $("ttLinkSwitch");
     if (ttlk) ttlk.classList.toggle("on", !!S.ttLink);
-    const ttwk = $("ttWeekendSwitch");
-    if (ttwk) ttwk.classList.toggle("on", !!S.ttHideWeekend);
+    ["fixed", "week", "circle"].forEach((v) => {
+      const el = $("ttWeekendSwitch_" + v);
+      if (el) el.classList.toggle("on", ttHideWeekendFor(v));
+    });
     const ps = $("patstyleTabs");
     if (ps) {
       ps.innerHTML = PATSTYLES.map(([id, name]) =>
@@ -4453,21 +4724,41 @@
         <img id="mpPreview" class="hidden" alt="선택한 사진 미리보기">
       </label>`;
   }
-  function bindPhotoPick(maxW) {
+  function bindPhotoPick(maxW, useCrop) {
     modalPhotoData = null;
     const box = $("mpBox");
     if (!box) return;
+    const set = (data) => { modalPhotoData = data; $("mpPreview").src = data; $("mpPreview").classList.remove("hidden"); $("mpHint").classList.add("hidden"); };
     // 라벨(mpBox)이 파일 입력을 자동으로 열기 때문에 onclick으로 또 열지 않음
     $("mpInput").onchange = (e) => {
       const f = e.target.files[0];
       e.target.value = "";
       if (!f) return;
-      fileToData(f, maxW || 700, (data) => {
-        modalPhotoData = data;
-        $("mpPreview").src = data;
-        $("mpPreview").classList.remove("hidden");
-        $("mpHint").classList.add("hidden");
-      });
+      if (useCrop) openPhotoCropper(f, (data) => { if (data) set(data); });
+      else fileToData(f, maxW || 700, set);
+    };
+  }
+  // 뒷면(또는 보조) 사진용 별도 단일 피커
+  let modalPhotoBack = null;
+  function photoPickBackHtml(label) {
+    return `
+      <label class="photo-pick" id="mp2Box">
+        <input type="file" accept="image/*" id="mp2Input" hidden>
+        <span id="mp2Hint">${label || "+ 뒷면 사진 (선택)"}</span>
+        <img id="mp2Preview" class="hidden" alt="선택한 사진 미리보기">
+      </label>`;
+  }
+  function bindPhotoPickBack(useCrop) {
+    modalPhotoBack = null;
+    const box = $("mp2Box");
+    if (!box) return;
+    const set = (data) => { modalPhotoBack = data; $("mp2Preview").src = data; $("mp2Preview").classList.remove("hidden"); $("mp2Hint").classList.add("hidden"); };
+    $("mp2Input").onchange = (e) => {
+      const f = e.target.files[0];
+      e.target.value = "";
+      if (!f) return;
+      if (useCrop) openPhotoCropper(f, (data) => { if (data) set(data); });
+      else fileToData(f, 500, set);
     };
   }
 
@@ -4486,15 +4777,133 @@
     });
     const inp = $("mpsInput");
     if (inp) inp.onchange = (e) => {
-      [...e.target.files].slice(0, 5 - modalPhotosData.length).forEach((f) => {
-        fileToData(f, 900, (data) => { modalPhotosData.push(data); renderPhotosGrid(); });
-      });
+      const files = [...e.target.files].slice(0, 5 - modalPhotosData.length);
       e.target.value = "";
+      let i = 0;
+      const next = () => {
+        if (i >= files.length || modalPhotosData.length >= 5) { renderPhotosGrid(); return; }
+        const f = files[i++];
+        openPhotoCropper(f, (data) => { if (data) modalPhotosData.push(data); renderPhotosGrid(); next(); });
+      };
+      next();
     };
   }
   function bindPhotosPick(existing) {
     modalPhotosData = (existing || []).slice();
     renderPhotosGrid();
+  }
+
+  // ── 아카이브 사진 크롭 편집기: 비율(원본/1:1/3:4/9:16) 선택 + 드래그/확대로 보일 영역 지정 후 잘라 저장 ──
+  // 갤러리 원본은 절대 수정하지 않고, 잘린 복사본만 만들어 돌려줌 (onDone(dataUrl) / 취소 시 onDone(null))
+  const ARCH_RATIOS = [["orig", "원본", 0], ["1:1", "1:1", 1], ["3:4", "3:4", 3 / 4], ["9:16", "9:16", 9 / 16]];
+  function openPhotoCropper(file, onDone) {
+    const r = new FileReader();
+    r.onload = () => {
+      const img = new Image();
+      img.onload = () => buildCropper(img, onDone);
+      img.onerror = () => { toast("사진을 불러오지 못했어요"); onDone(null); };
+      img.src = r.result;
+    };
+    r.onerror = () => { toast("사진을 불러오지 못했어요"); onDone(null); };
+    r.readAsDataURL(file);
+  }
+  function buildCropper(img, onDone) {
+    const natW = img.naturalWidth, natH = img.naturalHeight;
+    let ratioKey = "1:1", tx = 0, ty = 0, z = 1;
+    let frameW = 0, frameH = 0, baseScale = 1, isOrig = false;
+
+    const ov = document.createElement("div");
+    ov.className = "crop-ov";
+    ov.innerHTML = `
+      <div class="crop-box" role="dialog" aria-label="사진 자르기" aria-modal="true">
+        <div class="crop-head"><b>사진 자르기</b><button class="crop-x" type="button" aria-label="닫기">${I("x")}</button></div>
+        <div class="crop-ratios">${ARCH_RATIOS.map(([k, l]) => `<button class="crop-ratio ${k === ratioKey ? "on" : ""}" type="button" data-r="${k}">${l}</button>`).join("")}</div>
+        <div class="crop-stage" id="cropStage"><img class="crop-img" id="cropImg" alt=""></div>
+        <div class="crop-zoom" id="cropZoomRow"><span>크기</span><input type="range" id="cropZoom" min="100" max="300" step="1" value="100"></div>
+        <p class="crop-hint">비율을 고르고, 사진을 끌어 위치를 · 슬라이더로 크기를 맞춰요</p>
+        <div class="crop-actions"><button class="btn btn-ghost btn-sm" type="button" id="cropCancel">취소</button><button class="btn btn-primary btn-sm" type="button" id="cropApply">적용</button></div>
+      </div>`;
+    document.body.appendChild(ov);
+    const stage = ov.querySelector("#cropStage");
+    const imEl = ov.querySelector("#cropImg");
+    const zoomEl = ov.querySelector("#cropZoom");
+    const zoomRow = ov.querySelector("#cropZoomRow");
+    imEl.src = img.src;
+
+    const maxW = Math.min(window.innerWidth * 0.82, 360);
+    const maxH = Math.min(window.innerHeight * 0.5, 420);
+
+    function layout() {
+      isOrig = ratioKey === "orig";
+      const aspect = isOrig ? (natW / natH) : ARCH_RATIOS.find((r) => r[0] === ratioKey)[2];
+      frameW = maxW; frameH = frameW / aspect;
+      if (frameH > maxH) { frameH = maxH; frameW = frameH * aspect; }
+      stage.style.width = frameW + "px"; stage.style.height = frameH + "px";
+      baseScale = isOrig ? Math.min(frameW / natW, frameH / natH) : Math.max(frameW / natW, frameH / natH);
+      imEl.style.width = (natW * baseScale) + "px";
+      imEl.style.height = (natH * baseScale) + "px";
+      imEl.style.marginLeft = (-natW * baseScale / 2) + "px";
+      imEl.style.marginTop = (-natH * baseScale / 2) + "px";
+      tx = 0; ty = 0; z = 1; zoomEl.value = 100;
+      zoomRow.style.display = isOrig ? "none" : "";
+      stage.classList.toggle("orig", isOrig);
+      apply();
+    }
+    function clamp() {
+      const ds = baseScale * z;
+      const limX = Math.max(0, (natW * ds - frameW) / 2);
+      const limY = Math.max(0, (natH * ds - frameH) / 2);
+      tx = Math.min(limX, Math.max(-limX, tx));
+      ty = Math.min(limY, Math.max(-limY, ty));
+    }
+    function apply() {
+      if (!isOrig) clamp();
+      imEl.style.transform = `translate(${tx}px, ${ty}px) scale(${z})`;
+    }
+    stage.onpointerdown = (e) => {
+      if (isOrig) return;
+      e.preventDefault();
+      const sx = e.clientX, sy = e.clientY, ox = tx, oy = ty;
+      const mv = (ev) => { tx = ox + (ev.clientX - sx); ty = oy + (ev.clientY - sy); apply(); };
+      const up = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); };
+      window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up);
+    };
+    zoomEl.oninput = (e) => { z = Math.min(3, Math.max(1, (+e.target.value || 100) / 100)); apply(); };
+    ov.querySelectorAll("[data-r]").forEach((b) => {
+      b.onclick = () => { ratioKey = b.dataset.r; ov.querySelectorAll("[data-r]").forEach((x) => x.classList.toggle("on", x === b)); layout(); };
+    });
+
+    const close = () => ov.remove();
+    const cancel = () => { close(); onDone(null); };
+    ov.querySelector(".crop-x").onclick = cancel;
+    ov.querySelector("#cropCancel").onclick = cancel;
+    ov.onclick = (e) => { if (e.target === ov) cancel(); };
+    ov.querySelector("#cropApply").onclick = () => { const data = renderCrop(); close(); onDone(data); };
+
+    function renderCrop() {
+      const c = document.createElement("canvas"), maxLong = 1000;
+      if (isOrig) {
+        const sc = Math.min(1, maxLong / Math.max(natW, natH));
+        c.width = Math.max(1, Math.round(natW * sc)); c.height = Math.max(1, Math.round(natH * sc));
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      } else {
+        clamp();
+        const ds = baseScale * z;
+        let sw = frameW / ds, sh = frameH / ds;
+        let sx = (natW * ds / 2 - frameW / 2 - tx) / ds;
+        let sy = (natH * ds / 2 - frameH / 2 - ty) / ds;
+        sx = Math.max(0, Math.min(natW - sw, sx));
+        sy = Math.max(0, Math.min(natH - sh, sy));
+        const aspect = sw / sh;
+        let outW, outH;
+        if (aspect >= 1) { outW = Math.min(maxLong, Math.round(sw)); outH = Math.round(outW / aspect); }
+        else { outH = Math.min(maxLong, Math.round(sh)); outW = Math.round(outH * aspect); }
+        c.width = Math.max(1, outW); c.height = Math.max(1, outH);
+        c.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+      }
+      return c.toDataURL("image/jpeg", 0.85);
+    }
+    layout();
   }
 
   /* 공지사항 목록 HTML */
@@ -4586,6 +4995,9 @@
           <select id="mCat"></select>
         </div>
         <div class="field"><label>날짜 *</label><input type="date" id="mDate" value="${baseDate}"></div>
+        ${edit ? "" : `<div class="field" id="mMultiField"><label>여러 날 한 번에 <small>(콘서트 3일 등 — 날짜 골라 '추가')</small></label>
+          <div class="multidate-row"><input type="date" id="mDateExtra"><button type="button" class="btn btn-ghost btn-sm" id="mDateAdd">+ 추가</button></div>
+          <div class="date-chips" id="mDateChips"></div></div>`}
         <div class="field"><label>시간</label><input type="time" id="mTime"></div>
         <div class="field"><label>장소</label><input type="text" id="mPlace" placeholder=""></div>
         <div class="field"><label>링크 <small>(티켓팅이면 예매처 링크!)</small></label><input type="url" id="mLink" placeholder="https://"></div>
@@ -4624,6 +5036,22 @@
           d.setMonth(d.getMonth() + 3);
           $("mRepEnd").value = fmtDate(d);
         }
+      };
+      // 여러 날 추가 (콘서트 3일 등) — 칩으로 모아 한 번에 등록
+      let extraDates = [];
+      const mAddBtn = $("mDateAdd"), mExtra = $("mDateExtra"), mChips = $("mDateChips");
+      const renderDateChips = () => {
+        if (!mChips) return;
+        mChips.innerHTML = extraDates.slice().sort().map((d) => `<span class="date-chip">${d.replace(/-/g, ".")}<button type="button" data-rmd="${d}" aria-label="삭제">×</button></span>`).join("");
+        mChips.querySelectorAll("[data-rmd]").forEach((b) => { b.onclick = () => { extraDates = extraDates.filter((x) => x !== b.dataset.rmd); renderDateChips(); }; });
+      };
+      if (mExtra) { const d0 = new Date(($("mDate").value || baseDate) + "T00:00:00"); d0.setDate(d0.getDate() + 1); mExtra.value = fmtDate(d0); }
+      if (mAddBtn) mAddBtn.onclick = () => {
+        const v = mExtra.value; if (!v) return;
+        if (v === $("mDate").value) return toast("맨 위 날짜와 같아요");
+        if (!extraDates.includes(v)) extraDates.push(v);
+        renderDateChips();
+        const d = new Date(v + "T00:00:00"); d.setDate(d.getDate() + 1); mExtra.value = fmtDate(d); // 연속 추가 편하게 다음 날 자동
       };
       const dg = $("mDelGroup");
       if (dg) dg.onclick = () => {
@@ -4679,6 +5107,11 @@
               }
             }
             toast(`반복 일정 ${n}개를 등록했어요`);
+          } else if (extraDates.length) {
+            const all = [...new Set([data.date, ...extraDates])].sort();
+            const groupId = uid();
+            all.forEach((ds) => S.schedules.push({ id: uid(), biasId: S.currentBias, ...data, date: ds, groupId }));
+            toast(`${all.length}개 날짜에 일정을 등록했어요`);
           } else {
             S.schedules.push({ id: uid(), biasId: S.currentBias, ...data });
             toast("일정을 등록했어요");
@@ -4697,7 +5130,13 @@
       const edit = editId ? S.expenses.find((x) => x.id === editId) : null;
       openModalRaw(edit ? "지출 수정" : "지출 기록", `
         <div class="field"><label>내용 *</label><input type="text" id="mTitle" placeholder=""></div>
-        <div class="field"><label>금액 (원) *</label><input type="number" id="mAmount" placeholder="" min="0"></div>
+        <div class="field"><label>금액 *</label>
+          <div class="amt-row"><input type="text" id="mAmount" inputmode="numeric" placeholder="0원"><select id="mCur">${CURRENCIES.map(([c, u, sfx, lbl]) => `<option value="${c}">${lbl}</option>`).join("")}</select></div>
+        </div>
+        <div class="field" id="mFxField" style="display:none"><label>환율 <small>(1 <span id="mFxUnit">USD</span> = ? 원)</small></label>
+          <input type="text" id="mFx" inputmode="decimal" placeholder="예: 1380">
+          <p class="hint" id="mFxPreview" style="margin:6px 0 0"></p>
+        </div>
         <div class="field"><label>카테고리</label>
           <select id="mCat">${EXP_CATS.map((c) => `<option>${c}</option>`).join("")}</select>
         </div>
@@ -4708,22 +5147,57 @@
         <div class="field"><label>메모 <small>(왜 샀는지, 어디가 이뻤는지)</small></label><input type="text" id="mMemo"></div>
         <button class="btn btn-primary btn-lg" id="mSave">저장</button>
       `);
+      const fxRate = () => parseFloat(($("mFx").value || "").replace(/[^\d.]/g, "")) || 0;
+      const updFxPreview = () => {
+        const cur = $("mCur").value;
+        if (cur === "KRW") { $("mFxPreview").textContent = ""; return; }
+        const amt = amtNum($("mAmount")), rate = fxRate();
+        $("mFxPreview").textContent = (amt && rate) ? `≈ ${won(Math.round(amt * rate))}` : "금액과 환율을 입력하면 원화로 환산돼요";
+      };
+      const applyCur = () => {
+        const cur = $("mCur").value, foreign = cur !== "KRW";
+        const keep = amtNum($("mAmount")); // 현재 입력 숫자 유지(소수 포함)
+        attachAmountInput($("mAmount"), keep || null, curUnit(cur), curDec(cur), updFxPreview);
+        $("mFxField").style.display = foreign ? "" : "none";
+        if (foreign) {
+          $("mFxUnit").textContent = cur;
+          if (!fxRate() && S.lastFx && S.lastFx[cur]) $("mFx").value = String(S.lastFx[cur]); // 통화별 마지막 환율 자동 채움
+        }
+        updFxPreview();
+      };
+      $("mCur").onchange = () => { $("mFx").value = ""; applyCur(); };
+      $("mFx").oninput = () => { const v = ($("mFx").value || "").replace(/[^\d.]/g, ""); const i = v.indexOf("."); $("mFx").value = i < 0 ? v : v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, ""); updFxPreview(); };
+      attachAmountInput($("mAmount"), null, "원", 0, updFxPreview);
       if (edit) {
         $("mTitle").value = edit.title;
-        $("mAmount").value = edit.amount;
         $("mCat").value = edit.category;
         $("mPay").value = edit.pay || PAY_METHODS[0];
         $("mDate").value = edit.date;
         $("mMemo").value = edit.memo || "";
+        $("mCur").value = (edit.cur && CURRENCIES.some((c) => c[0] === edit.cur)) ? edit.cur : "KRW";
+        if (edit.cur && edit.cur !== "KRW") { $("mFx").value = edit.fx ? String(edit.fx) : ""; attachAmountInput($("mAmount"), edit.fxAmount || edit.amount, curUnit(edit.cur), curDec(edit.cur), updFxPreview); }
+        else attachAmountInput($("mAmount"), edit.amount, "원", 0, updFxPreview);
         $("mSave").textContent = "수정 완료";
       }
+      applyCur();
       $("mSave").onclick = () => {
         const title = $("mTitle").value.trim();
-        const amount = +$("mAmount").value;
-        if (!title || !amount) return toast("내용과 금액을 입력해 주세요!");
+        const cur = $("mCur").value;
+        let amount, fx = null, fxAmount = null;
+        if (cur === "KRW") {
+          amount = Math.round(amtNum($("mAmount")));
+          if (!title || !amount) return toast("내용과 금액을 입력해 주세요!");
+        } else {
+          fxAmount = amtNum($("mAmount")); fx = fxRate();
+          if (!title || !fxAmount || !fx) return toast("내용·금액·환율을 입력해 주세요!");
+          amount = Math.round(fxAmount * fx);
+          if (!S.lastFx) S.lastFx = {};
+          S.lastFx[cur] = fx; // 통화별 마지막 환율 기억
+        }
         const data = {
           title, amount, category: $("mCat").value, pay: $("mPay").value,
           date: $("mDate").value || todayKey(), memo: $("mMemo").value.trim(),
+          cur, fx, fxAmount,
         };
         if (edit) Object.assign(edit, data);
         else S.expenses.push({ id: uid(), biasId: S.currentBias, ...data });
@@ -4814,34 +5288,65 @@
     if (type === "poca") {
       const edit = editId ? S.photocards.find((x) => x.id === editId) : null;
       openModalRaw(edit ? "포카 수정" : "포카 등록", `
-        ${photoPickHtml("+ 포카 사진 추가")}
+        <div class="poca-pick-row">
+          <div class="poca-pick-col">${photoPickHtml("+ 앞면 사진")}<span class="poca-pick-cap">앞면</span></div>
+          <div class="poca-pick-col">${photoPickBackHtml("+ 뒷면 (선택)")}<span class="poca-pick-cap">뒷면</span></div>
+        </div>
         <div class="field"><label>이름 / 버전 *</label><input type="text" id="mTitle" placeholder=""></div>
         <div class="field"><label>앨범 / 출처</label><input type="text" id="mAlbum" placeholder=""></div>
         <div class="field"><label>상태</label>
           <select id="mPStatus"><option value="own">보유</option><option value="wish">위시</option><option value="trade">교환 중</option></select>
         </div>
-        <div class="field"><label>메모</label><input type="text" id="mMemo" placeholder="교환처, 구매가 등"></div>
+        <div class="field"><label>수량 <small>(중복 보유 장수)</small></label><input type="number" id="mQty" min="1" step="1" value="1"></div>
+        <div class="field" id="mWishFields"><label>위시 우선순위</label>
+          <select id="mPriority"><option value="2">보통</option><option value="1">높음 ★</option><option value="3">낮음</option></select>
+        </div>
+        <div class="field"><label>가격 <small>(선택 · 구매가/시세)</small></label><input type="text" id="mPrice" inputmode="numeric" placeholder="0원"></div>
+        <div class="field" id="mTradeField"><label>교환 정보 <small>(상대·플랫폼)</small></label><input type="text" id="mTradeWith" placeholder="예: @닉네임 / 트위터"></div>
+        <div class="field"><label>메모</label><input type="text" id="mMemo" placeholder="구매처, 상태 등"></div>
         <button class="btn btn-primary btn-lg" id="mSave">바인더에 넣기</button>
       `);
-      bindPhotoPick(500);
+      bindPhotoPick(500, true);
+      bindPhotoPickBack(true);
+      attachWonInput($("mPrice"));
+      const pocaSyncFields = () => {
+        const st = $("mPStatus").value;
+        $("mWishFields").style.display = st === "wish" ? "" : "none";
+        $("mTradeField").style.display = st === "trade" ? "" : "none";
+      };
+      $("mPStatus").onchange = pocaSyncFields;
       if (edit) {
         $("mTitle").value = edit.name || "";
         $("mAlbum").value = edit.album || "";
         $("mPStatus").value = edit.status;
         $("mMemo").value = edit.memo || "";
+        $("mQty").value = edit.qty || 1;
+        $("mPriority").value = String(edit.priority || 2);
+        $("mTradeWith").value = edit.tradeWith || "";
+        if (edit.price) attachWonInput($("mPrice"), edit.price);
         if (edit.img) { $("mpPreview").src = edit.img; $("mpPreview").classList.remove("hidden"); $("mpHint").classList.add("hidden"); }
+        if (edit.imgBack) { $("mp2Preview").src = edit.imgBack; $("mp2Preview").classList.remove("hidden"); $("mp2Hint").classList.add("hidden"); }
         $("mSave").textContent = "수정 완료";
       }
+      pocaSyncFields();
       $("mSave").onclick = () => {
         const name = $("mTitle").value.trim();
         if (!name && !modalPhotoData && !(edit && edit.img)) return toast("사진 또는 이름을 넣어주세요!");
         const status = $("mPStatus").value;
         const album = $("mAlbum").value.trim();
+        const fields = {
+          name, album, memo: $("mMemo").value.trim(), status,
+          qty: Math.max(1, +$("mQty").value || 1),
+          priority: +$("mPriority").value || 2,
+          price: wonValue($("mPrice")),
+          tradeWith: $("mTradeWith").value.trim(),
+        };
         if (edit) {
-          Object.assign(edit, { name, album, memo: $("mMemo").value.trim(), status });
+          Object.assign(edit, fields);
           if (modalPhotoData) { edit.img = modalPhotoData; delete edit.imgKey; } // 새 사진이면 키 새로 부여되게 비움
+          if (modalPhotoBack) { edit.imgBack = modalPhotoBack; delete edit.imgBackKey; }
         } else {
-          S.photocards.push({ id: uid(), biasId: S.currentBias, name, album, img: modalPhotoData, memo: $("mMemo").value.trim(), status });
+          S.photocards.push({ id: uid(), biasId: S.currentBias, img: modalPhotoData, imgBack: modalPhotoBack, ...fields });
         }
         save(); closeModal(); renderHome(); binderTab(status); go("binder");
         toast(edit ? "포카 정보를 수정했어요" : "바인더에 쏙 넣었어요");
@@ -4852,44 +5357,91 @@
     /* 스타일 아이템 등록/수정 */
     if (type === "styleItem") {
       const edit = editId ? S.styles.find((x) => x.id === editId) : null;
+      const catOpts = (sel) => effStyleCats().map((c) => `<option ${c === sel ? "selected" : ""}>${esc(c)}</option>`).join("") + `<option value="__add">+ 분류 직접 추가…</option>`;
       openModalRaw(edit ? "스타일 아이템 수정" : "스타일 아이템 등록", `
-        ${photoPickHtml("+ 아이템 사진 (선택)")}
+        ${photosPickHtml()}
         <div class="field"><label>아이템 이름 *</label><input type="text" id="mTitle" placeholder=""></div>
         <div class="field"><label>분류</label>
-          <select id="mCat">${ST_CATS.map((c) => `<option>${c}</option>`).join("")}</select>
+          <select id="mCat">${catOpts(edit ? edit.category : ST_CATS[0])}</select>
         </div>
         <div class="field"><label>브랜드 / 정보</label><input type="text" id="mInfo" placeholder=""></div>
+        <div class="field"><label>사이즈 / 컬러 <small>(선택)</small></label><input type="text" id="mSize" placeholder="예: M / 블랙"></div>
+        <div class="field"><label>가격 <small>(선택)</small></label><input type="text" id="mPrice" inputmode="numeric" placeholder="0원"></div>
         <div class="field"><label>구매처 링크 <small>(선택 · 사고 싶은 곳 / 산 곳)</small></label><input type="url" id="mLink2" placeholder="https://"></div>
+        <div class="field"><label>착용 정보 <small>(어디서 착용)</small></label><input type="text" id="mWorn" placeholder="예: 인천공항 / OO무대"></div>
+        <div class="field"><label>착용 날짜 <small>(선택)</small></label><input type="date" id="mWornDate"></div>
+        <div class="field"><label>룩 / 코디 묶음 <small>(선택 · 같은 이름끼리 묶임)</small></label><input type="text" id="mLook" placeholder="예: 공항룩 6/20"></div>
         <div class="field"><label>상태</label>
           <select id="mStatus"><option value="wish">위시</option><option value="bought">구매 완료</option></select>
         </div>
+        <div class="field" id="mStPrio"><label>위시 우선순위</label>
+          <select id="mPriority2"><option value="2">보통</option><option value="1">높음 ★</option><option value="3">낮음</option></select>
+        </div>
+        <div class="field row-field" id="mLedgerField"><label>가계부에 지출로 추가 <small>(구매 완료 시)</small></label><label class="chk"><input type="checkbox" id="mToLedger"> <span></span></label></div>
         <button class="btn btn-primary btn-lg" id="mSave">저장</button>
         ${edit ? `<button class="btn btn-danger btn-lg slim" id="mDelStyle">이 아이템 삭제</button>` : ""}
       `);
-      bindPhotoPick(600);
+      bindPhotosPick(edit ? ((Array.isArray(edit.imgs) && edit.imgs.length) ? edit.imgs : (edit.img ? [edit.img] : [])) : []);
+      attachWonInput($("mPrice"));
+      const rebuildCats = (sel) => { $("mCat").innerHTML = catOpts(sel); };
+      $("mCat").onchange = () => {
+        if ($("mCat").value === "__add") {
+          const n = (prompt("새 분류 이름을 입력하세요") || "").trim();
+          if (n && !effStyleCats().includes(n)) { if (!Array.isArray(S.customStyleCats)) S.customStyleCats = []; S.customStyleCats.push(n); save(); }
+          rebuildCats(n || ST_CATS[0]);
+        }
+      };
+      const stSync = () => {
+        const st = $("mStatus").value;
+        if ($("mStPrio")) $("mStPrio").style.display = st === "wish" ? "" : "none";
+        if ($("mLedgerField")) $("mLedgerField").style.display = st === "bought" ? "" : "none";
+      };
+      $("mStatus").onchange = stSync;
       if (edit) {
         $("mTitle").value = edit.name;
         $("mCat").value = edit.category || ST_CATS[0];
         $("mInfo").value = edit.info || "";
+        $("mSize").value = edit.size || "";
+        if (edit.price) attachWonInput($("mPrice"), edit.price);
         $("mLink2").value = edit.link || "";
+        $("mWorn").value = edit.wornInfo || "";
+        $("mWornDate").value = edit.wornDate || "";
+        $("mLook").value = edit.look || "";
         $("mStatus").value = edit.status;
-        if (edit.img) { $("mpPreview").src = edit.img; $("mpPreview").classList.remove("hidden"); $("mpHint").classList.add("hidden"); }
+        $("mPriority2").value = String(edit.priority || 2);
+        if (edit.expenseId) { const ml = $("mToLedger"); if (ml) { ml.checked = true; ml.disabled = true; } } // 이미 연동됨
         $("mSave").textContent = "수정 완료";
       }
+      stSync();
       $("mSave").onclick = () => {
         const name = $("mTitle").value.trim();
         if (!name) return toast("아이템 이름을 입력해 주세요!");
+        let cat = $("mCat").value; if (cat === "__add") cat = ST_CATS[0];
+        const imgs = modalPhotosData.slice();
         const data = {
-          name, category: $("mCat").value, info: $("mInfo").value.trim(),
+          name, category: cat, info: $("mInfo").value.trim(),
+          size: $("mSize").value.trim(), price: wonValue($("mPrice")),
           link: $("mLink2").value.trim(), status: $("mStatus").value,
+          wornInfo: $("mWorn").value.trim(), wornDate: $("mWornDate").value || "",
+          look: $("mLook").value.trim(), priority: +$("mPriority2").value || 2,
         };
+        let target;
         if (edit) {
           Object.assign(edit, data);
-          if (modalPhotoData) edit.img = modalPhotoData;
+          edit.imgs = imgs; edit.img = imgs[0] || null; delete edit.imgKey; delete edit.imgKeys;
+          target = edit;
         } else {
-          S.styles.push({ id: uid(), biasId: S.currentBias, img: modalPhotoData, ...data });
+          target = { id: uid(), biasId: S.currentBias, imgs, img: imgs[0] || null, ...data };
+          S.styles.push(target);
         }
-        save(); closeModal(); renderStyle(); go("style");
+        // 가계부 연동: 구매 완료 + 가격 + 체크 + 아직 미연동일 때만 지출 1건 생성
+        const ml = $("mToLedger");
+        if (ml && ml.checked && !ml.disabled && data.status === "bought" && data.price > 0 && !target.expenseId) {
+          const exId = uid();
+          S.expenses.push({ id: exId, biasId: S.currentBias, title: name, amount: data.price, category: "굿즈·MD", pay: "카드", date: data.wornDate || todayKey(), memo: "스타일북 연동", cur: "KRW", fx: null, fxAmount: null });
+          target.expenseId = exId;
+        }
+        save(); closeModal(); renderStyle(); renderLedger(); renderHome(); go("style");
         toast(edit ? "아이템을 수정했어요" : "스타일북에 기록했어요");
       };
       const ds = $("mDelStyle");
@@ -5443,10 +5995,10 @@
   let ttGridDraft = null;   // 그리드 뷰: 시작~끝 잡은 임시 구간 {day, s, e, fixed}. 탭하면 입력 모달
   const TT_DOW = ["일", "월", "화", "수", "목", "금", "토"]; // 절대요일 (0=일)
   // 뷰별 주 시작 설정에 맞춘 표시 순서 (절대요일). 주말 제외 시 토·일 제거
-  const ttWeekOrder = (mode) => {
-    const ws = (mode === "circle" ? S.weekStartCircle : S.weekStartWeek) === "mon" ? 1 : 0;
+  const ttWeekOrder = (view) => {
+    const ws = (view === "circle" ? S.weekStartCircle : S.weekStartWeek) === "mon" ? 1 : 0;
     const base = ws === 1 ? [1, 2, 3, 4, 5, 6, 0] : [0, 1, 2, 3, 4, 5, 6];
-    return S.ttHideWeekend ? base.filter((d) => d !== 0 && d !== 6) : base;
+    return ttHideWeekendFor(view) ? base.filter((d) => d !== 0 && d !== 6) : base;
   };
   const TT_COLORS = ["var(--accent)", "#f7a8c4", "#f6b9a8", "#fbd6a0", "#fdeaa8", "#bfe6c2", "#a8dadc", "#b8c8f0", "#cdbdf0", "#d9d9de"];
   // 밝은 파스텔엔 어두운 글자, 진한 색엔 흰 글자 (가독성)
@@ -5518,7 +6070,7 @@
     openModalRaw("스케줄러 옵션", `
       <div class="field row-field"><label>고정 ↔ 주간 연동 <small>(끄면 주간에 고정 일정 숨김)</small></label><button class="switch ${S.ttFixedLink !== false ? "on" : ""}" id="optFixedLink"><span class="knob"></span></button></div>
       <div class="field row-field"><label>주간 ↔ 하루 연동 <small>(끄면 하루는 별도 일정)</small></label><button class="switch ${S.ttLink ? "on" : ""}" id="optLink"><span class="knob"></span></button></div>
-      <div class="field row-field"><label>주말 제외 <small>(월~금만 보기)</small></label><button class="switch ${S.ttHideWeekend ? "on" : ""}" id="optWeekend"><span class="knob"></span></button></div>
+      <div class="field row-field"><label>주말 제외 <small>(${TTWK_LABEL[ttView]} 보기 · 월~금)</small></label><button class="switch ${ttHideWeekendFor(ttView) ? "on" : ""}" id="optWeekend"><span class="knob"></span></button></div>
       <div class="field"><label>주간 주 시작</label>${wsRow("week", S.weekStartWeek)}</div>
       <div class="field"><label>하루 주 시작</label>${wsRow("circle", S.weekStartCircle)}</div>
       ${(ttView === "week" || fixed) ? `<div class="field row-field"><label>시간 범위 <small>(표에 보일 시간대)</small></label><button class="btn btn-ghost btn-sm" id="optRange">${rs}–${re}시 변경</button></div>` : ""}
@@ -5565,7 +6117,7 @@
     blocks.forEach((b) => { minH = Math.min(minH, Math.floor(b.start / 60)); maxH = Math.max(maxH, Math.ceil(b.end / 60)); });
     if (maxH < minH + 1) maxH = minH + 1;
     const hh = 42;
-    const order = ttWeekOrder("week");
+    const order = ttWeekOrder(fixed ? "fixed" : "week");
     const todayAbs = new Date().getDay();
     const showToday = (!fixed && ttKey() === ttKeyOf(new Date()));
     let heads = `<div class="tt-corner"></div>`;
@@ -5800,7 +6352,7 @@
     const circleNew = !edit && ttView === "circle" && !S.ttLink; // 연동 OFF 원형: 별도 데이터(week="circle")
     const noRepeat = fixed || circleNew || (edit && edit.week === "circle"); // 반복 토글 숨김
     let day = edit ? edit.day : (prefill.day != null ? prefill.day : (ttView === "circle" ? ttDay : new Date().getDay()));
-    if (!edit) { const _ord = ttWeekOrder(ttView === "circle" ? "circle" : "week"); if (!_ord.includes(day)) day = _ord[0]; } // 주말 제외 시 기본 요일 보정
+    if (!edit) { const _ord = ttWeekOrder(ttView); if (!_ord.includes(day)) day = _ord[0]; } // 주말 제외 시 기본 요일 보정
     const start = prefill.start != null ? prefill.start : (edit ? edit.start : 9 * 60);
     const end = prefill.end != null ? prefill.end : (edit ? edit.end : Math.min(start + 60, 1440));
     let selDays = new Set(prefill.days && prefill.days.length ? prefill.days : [day]);
@@ -5811,7 +6363,7 @@
     openModalRaw(edit ? "일정 수정" : "일정 추가", `
       <div class="field"><label>제목 *</label><input type="text" id="ttT" value="${esc(ttTitle)}" placeholder="" maxlength="40"></div>
       <div class="field"><label>이모지 <small>(눌러서 제목에 붙이기)</small></label><div class="tt-emojipick" id="ttEmo">${["📌","⭐","💜","🎵","🎤","🎂","✈️","📺","🎧","🛍️"].map((e) => `<button type="button" data-e="${e}">${e}</button>`).join("")}</div></div>
-      <div class="field"><label>요일 <small>(여러 요일 선택 가능)</small></label><div class="tt-dowpick" id="ttDowPick">${ttWeekOrder(ttView === "circle" ? "circle" : "week").map((dayAbs) => `<button type="button" class="${selDays.has(dayAbs) ? "on" : ""} ${dayAbs === 6 ? "sat" : dayAbs === 0 ? "sun" : ""}" data-d="${dayAbs}">${TT_DOW[dayAbs]}</button>`).join("")}</div></div>
+      <div class="field"><label>요일 <small>(여러 요일 선택 가능)</small></label><div class="tt-dowpick" id="ttDowPick">${ttWeekOrder(ttView).map((dayAbs) => `<button type="button" class="${selDays.has(dayAbs) ? "on" : ""} ${dayAbs === 6 ? "sat" : dayAbs === 0 ? "sun" : ""}" data-d="${dayAbs}">${TT_DOW[dayAbs]}</button>`).join("")}</div></div>
       <div class="tt-timerow">
         <div class="field"><label>시작</label>${ttTimeSelect("ttS", start)}</div>
         <div class="field"><label>종료</label>${ttTimeSelect("ttE", end)}</div>
@@ -5864,7 +6416,7 @@
 
   window.App = {
     obNext, obPrev, obFinish, obSkip, extractFromPhoto, openColorFromPhoto,
-    go, toggleFab, toggleDark, toggleRetro, setRetroSkin, setRetroPos, setBg, setAlign, setWeekStart, toggleCalWeekStart, setWeekStartWeek, setWeekStartCircle, toggleTtLink, toggleTtFixedLink, toggleTtWeekend, setPatStyle, openFramePicker, openColorPicker, openBudget, openYearReview, toggleNotifyTicket, toggleHaptics, setVeil, setPreset, retroMin, retroMax, toggleDeco, toggleCoverPos, cardGo, coverDragStart, editCurrentBias, setTemplate, resetPresets, setMode,
+    go, toggleFab, toggleDark, toggleRetro, setRetroSkin, setRetroPos, setBg, setAlign, setWeekStart, toggleCalWeekStart, setWeekStartWeek, setWeekStartCircle, toggleTtLink, toggleTtFixedLink, toggleTtWeekend, toggleTtWeekendView, setPatStyle, openFramePicker, openColorPicker, openBudget, openYearReview, toggleNotifyTicket, toggleHaptics, setVeil, setPreset, retroMin, retroMax, toggleDeco, toggleCoverPos, cardGo, coverDragStart, editCurrentBias, setTemplate, resetPresets, setMode,
     calMove, calToday, calJump, openStickerPicker, shareDay,
     ttMove, ttThisWeek, ttSetView, ttSetDay, ttSetCircleStyle, openTTRange, openTTCopy, openTTBlock, openTTOptions,
     binderTab, ledgerMove, ledgerToday, archiveTab, styleTab,
@@ -5873,7 +6425,7 @@
     openStandby, closeStandby,
     toggleEditHome,
     homeOpenCalendar, homeBackToToday,
-    promptInstall, openAvatarViewer,
+    promptInstall, openAvatarViewer, openProfileShare,
   };
 
   document.addEventListener("DOMContentLoaded", init);
