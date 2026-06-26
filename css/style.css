@@ -302,7 +302,7 @@ input[type="color"] {
 .ob-inner {
   max-width: 420px; margin: 0 auto;
   /* 위는 화면 높이에 따라 여유 있게, 아래는 버튼이 가장자리에 붙지 않게 */
-  padding: 56px 24px 32px;
+  padding: 56px 24px calc(32px + env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
   /* 인앱 브라우저(네이버 등)에서 100vh가 툴바를 포함해 실제보다 커지는 문제 방지.
      JS가 --app-h를 실제 보이는 높이(px)로 채워주고, 미지원 시 svh→vh로 폴백. */
@@ -346,7 +346,7 @@ input[type="color"] {
    min-height + justify-content:center 조합이라 내용이 화면보다 길어지면 자동으로
    위→아래로 펼쳐지며 스크롤되므로 위가 잘리지 않음(예전 flex-start 강제 제거). */
 @media (max-height: 760px) {
-  .ob-inner { padding: 56px 24px 24px; gap: 0; }
+  .ob-inner { padding: 56px 24px calc(24px + env(safe-area-inset-bottom, 0px)); gap: 0; }
   .ob-logo { margin-bottom: 18px; }
   .ob-title { font-size: 28px; margin-bottom: 12px; }
   .ob-desc { margin-bottom: 10px; }
@@ -498,6 +498,7 @@ input[type="color"] {
   position: absolute; inset: 0; background-size: cover; background-position: center;
   background-repeat: no-repeat; transform-origin: center;
 }
+.av-bg { position: absolute; inset: 0; background-size: cover; background-position: center; background-repeat: no-repeat; transform-origin: center; }
 .pc-info { flex: 1; min-width: 0; padding-top: 9px; }
 .pc-go { color: var(--muted); font-size: 21px; padding-bottom: 12px; }
 .hero-group { font-size: 11.5px; font-weight: 700; letter-spacing: .08em; color: var(--accent-deep); text-transform: uppercase; }
@@ -1269,7 +1270,7 @@ input[type="color"] {
 .poca-slot {
   aspect-ratio: 5.5/8.5; border-radius: 9px; overflow: hidden;
   background: var(--card); border: 1px solid var(--line);
-  position: relative; cursor: pointer;
+  position: relative; cursor: pointer; isolation: isolate;
   box-shadow: 0 1px 4px rgba(0,0,0,.06);
 }
 .poca-slot img { width: 100%; height: 100%; object-fit: cover; }
@@ -1306,6 +1307,345 @@ input[type="color"] {
   display: flex; align-items: center; justify-content: center;
   background: var(--bg-soft); font-size: 12px; font-weight: 700;
   text-align: center; padding: 8px;
+}
+
+/* 바인더 슬롯 앞/뒤 뒤집기 (옆으로 밀면 회전) */
+.poca-slot .poca-flip { position: absolute; inset: 0; perspective: 800px; }
+.poca-slot .poca-flip-inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .5s cubic-bezier(.2, .7, .2, 1); }
+.poca-slot .poca-flip-inner.flipped { transform: rotateY(180deg); }
+.poca-slot .poca-face { position: absolute; inset: 0; -webkit-backface-visibility: hidden; backface-visibility: hidden; border-radius: inherit; overflow: hidden; }
+.poca-slot .poca-face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.poca-slot .pf-back { transform: rotateY(180deg); }
+@media (prefers-reduced-motion: reduce) { .poca-slot .poca-flip-inner { transition: transform .01s linear; } }
+
+/* ───────── 포카 상세: 앞/뒤 3D 뒤집기 ───────── */
+.pc-flip { display: flex; justify-content: center; margin: 0 auto 10px; perspective: 1400px; }
+.pc-flip-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform .6s cubic-bezier(.2, .75, .25, 1);
+  cursor: pointer;
+  will-change: transform;
+  -webkit-tap-highlight-color: transparent;
+}
+.pc-flip-inner.flipped { transform: rotateY(180deg); }
+.pc-flip-inner:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 14px; }
+.pc-face { -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+.pc-face img {
+  display: block; max-width: 100%; max-height: 72vh;
+  object-fit: contain; border-radius: 12px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .18);
+}
+.pc-back { position: absolute; inset: 0; transform: rotateY(180deg); }
+.pc-back img { width: 100%; height: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  .pc-flip-inner { transition: transform .01s linear; }
+}
+
+/* ───────── 포토카드 반짝이 효과 ───────── */
+:root { --mx: .5; --my: .5; --fx-boost: 1; }
+.pc-front { position: relative; isolation: isolate; }
+.pc-single { display: block; width: fit-content; max-width: 100%; margin: 0 auto 10px; position: relative; isolation: isolate; }
+.pc-single img { display: block; max-width: 100%; max-height: 72vh; object-fit: contain; border-radius: 12px; }
+.fx-active { --fx-boost: 1.5; }
+
+.poca-fx { position: absolute; inset: 0; border-radius: 12px; overflow: hidden; pointer-events: none; }
+.poca-slot .poca-fx { border-radius: 9px; }
+
+/* 등록 모달 미리보기 칩 */
+.fx-pick { display: flex; flex-wrap: wrap; gap: 9px; }
+.fx-chip { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 0; background: none; border: none; cursor: pointer; }
+.fx-prev {
+  position: relative; display: block; width: 44px; height: 62px;
+  border-radius: 8px; overflow: hidden; isolation: isolate;
+  background: linear-gradient(135deg, #6b6f76, #b8bcc4 55%, #82878f);
+  border: 2px solid transparent; box-shadow: 0 1px 4px rgba(0,0,0,.18);
+}
+.fx-chip.on .fx-prev { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.fx-chip-lb { font-size: 11px; font-weight: 700; color: var(--muted); }
+.fx-chip.on .fx-chip-lb { color: var(--accent-deep); }
+
+/* 홀로그램 */
+.fx-holo::before {
+  content: ""; position: absolute; inset: -25%;
+  background: conic-gradient(from 0deg at calc(var(--mx) * 100%) calc(var(--my) * 100%),
+    #ff5ec4, #ffd34e, #5effc4, #5ec8ff, #b56bff, #ff5ec4);
+  mix-blend-mode: color-dodge; filter: saturate(1.4) blur(2px);
+  opacity: calc(.45 * var(--fx-boost)); animation: fxHue 6s linear infinite;
+}
+.fx-holo::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 38%, rgba(255,255,255,.75) 49%, transparent 60%);
+  background-size: 300% 100%; background-position: calc((1 - var(--mx)) * 100%) 0;
+  mix-blend-mode: soft-light; opacity: calc(.7 * var(--fx-boost));
+}
+@keyframes fxHue { to { filter: saturate(1.4) blur(2px) hue-rotate(360deg); } }
+
+/* 글리터(반짝이 가루) */
+.fx-glitter::before {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    radial-gradient(rgba(255,255,255,.95) 0.6px, transparent 1.4px),
+    radial-gradient(rgba(255,255,255,.7) 0.6px, transparent 1.4px),
+    radial-gradient(rgba(190,230,255,.85) 0.6px, transparent 1.4px);
+  background-size: 7px 7px, 12px 12px, 9px 9px;
+  background-position: 0 0, 4px 5px, 2px 7px;
+  mix-blend-mode: screen; opacity: calc(.9 * var(--fx-boost));
+  animation: fxTwinkle 1.6s ease-in-out infinite;
+}
+.fx-glitter::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(120deg, rgba(255,120,200,.3), rgba(120,200,255,.3) 50%, rgba(200,255,170,.3));
+  background-size: 200% 200%; background-position: calc(var(--mx) * 100%) calc(var(--my) * 100%);
+  mix-blend-mode: overlay; opacity: calc(.5 * var(--fx-boost));
+}
+@keyframes fxTwinkle { 0%, 100% { opacity: calc(.3 * var(--fx-boost)); } 50% { opacity: calc(.95 * var(--fx-boost)); } }
+
+/* 스파클(별빛) */
+.fx-sparkle::before {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle, #fff 0, rgba(255,255,255,0) 2.4px),
+    radial-gradient(circle, #fff 0, rgba(255,255,255,0) 1.8px),
+    radial-gradient(circle, #d8ecff 0, rgba(255,255,255,0) 2px);
+  background-size: 64px 64px, 96px 96px, 80px 80px;
+  background-position: 12px 18px, 48px 60px, 30px 84px;
+  mix-blend-mode: screen; opacity: calc(.95 * var(--fx-boost));
+  animation: fxSpark 2.2s ease-in-out infinite;
+}
+.fx-sparkle::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(120% 80% at calc(var(--mx) * 100%) calc(var(--my) * 100%), rgba(255,255,255,.35), transparent 55%);
+  mix-blend-mode: soft-light; opacity: calc(.8 * var(--fx-boost));
+}
+@keyframes fxSpark { 0%, 100% { opacity: calc(.25 * var(--fx-boost)); filter: brightness(1); } 50% { opacity: calc(1 * var(--fx-boost)); filter: brightness(1.7); } }
+
+/* 골드 포일(금박) */
+.fx-gold::before {
+  content: ""; position: absolute; inset: 0;
+  background:
+    linear-gradient(115deg, rgba(120,84,0,0) 32%, rgba(255,216,130,.65) 46%, rgba(255,248,214,.95) 50%, rgba(255,216,130,.65) 54%, rgba(120,84,0,0) 68%),
+    linear-gradient(0deg, rgba(196,150,46,.4), rgba(255,228,150,.28));
+  background-size: 250% 100%, 100% 100%;
+  background-position: calc((1 - var(--mx)) * 100%) 0, 0 0;
+  mix-blend-mode: overlay; opacity: calc(.85 * var(--fx-boost));
+  animation: fxGold 5s ease-in-out infinite;
+}
+@keyframes fxGold { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.3); } }
+
+/* 오로라 */
+.fx-aurora::before {
+  content: ""; position: absolute; inset: -30%;
+  background:
+    radial-gradient(closest-side at 30% 30%, rgba(120,255,214,.55), transparent 70%),
+    radial-gradient(closest-side at 72% 58%, rgba(180,150,255,.55), transparent 70%),
+    radial-gradient(closest-side at 50% 82%, rgba(120,200,255,.55), transparent 70%);
+  mix-blend-mode: screen; filter: blur(6px);
+  opacity: calc(.6 * var(--fx-boost)); animation: fxAurora 9s ease-in-out infinite alternate;
+}
+.fx-aurora::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 40%, rgba(255,255,255,.4) 50%, transparent 60%);
+  background-size: 250% 100%; background-position: calc((1 - var(--mx)) * 100%) 0;
+  mix-blend-mode: soft-light; opacity: calc(.5 * var(--fx-boost));
+}
+@keyframes fxAurora { 0% { transform: translate(0, 0) rotate(0deg); } 100% { transform: translate(7%, -5%) rotate(10deg); } }
+
+/* 레인보우 줄무늬 */
+.fx-rainbow::before {
+  content: ""; position: absolute; inset: -25%;
+  background: repeating-linear-gradient(60deg,
+    rgba(255,0,90,.5) 0, rgba(255,200,0,.5) 8%, rgba(60,220,90,.5) 16%, rgba(0,180,255,.5) 24%, rgba(150,60,255,.5) 32%, rgba(255,0,90,.5) 40%);
+  background-size: 200% 200%;
+  mix-blend-mode: color-dodge; filter: saturate(1.3);
+  opacity: calc(.4 * var(--fx-boost)); animation: fxRainbow 5s linear infinite;
+}
+.fx-rainbow::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 40%, rgba(255,255,255,.6) 50%, transparent 60%);
+  background-size: 300% 100%; background-position: calc((1 - var(--mx)) * 100%) 0;
+  mix-blend-mode: soft-light; opacity: calc(.5 * var(--fx-boost));
+}
+@keyframes fxRainbow { 0% { background-position: 0% 0%; } 100% { background-position: 100% 100%; } }
+
+/* 하트 (크기 다른 하트들이 살랑 떠오름) */
+.fx-heart::before {
+  content: ""; position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cpath transform='translate(8 10) scale(0.6)' d='M12 20.3 L4.6 12.9 C2.2 10.5 2.2 6.9 4.6 5.1 C6.7 3.6 9.3 4.2 11 6.1 L12 7.1 L13 6.1 C14.7 4.2 17.3 3.6 19.4 5.1 C21.8 6.9 21.8 10.5 19.4 12.9 Z' fill='%23ffd0e2' opacity='0.85'/%3E%3Cpath transform='translate(42 30) scale(0.95)' d='M12 20.3 L4.6 12.9 C2.2 10.5 2.2 6.9 4.6 5.1 C6.7 3.6 9.3 4.2 11 6.1 L12 7.1 L13 6.1 C14.7 4.2 17.3 3.6 19.4 5.1 C21.8 6.9 21.8 10.5 19.4 12.9 Z' fill='%23ff9ec9' opacity='0.7'/%3E%3Cpath transform='translate(20 46) scale(0.45)' d='M12 20.3 L4.6 12.9 C2.2 10.5 2.2 6.9 4.6 5.1 C6.7 3.6 9.3 4.2 11 6.1 L12 7.1 L13 6.1 C14.7 4.2 17.3 3.6 19.4 5.1 C21.8 6.9 21.8 10.5 19.4 12.9 Z' fill='%23ffe3ef' opacity='0.9'/%3E%3C/svg%3E");
+  background-size: 72px 72px;
+  mix-blend-mode: screen;
+  animation: fxHeartUp 9s linear infinite, fxHeartTw 2.8s ease-in-out infinite;
+}
+.fx-heart::after {
+  content: ""; position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='110' height='110'%3E%3Cpath transform='translate(60 20) scale(0.7)' d='M12 20.3 L4.6 12.9 C2.2 10.5 2.2 6.9 4.6 5.1 C6.7 3.6 9.3 4.2 11 6.1 L12 7.1 L13 6.1 C14.7 4.2 17.3 3.6 19.4 5.1 C21.8 6.9 21.8 10.5 19.4 12.9 Z' fill='%23ffc0dd' opacity='0.6'/%3E%3Cpath transform='translate(15 75) scale(0.5)' d='M12 20.3 L4.6 12.9 C2.2 10.5 2.2 6.9 4.6 5.1 C6.7 3.6 9.3 4.2 11 6.1 L12 7.1 L13 6.1 C14.7 4.2 17.3 3.6 19.4 5.1 C21.8 6.9 21.8 10.5 19.4 12.9 Z' fill='%23ffd9e8' opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 110px 110px;
+  mix-blend-mode: screen;
+  animation: fxHeartUp2 15s linear infinite, fxHeartTw2 3.6s ease-in-out infinite;
+}
+@keyframes fxHeartUp { from { background-position: 0 0; } to { background-position: -8px -72px; } }
+@keyframes fxHeartUp2 { from { background-position: 0 0; } to { background-position: 10px -110px; } }
+@keyframes fxHeartTw { 0%, 100% { opacity: calc(.5 * var(--fx-boost)); } 50% { opacity: calc(.9 * var(--fx-boost)); } }
+@keyframes fxHeartTw2 { 0%, 100% { opacity: calc(.3 * var(--fx-boost)); } 50% { opacity: calc(.62 * var(--fx-boost)); } }
+
+/* 실버 포일(금박의 쿨톤) */
+.fx-silver::before {
+  content: ""; position: absolute; inset: 0;
+  background:
+    linear-gradient(115deg, rgba(80,90,110,0) 32%, rgba(220,228,240,.7) 46%, rgba(255,255,255,.95) 50%, rgba(220,228,240,.7) 54%, rgba(80,90,110,0) 68%),
+    linear-gradient(0deg, rgba(150,160,180,.35), rgba(230,236,245,.25));
+  background-size: 250% 100%, 100% 100%;
+  background-position: calc((1 - var(--mx)) * 100%) 0, 0 0;
+  mix-blend-mode: overlay; opacity: calc(.8 * var(--fx-boost));
+  animation: fxGold 5s ease-in-out infinite;
+}
+
+/* 펄(오로라빛 진주) */
+.fx-pearl::before {
+  content: ""; position: absolute; inset: -20%;
+  background: conic-gradient(from 0deg at calc(var(--mx) * 100%) calc(var(--my) * 100%),
+    rgba(180,230,255,.6), rgba(255,200,235,.6), rgba(210,255,220,.6), rgba(235,210,255,.6), rgba(180,230,255,.6));
+  mix-blend-mode: soft-light; filter: blur(3px) saturate(1.2);
+  opacity: calc(.7 * var(--fx-boost)); animation: fxPearl 8s linear infinite;
+}
+.fx-pearl::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 42%, rgba(255,255,255,.5) 50%, transparent 58%);
+  background-size: 300% 100%; background-position: calc((1 - var(--mx)) * 100%) 0;
+  mix-blend-mode: screen; opacity: calc(.45 * var(--fx-boost));
+}
+@keyframes fxPearl { to { filter: blur(3px) saturate(1.2) hue-rotate(360deg); } }
+
+/* 레이저(광선 스윕) */
+.fx-laser::before {
+  content: ""; position: absolute; inset: -30%;
+  background: repeating-linear-gradient(75deg,
+    transparent 0 18px, rgba(255,255,255,0) 18px 22px, rgba(120,220,255,.55) 22px 24px, rgba(255,255,255,0) 24px 28px);
+  mix-blend-mode: screen; opacity: calc(.6 * var(--fx-boost));
+  animation: fxLaser 3.5s linear infinite;
+}
+.fx-laser::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(140% 100% at calc(var(--mx) * 100%) calc(var(--my) * 100%), rgba(180,240,255,.4), transparent 60%);
+  mix-blend-mode: screen; opacity: calc(.5 * var(--fx-boost));
+}
+@keyframes fxLaser { 0% { transform: translateX(-12%); } 100% { transform: translateX(12%); } }
+
+/* 별자리(별 + 연결선) */
+.fx-constellation::before {
+  content: ""; position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 150'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='0.8' opacity='0.7'%3E%3Cpolyline points='20,30 38,55 55,40 72,62 60,90 40,100'/%3E%3Cpolyline points='55,40 78,32'/%3E%3C/g%3E%3Cg fill='%23ffffff'%3E%3Ccircle cx='20' cy='30' r='1.8'/%3E%3Ccircle cx='38' cy='55' r='2.2'/%3E%3Ccircle cx='55' cy='40' r='1.6'/%3E%3Ccircle cx='72' cy='62' r='2'/%3E%3Ccircle cx='60' cy='90' r='2.4'/%3E%3Ccircle cx='40' cy='100' r='1.8'/%3E%3Ccircle cx='78' cy='32' r='1.5'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: cover; background-position: center;
+  mix-blend-mode: screen; opacity: calc(.85 * var(--fx-boost));
+  animation: fxSpark 3s ease-in-out infinite;
+}
+.fx-constellation::after {
+  content: ""; position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,.9) 0.5px, transparent 1.3px);
+  background-size: 11px 11px; mix-blend-mode: screen;
+  opacity: calc(.5 * var(--fx-boost)); animation: fxTwinkle 2.2s ease-in-out infinite;
+}
+
+/* 네온 글로우 테두리 */
+.fx-neon::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  border: 2px solid rgba(120,230,255,.9);
+  box-shadow: 0 0 10px 2px rgba(120,230,255,.6), inset 0 0 10px 1px rgba(120,230,255,.55);
+  mix-blend-mode: screen; opacity: calc(.9 * var(--fx-boost));
+  animation: fxNeon 4s linear infinite;
+}
+@keyframes fxNeon { to { filter: hue-rotate(360deg); } }
+
+/* 프리즘 격자 */
+.fx-prism::before {
+  content: ""; position: absolute; inset: -20%;
+  background:
+    repeating-linear-gradient(45deg, rgba(255,255,255,0) 0 10px, rgba(255,120,200,.35) 10px 12px, rgba(255,255,255,0) 12px 22px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0) 0 10px, rgba(120,200,255,.35) 10px 12px, rgba(255,255,255,0) 12px 22px);
+  mix-blend-mode: color-dodge; opacity: calc(.5 * var(--fx-boost));
+  background-position: calc(var(--mx) * 40px) 0, calc(var(--mx) * -40px) 0;
+  animation: fxNeon 6s linear infinite;
+}
+
+/* 벚꽃 (크기·각도 다른 꽃잎이 살랑이며 떨어짐) */
+.fx-petal::before {
+  content: ""; position: absolute; inset: -12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cpath transform='translate(6 4) rotate(20 8 11) scale(1.0)' d='M8 20 C3 15 2.5 7 6 2 C6.8 0.9 7.2 2.8 8 3.6 C8.8 2.8 9.2 0.9 10 2 C13.5 7 13 15 8 20 Z' fill='%23ffd6e6' opacity='0.85'/%3E%3Cpath transform='translate(40 26) rotate(-30 8 11) scale(0.78)' d='M8 20 C3 15 2.5 7 6 2 C6.8 0.9 7.2 2.8 8 3.6 C8.8 2.8 9.2 0.9 10 2 C13.5 7 13 15 8 20 Z' fill='%23ffc2d8' opacity='0.7'/%3E%3Cpath transform='translate(22 46) rotate(70 8 11) scale(0.55)' d='M8 20 C3 15 2.5 7 6 2 C6.8 0.9 7.2 2.8 8 3.6 C8.8 2.8 9.2 0.9 10 2 C13.5 7 13 15 8 20 Z' fill='%23ffe6f0' opacity='0.9'/%3E%3C/svg%3E");
+  background-size: 64px 64px; mix-blend-mode: screen;
+  opacity: calc(.8 * var(--fx-boost));
+  animation: fxPetalFall 7s linear infinite, fxPetalSway 4s ease-in-out infinite alternate;
+}
+.fx-petal::after {
+  content: ""; position: absolute; inset: -12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='92' height='92'%3E%3Cpath transform='translate(60 16) rotate(-15 8 11) scale(0.7)' d='M8 20 C3 15 2.5 7 6 2 C6.8 0.9 7.2 2.8 8 3.6 C8.8 2.8 9.2 0.9 10 2 C13.5 7 13 15 8 20 Z' fill='%23ffcfe0' opacity='0.6'/%3E%3Cpath transform='translate(14 64) rotate(40 8 11) scale(0.5)' d='M8 20 C3 15 2.5 7 6 2 C6.8 0.9 7.2 2.8 8 3.6 C8.8 2.8 9.2 0.9 10 2 C13.5 7 13 15 8 20 Z' fill='%23ffdfec' opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 92px 92px; mix-blend-mode: screen;
+  opacity: calc(.55 * var(--fx-boost));
+  animation: fxPetalFall2 11s linear infinite, fxPetalSway2 5.5s ease-in-out infinite alternate;
+}
+@keyframes fxPetalFall { from { background-position: 0 0; } to { background-position: 0 64px; } }
+@keyframes fxPetalFall2 { from { background-position: 0 0; } to { background-position: 0 92px; } }
+@keyframes fxPetalSway { from { transform: translateX(-5px); } to { transform: translateX(5px); } }
+@keyframes fxPetalSway2 { from { transform: translateX(6px); } to { transform: translateX(-6px); } }
+
+/* 글리치(스캔라인 + RGB 분리) */
+.fx-glitch::before {
+  content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,.06) 0 2px, transparent 2px 4px);
+  mix-blend-mode: overlay; opacity: calc(.7 * var(--fx-boost));
+  animation: fxScan 4s linear infinite;
+}
+.fx-glitch::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(255,0,128,.5), rgba(0,255,255,.5));
+  background-size: 200% 100%; mix-blend-mode: color-dodge; opacity: 0;
+  animation: fxGlitch 3.5s steps(1, end) infinite;
+}
+@keyframes fxScan { to { background-position: 0 12px; } }
+@keyframes fxGlitch {
+  0%, 90%, 100% { opacity: 0; transform: translateX(0); }
+  91% { opacity: calc(.5 * var(--fx-boost)); transform: translateX(-3px); }
+  93% { opacity: calc(.3 * var(--fx-boost)); transform: translateX(3px); }
+  95% { opacity: calc(.5 * var(--fx-boost)); transform: translateX(-2px); }
+  97% { opacity: 0; transform: translateX(0); }
+}
+
+/* 프로필 생일 옆 별자리 태그 */
+.zodiac-tag { font-size: 11px; font-weight: 700; color: var(--accent-deep); margin-left: 3px; white-space: nowrap; }
+.ff-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+
+/* 포카 바인더 통계 요약 */
+.binder-stats { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.binder-stats.hidden { display: none; }
+.bs-chip { font-size: 11.5px; font-weight: 700; color: var(--muted); background: var(--bg-soft); border: 1px solid var(--line); border-radius: 8px; padding: 4px 9px; }
+.bs-chip b { color: var(--text); font-weight: 800; margin-left: 2px; }
+.bs-chip.alt { color: var(--accent-deep); border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); }
+
+
+/* 커버 반짝이 (홈·프로필 사진 위 효과) */
+.pc-cover, .hero-wrap { isolation: isolate; }
+.cover-fx { border-radius: inherit; opacity: .9; }
+
+/* 날짜 선택 '지우기' (선택 날짜를 다시 비울 때) */
+.ds-clear { align-self: center; margin-left: 2px; background: none; border: none; color: var(--muted); font-size: 12px; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; padding: 4px 6px; white-space: nowrap; }
+.ds-clear:hover { color: var(--text); }
+
+/* 효과 선택 즉석 미리보기 카드 */
+.fx-live-wrap { display: flex; flex-direction: column; align-items: center; gap: 5px; margin: 12px 0 2px; }
+.fx-live-wrap[hidden] { display: none; }
+.fx-live-card { position: relative; width: 124px; aspect-ratio: 5.5/8.5; border-radius: 11px; overflow: hidden; isolation: isolate; background: var(--bg-soft); box-shadow: 0 5px 18px rgba(0,0,0,.2); cursor: pointer; }
+.fx-live-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fx-live-card .poca-fx { border-radius: 11px; }
+.fx-live-hint { font-size: 11px; color: var(--muted); }
+.pc-edit-photo { display: block; margin: 6px auto 0; background: none; border: none; color: var(--accent-deep); font-size: 11.5px; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; padding: 2px 4px; }
+.pc-edit-photo[hidden] { display: none; }
+/* 프로필 카드 공유: 비율 선택 + 큰 미리보기 */
+.pcard-preview { display: flex; justify-content: center; }
+.pcard-preview img, .pcard-preview canvas { max-width: 100%; max-height: 62vh; border-radius: 14px; display: block; box-shadow: 0 6px 22px rgba(0,0,0,.18); background: var(--bg-soft); }
+.pcard-preview canvas { cursor: grab; touch-action: none; }
+.pcard-preview canvas:active { cursor: grabbing; }
+
+@media (prefers-reduced-motion: reduce) {
+  .poca-fx::before, .poca-fx::after, .fx-prev::before, .fx-prev::after { animation: none !important; }
 }
 
 /* ───────── 가계부 ───────── */
@@ -1536,6 +1876,7 @@ input[type="color"] {
   width: 38px; height: 38px; border-radius: 50%;
   background: var(--accent-soft); background-size: cover; background-position: center;
   flex-shrink: 0; border: 2px solid transparent;
+  position: relative; overflow: hidden;
 }
 .bias-list li.current .bl-avatar { border-color: var(--accent); }
 .bias-list .bl-main { flex: 1; }
@@ -1640,7 +1981,7 @@ a.more-row { text-decoration: none; }
   background: var(--bg); width: 100%; max-width: 480px;
   border-radius: 20px 20px 0 0;
   max-height: 92vh; max-height: 92dvh; overflow-y: auto;
-  padding: 18px 18px 22px;
+  padding: 18px 18px calc(22px + env(safe-area-inset-bottom, 0px));
   animation: slideUp .25s ease;
   scrollbar-width: none; /* 스크롤바 숨김(스크롤은 가능) */
 }
@@ -1746,6 +2087,7 @@ a.more-row { text-decoration: none; }
     width: 34px; height: 34px; border-radius: 50%;
     background: var(--accent-soft); background-size: cover; background-position: center;
     border: 2px solid transparent; font-size: 12px; font-weight: 800; color: var(--text);
+    position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;
   }
   .bias-switch button.current { border-color: var(--accent); }
   .side-nav { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; flex: 1; }
@@ -2124,9 +2466,12 @@ a.more-row { text-decoration: none; }
 .wtile span { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wt-empty { margin: auto 0; }
 .wtile.w2 { grid-column: span 2; aspect-ratio: 2.08 / 1; }
-.wt-profile { background-size: cover; background-position: center; background-color: var(--accent-soft); }
+.wt-profile { background-color: var(--accent-soft); }
+.wt-profile .wt-bg { position: absolute; inset: 0; background-size: cover; background-position: center; transform-origin: center; z-index: 0; }
+.wt-profile .wt-x { z-index: 2; }
 .wt-profile .wt-overlay {
   margin-top: auto; color: #fff;
+  position: relative; z-index: 1;
   text-shadow: 0 1px 8px rgba(0, 0, 0, .55);
 }
 .wt-profile .wt-overlay b { display: block; color: #fff; font-size: 17px; }
@@ -3323,9 +3668,15 @@ input[type="range"].cp::-moz-range-thumb {
 .crop-stage.orig { cursor: default; }
 .crop-stage:active { cursor: grabbing; }
 .crop-img {
-  position: absolute; left: 50%; top: 50%;
+  position: absolute; left: 50%; top: 50%; z-index: 1;
   transform-origin: center center; will-change: transform;
   user-select: none; -webkit-user-drag: none; pointer-events: none;
+}
+/* 비율 틀의 남는 영역을 채우는 흐린 사진 배경 */
+.crop-bg {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background-size: cover; background-position: center;
+  transform: scale(1.18); filter: blur(18px) brightness(.95);
 }
 .crop-zoom { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .crop-zoom span { font-size: 12px; font-weight: 700; color: var(--muted); }

@@ -329,6 +329,7 @@
       ${dsel("ds-y", "년", vy, years)}
       ${dsel("ds-m", "월", vm, months)}
       ${opts.noDay ? "" : dsel("ds-d", "일", vd, days)}
+      ${opts.clearable ? '<button type="button" class="ds-clear" aria-label="날짜 비우기">지우기</button>' : ""}
     </div>`;
   }
   function dateSelectVal(id) {
@@ -397,6 +398,21 @@
   }
   // 커스텀 드롭다운 열기/선택/닫기 — 위임 처리 (동적 생성 대응)
   function handleDselClick(e) {
+    const clr = e.target.closest(".ds-clear");
+    if (clr) {
+      e.preventDefault();
+      const box = clr.closest(".date-sel");
+      if (box) {
+        box.querySelectorAll(".dsel").forEach((d) => {
+          d.dataset.val = "";
+          const b = d.querySelector(".dsel-btn");
+          if (b) { b.classList.add("ph"); b.textContent = d.classList.contains("ds-y") ? "년" : d.classList.contains("ds-m") ? "월" : "일"; }
+          d.querySelectorAll(".dsel-list .on").forEach((x) => x.classList.remove("on"));
+        });
+        refreshLunarPreviews();
+      }
+      return;
+    }
     const opt = e.target.closest(".dsel-list button[data-v]");
     if (opt) {
       const dsel = opt.closest(".dsel");
@@ -688,12 +704,100 @@
     return b.birthday;
   }
 
+  // ── 생일 → 별자리(서양 12궁) ──
+  function zodiacByMD(mo, d) {
+    const cut = [20, 19, 21, 20, 21, 21, 23, 23, 23, 23, 22, 22];
+    const STARTS = ["aquarius", "pisces", "aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra", "scorpio", "sagittarius", "capricorn"];
+    const META = {
+      aries: ["양자리", "♈"], taurus: ["황소자리", "♉"], gemini: ["쌍둥이자리", "♊"], cancer: ["게자리", "♋"],
+      leo: ["사자자리", "♌"], virgo: ["처녀자리", "♍"], libra: ["천칭자리", "♎"], scorpio: ["전갈자리", "♏"],
+      sagittarius: ["궁수자리", "♐"], capricorn: ["염소자리", "♑"], aquarius: ["물병자리", "♒"], pisces: ["물고기자리", "♓"],
+    };
+    if (!(mo >= 1 && mo <= 12) || !(d >= 1 && d <= 31)) return null;
+    const key = (d >= cut[mo - 1]) ? STARTS[mo - 1] : STARTS[(mo - 2 + 12) % 12];
+    return { key, name: META[key][0], symbol: META[key][1] };
+  }
+  // 생일의 '양력 월·일' (음력이면 올해 양력으로 환산) — 별자리·탄생석·탄생화 공용
+  function birthSolarMD(b) {
+    if (!b || !b.birthday) return null;
+    if (isLunarBirth(b)) {
+      const p = b.birthday.split("-");
+      const s = window.Lunar && window.Lunar.toSolar(new Date().getFullYear(), +p[1], +p[2], false);
+      if (!s) return null;
+      return { mo: s.getMonth() + 1, d: s.getDate() };
+    }
+    const p = b.birthday.split("-");
+    return { mo: +p[1], d: +p[2] };
+  }
+  function zodiacOf(b) {
+    const md = birthSolarMD(b);
+    return md ? zodiacByMD(md.mo, md.d) : null;
+  }
+  const ZTRAIT = {
+    aries: ["불", "열정적인 리더"], taurus: ["흙", "끈기와 안정"], gemini: ["공기", "호기심과 재치"],
+    cancer: ["물", "다정하고 섬세"], leo: ["불", "당당한 주인공"], virgo: ["흙", "꼼꼼한 완벽주의"],
+    libra: ["공기", "균형과 매력"], scorpio: ["물", "깊고 강렬함"], sagittarius: ["불", "자유로운 모험가"],
+    capricorn: ["흙", "성실한 야망가"], aquarius: ["공기", "독창적인 개성"], pisces: ["물", "감성적인 몽상가"],
+  };
+  // 월별 탄생석(이름·색)·탄생화(이름·꽃말)
+  const BIRTHSTONE = [["가넷", "#7B1E3A"], ["자수정", "#9B59B6"], ["아쿠아마린", "#7FC7D9"], ["다이아몬드", "#BFD8E6"], ["에메랄드", "#2E8B57"], ["진주", "#D9CDBA"], ["루비", "#E0115F"], ["페리도트", "#9ACD32"], ["사파이어", "#1A4FA0"], ["오팔", "#7FD3CC"], ["토파즈", "#F0A830"], ["터콰이즈", "#2EC4B6"]];
+  const BIRTHFLOWER = [["카네이션", "사랑과 존경"], ["제비꽃", "겸손과 진심"], ["수선화", "자존심과 신비"], ["데이지", "순수한 마음"], ["은방울꽃", "다시 찾은 행복"], ["장미", "열정적인 사랑"], ["연꽃", "청순한 마음"], ["글라디올러스", "정열적인 사랑"], ["과꽃", "추억"], ["메리골드", "반드시 올 행복"], ["국화", "고결과 진실"], ["포인세티아", "축복"]];
+  const CHINESE_ZODIAC = ["쥐", "소", "호랑이", "토끼", "용", "뱀", "말", "양", "원숭이", "닭", "개", "돼지"];
+  function chineseZodiacOf(b) {
+    if (!b || !b.birthday) return null;
+    const y = +b.birthday.split("-")[0];
+    if (!(y > 1900 && y < 2100)) return null;
+    return CHINESE_ZODIAC[((y - 4) % 12 + 12) % 12] + "띠";
+  }
+  // 덕질 시작일 기준 다음 마일스톤(100일 단위 또는 N주년 중 가까운 것)
+  function nextMilestone(b) {
+    if (!b || !b.startDate) return null;
+    const dp = dPlus(b.startDate);
+    if (dp == null) return null;
+    const nextHundred = Math.ceil(dp / 100) * 100;
+    const cands = [{ label: nextHundred.toLocaleString() + "일", d: nextHundred - dp, yr: false }];
+    const start = parseYMD(b.startDate);
+    const today = stripTime(new Date());
+    let ay = today.getFullYear();
+    let ad = stripTime(new Date(ay, start.getMonth(), start.getDate()));
+    if (ad < today) { ay++; ad = stripTime(new Date(ay, start.getMonth(), start.getDate())); }
+    const years = ay - start.getFullYear();
+    if (years >= 1) cands.push({ label: years + "주년", d: Math.round((ad - today) / 86400000), yr: true });
+    cands.sort((a, c) => a.d - c.d || (c.yr - a.yr));
+    return cands[0];
+  }
+  // 데뷔일 기준 다음 N주년 D-day
+  function debutAnniv(b) {
+    if (!b || !b.debutDate) return null;
+    const start = parseYMD(b.debutDate);
+    const today = stripTime(new Date());
+    let ay = today.getFullYear();
+    let ad = stripTime(new Date(ay, start.getMonth(), start.getDate()));
+    if (ad < today) { ay++; ad = stripTime(new Date(ay, start.getMonth(), start.getDate())); }
+    const years = ay - start.getFullYear();
+    if (years < 1) return null;
+    return { years, d: Math.round((ad - today) / 86400000) };
+  }
+  // 홈·프로필 커버 사진 위에 깔리는 '커버 반짝이'
+  function applyBgFx() {
+    const key = (S.bgFx && POCA_FX_KEYS.includes(S.bgFx)) ? S.bgFx : "";
+    document.querySelectorAll(".cover-fx").forEach((el) => {
+      el.className = "cover-fx poca-fx" + (key ? " fx-" + key : "");
+      el.style.display = key ? "" : "none";
+    });
+  }
+  function setBgFx(k) {
+    S.bgFx = (k && POCA_FX_KEYS.includes(k)) ? k : "";
+    save(); applyBgFx();
+  }
+
   function buildBadges(b, ddText) {
     const badges = [`<span class="badge-accent">덕질 ${ddText} ♥</span>`];
     if (b.birthday) {
       const du = birthdayDDay(b);
       badges.push(`<span class="badge-accent alt">${I("cake")} 생일 ${du === 0 ? "오늘!" : "D-" + du}</span>`);
     }
+    { const z = zodiacOf(b); if (z && funOn("zodiac")) badges.push(`<span class="badge-accent alt zodiac">${z.symbol} ${z.name}</span>`); }
     if (b.debutDate) {
       const du = dUntilAnniv(b.debutDate);
       badges.push(`<span class="badge-accent alt">${I("flag")} 데뷔일 ${du === 0 ? "오늘!" : "D-" + du}</span>`);
@@ -807,8 +911,8 @@
   function initOnboarding() {
     $("onboarding").classList.remove("hidden");
     $("obStartWrap").innerHTML = dateSelectHTML("obStart", todayKey(), { yearsFwd: 1 });
-    $("obBirthdayWrap").innerHTML = `<div class="cal-row">` + calToggleHTML("obBirthCal", false) + `<span class="cal-preview" id="obBirthPrev"></span></div>` + dateSelectHTML("obBirthday", "", { yearsFwd: 1 });
-    $("obDebutWrap").innerHTML = dateSelectHTML("obDebut", "", { yearsFwd: 1 });
+    $("obBirthdayWrap").innerHTML = `<div class="cal-row">` + calToggleHTML("obBirthCal", false) + `<span class="cal-preview" id="obBirthPrev"></span></div>` + dateSelectHTML("obBirthday", "", { yearsFwd: 1, clearable: true });
+    $("obDebutWrap").innerHTML = dateSelectHTML("obDebut", "", { yearsFwd: 1, clearable: true });
     obRenderPreset();
     // 스와치
     const grid = $("obSwatches");
@@ -1318,6 +1422,10 @@
         <label>메인 템플릿</label>
         <div class="tpl-thumbs" id="fpTplThumbs"></div>
       </div>
+      <div class="field" style="margin:14px 0 0">
+        <label>커버 반짝이 <small>(홈·프로필 사진 위)</small></label>
+        <div class="fx-pick" id="fpFxRow"></div>
+      </div>
       <button class="btn btn-primary btn-lg" id="fpDone">이걸로 할래요</button>
     `);
     const sync = () => {
@@ -1341,6 +1449,12 @@
       $("fpBgRow").querySelectorAll("[data-fpbg]").forEach((b) => {
         b.onclick = () => { setBg(b.dataset.fpbg); sync(); };
       });
+      const fxr = $("fpFxRow");
+      if (fxr) {
+        fxr.innerHTML = POCA_FX.map(([k, l]) =>
+          `<button type="button" class="fx-chip ${(S.bgFx || "") === k ? "on" : ""}" data-fpfx="${k}"><span class="fx-prev ${k ? "fx-" + k : ""}"></span><span class="fx-chip-lb">${l}</span></button>`).join("");
+        fxr.querySelectorAll("[data-fpfx]").forEach((b) => { b.onclick = () => { setBgFx(b.dataset.fpfx); sync(); }; });
+      }
     };
     $("modalBody").querySelectorAll(".fp-card").forEach((c) => {
       c.onclick = () => {
@@ -1544,8 +1658,8 @@
     };
     const ordered = widgetOrder().map((id) => WIDGETS.find((w) => w[0] === id)).filter(Boolean);
     const grid = ordered.filter(([id]) => wOn(id)).map(([id, name, page]) => `
-      <button class="wtile ${id === "profile" ? "w2 wt-profile" : ""}" data-wid="${id}" data-wgo="${page}"
-        ${id === "profile" && b && (b.cover || b.photo) ? `style="background-image:url(${b.cover || b.photo})"` : ""}>
+      <button class="wtile ${id === "profile" ? "w2 wt-profile" : ""}" data-wid="${id}" data-wgo="${page}">
+        ${id === "profile" && b && (b.cover || b.photo) ? `<i class="wt-bg" data-wtprofbg="1"></i>` : ""}
         ${tiles[id]}
         ${widgetEdit ? `<i class="wt-x">✕</i>` : ""}
       </button>`).join("");
@@ -1560,6 +1674,11 @@
       ${widgetEdit && hidden.length ? `<div class="wb-add">${hidden.map(([id, name]) =>
         `<button class="chip-btn" data-wadd="${id}">+ ${name}</button>`).join("")}</div>` : ""}`;
     $("wbEdit").onclick = () => { widgetEdit = !widgetEdit; renderMiniWidget(); };
+    const wtProfBg = el.querySelector("[data-wtprofbg]");
+    if (wtProfBg && b) {
+      if (b.cover) { wtProfBg.style.backgroundImage = `url(${b.cover})`; applyCoverFitTo(wtProfBg, coverFit(b, "home")); }
+      else if (b.photo) { wtProfBg.style.backgroundImage = `url(${b.photo})`; applyCoverFitTo(wtProfBg, coverFit(b, "avatar")); }
+    }
     const gridEl = el.querySelector(".widget-grid");
     el.querySelectorAll(".wtile").forEach((tl) => {
       // 제거 배지(✕)는 별도 처리 — 드래그/탭과 충돌 방지
@@ -1642,6 +1761,7 @@
       if (hpb) hpb.classList.toggle("hidden", !b.cover);
       applyCoverFitTo(hcb, coverFit(b, "home"));
     }
+    applyBgFx();
 
     // 사이드바 최애 스위치
     const bs = $("biasSwitch");
@@ -1651,7 +1771,7 @@
         const btn = document.createElement("button");
         btn.className = bb.id === S.currentBias ? "current" : "";
         btn.title = bb.name;
-        if (bb.photo) btn.style.backgroundImage = `url(${bb.photo})`;
+        if (bb.photo) applyAvatarPhoto(btn, bb);
         else btn.textContent = bb.name[0];
         btn.onclick = () => { S.currentBias = bb.id; save(); renderAll(); };
         bs.appendChild(btn);
@@ -1892,10 +2012,9 @@
   // 새로 들어온 사진(base64)에 키를 부여하고 IndexedDB에 저장 (이미 저장된 건 건너뜀)
   function ensureImgKeys() {
     (S.photocards || []).forEach((p) => {
-      if (typeof p.img === "string" && p.img.indexOf("data:") === 0 && !p.imgKey) {
-        p.imgKey = uid();
-        imgPut(p.imgKey, p.img);
-      }
+      if (typeof p.img === "string" && p.img.indexOf("data:") === 0 && !p.imgKey) { p.imgKey = uid(); imgPut(p.imgKey, p.img); }
+      if (typeof p.imgOrig === "string" && p.imgOrig.indexOf("data:") === 0 && !p.imgOrigKey) { p.imgOrigKey = uid(); imgPut(p.imgOrigKey, p.imgOrig); }
+      if (typeof p.imgBackOrig === "string" && p.imgBackOrig.indexOf("data:") === 0 && !p.imgBackOrigKey) { p.imgBackOrigKey = uid(); imgPut(p.imgBackOrigKey, p.imgBackOrig); }
     });
     (S.archives || []).forEach((d) => {
       if (!Array.isArray(d.imgs) || !d.imgs.length) return;
@@ -1920,12 +2039,11 @@
   function persistState() {
     const lite = Object.assign({}, S);
     lite.photocards = (S.photocards || []).map((p) => {
-      if (p.imgKey && typeof p.img === "string" && p.img.indexOf("data:") === 0) {
-        const q = Object.assign({}, p);
-        delete q.img; // base64는 IndexedDB에 있으니 localStorage엔 안 넣음
-        return q;
-      }
-      return p;
+      let q = p;
+      if (p.imgKey && typeof p.img === "string" && p.img.indexOf("data:") === 0) { if (q === p) q = Object.assign({}, p); delete q.img; }
+      if (p.imgOrigKey && typeof p.imgOrig === "string" && p.imgOrig.indexOf("data:") === 0) { if (q === p) q = Object.assign({}, p); delete q.imgOrig; }
+      if (p.imgBackOrigKey && typeof p.imgBackOrig === "string" && p.imgBackOrig.indexOf("data:") === 0) { if (q === p) q = Object.assign({}, p); delete q.imgBackOrig; }
+      return q;
     });
     lite.archives = (S.archives || []).map((d) => {
       if (Array.isArray(d.imgs) && d.imgs.length && Array.isArray(d.imgKeys) && d.imgKeys.length === d.imgs.length) {
@@ -1949,6 +2067,8 @@
     const tasks = [];
     (S.photocards || []).forEach((p) => {
       if (!p.img && p.imgKey) tasks.push(imgGet(p.imgKey).then((v) => { if (v) p.img = v; }));
+      if (!p.imgOrig && p.imgOrigKey) tasks.push(imgGet(p.imgOrigKey).then((v) => { if (v) p.imgOrig = v; }));
+      if (!p.imgBackOrig && p.imgBackOrigKey) tasks.push(imgGet(p.imgBackOrigKey).then((v) => { if (v) p.imgBackOrig = v; }));
     });
     (S.archives || []).forEach((d) => {
       if ((!Array.isArray(d.imgs) || !d.imgs.length) && Array.isArray(d.imgKeys) && d.imgKeys.length) {
@@ -2519,63 +2639,136 @@
   }
   const _loadImg = (src) => new Promise((res) => { if (!src) return res(null); const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
   // 프로필(배경+프로필 사진)을 공유용 카드 이미지로 합성 → 보기/저장/공유 모달
+  const PCARD_RATIOS = [["기본", 720 / 574], ["1:1", 1], ["4:5", 4 / 5], ["3:4", 3 / 4], ["9:16", 9 / 16]];
   function openProfileShare() {
     const b = curBias();
     if (!b) return;
     if (!b.cover && !b.photo) return toast("프로필 사진이나 배경을 먼저 등록해 주세요!");
-    toast("카드 이미지를 만드는 중…");
-    const W = 720, coverH = 330, avD = 168, r = avD / 2;
-    const avCY = coverH, textTop = coverH + r + 30, H = textTop + 130;
-    const c = document.createElement("canvas"); c.width = W; c.height = H;
-    const ctx = c.getContext("2d");
-    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
-    Promise.all([_loadImg(b.cover), _loadImg(b.photo)]).then(([ci, ai]) => {
-      // 배경
-      if (ci) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, coverH); ctx.clip(); drawCoverFit(ctx, ci, 0, 0, W, coverH, coverFit(b, "prof")); ctx.restore(); }
-      else { ctx.fillStyle = "#d9d9de"; ctx.fillRect(0, 0, W, coverH); }
-      // 아바타 흰 링
-      ctx.save(); ctx.beginPath(); ctx.arc(W / 2, avCY, r + 7, 0, Math.PI * 2); ctx.fillStyle = "#ffffff"; ctx.fill(); ctx.restore();
-      ctx.save(); ctx.beginPath(); ctx.arc(W / 2, avCY, r, 0, Math.PI * 2); ctx.clip();
-      if (ai) drawCoverFit(ctx, ai, W / 2 - r, avCY - r, avD, avD, coverFit(b, "avatar"));
-      else { ctx.fillStyle = "#e9e9ee"; ctx.fillRect(W / 2 - r, avCY - r, avD, avD); }
-      ctx.restore();
-      // 텍스트
-      ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
-      ctx.fillStyle = "#141414"; ctx.font = "bold 36px sans-serif"; ctx.fillText(b.name || "최애", W / 2, textTop + 20);
-      ctx.fillStyle = "#9a9aa0"; ctx.font = "bold 15px sans-serif"; ctx.fillText((b.group || "MY BIAS").toUpperCase(), W / 2, textTop + 46);
-      const dd = dPlus(b.startDate); const ddText = dd ? `덕질 D+${dd} ♥` : "덕질 ♥";
-      ctx.font = "bold 15px sans-serif";
-      const bw = ctx.measureText(ddText).width + 30, bh = 32, bx = W / 2 - bw / 2, by = textTop + 64;
-      ctx.fillStyle = "#141414"; roundRectPath(ctx, bx, by, bw, bh, 16); ctx.fill();
-      ctx.fillStyle = "#ffffff"; ctx.fillText(ddText, W / 2, by + 21);
-      ctx.fillStyle = "#c4c4cc"; ctx.font = "600 12px sans-serif"; ctx.fillText("MY STAR CALENDAR", W / 2, H - 16);
-      showProfileCard(c, b);
-    });
+    showProfileCard(b, "기본");
   }
-  function showProfileCard(canvas, b) {
-    canvas.toBlob((blob) => {
-      if (!blob) return toast("이미지를 만들지 못했어요");
-      const url = URL.createObjectURL(blob);
-      const fname = `프로필_${b.name || "최애"}.png`;
-      openModalRaw("프로필 카드", `
-        <img src="${url}" alt="프로필 카드" style="width:100%;border-radius:12px;margin-bottom:14px;display:block">
-        <div class="btn-row">
-          <button class="btn btn-primary btn-sm" id="pcardSave">이미지 저장</button>
-          ${navigator.share ? `<button class="btn btn-ghost btn-sm" id="pcardShare">${I("share")} 공유</button>` : ""}
-        </div>`);
-      $("pcardSave").onclick = () => { const a = document.createElement("a"); a.href = url; a.download = fname; document.body.appendChild(a); a.click(); a.remove(); toast("이미지를 저장했어요"); };
-      const sh = $("pcardShare");
-      if (sh) sh.onclick = async () => {
-        try {
-          const file = new File([blob], fname, { type: "image/png" });
-          if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: b.name || "프로필" });
-          else await navigator.share({ title: b.name || "프로필" });
-        } catch (e) {}
-      };
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-    }, "image/png");
+  function pcardDims(ratioKey) {
+    const ratio = (PCARD_RATIOS.find((x) => x[0] === ratioKey) || PCARD_RATIOS[0])[1];
+    const W = 720, H = Math.round(W / ratio);
+    const avD = Math.round(W * 0.233), r = avD / 2;
+    const coverH = Math.max(Math.round(H * 0.34), H - (r + 168));
+    return { W, H, avD, r, coverH };
+  }
+  // 캔버스에 카드를 즉시 그림 (cover fit은 인자로 받아 라이브 조정)
+  function drawProfileCard(canvas, b, ratioKey, fit, avFit, ci, ai, scale) {
+    const { W, H, avD, r, coverH } = pcardDims(ratioKey);
+    const avCY = coverH, textTop = coverH + r + 30;
+    const SC = scale || 1;
+    canvas.width = W * SC; canvas.height = H * SC;
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(SC, 0, 0, SC, 0, 0);
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
+    if (ci) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, coverH); ctx.clip(); drawCoverFit(ctx, ci, 0, 0, W, coverH, fit); ctx.restore(); }
+    else { ctx.fillStyle = "#d9d9de"; ctx.fillRect(0, 0, W, coverH); }
+    ctx.save(); ctx.beginPath(); ctx.arc(W / 2, avCY, r + 7, 0, Math.PI * 2); ctx.fillStyle = "#ffffff"; ctx.fill(); ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.arc(W / 2, avCY, r, 0, Math.PI * 2); ctx.clip();
+    if (ai) drawCoverFit(ctx, ai, W / 2 - r, avCY - r, avD, avD, avFit);
+    else { ctx.fillStyle = "#e9e9ee"; ctx.fillRect(W / 2 - r, avCY - r, avD, avD); }
+    ctx.restore();
+    ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#141414"; ctx.font = "bold 36px sans-serif"; ctx.fillText(b.name || "최애", W / 2, textTop + 20);
+    ctx.fillStyle = "#9a9aa0"; ctx.font = "bold 15px sans-serif"; ctx.fillText((b.group || "MY BIAS").toUpperCase(), W / 2, textTop + 46);
+    const dd = dPlus(b.startDate); const ddText = dd ? `덕질 D+${dd} ♥` : "덕질 ♥";
+    ctx.font = "bold 15px sans-serif";
+    const bw = ctx.measureText(ddText).width + 30, bx = W / 2 - bw / 2, by = textTop + 64;
+    ctx.fillStyle = "#141414"; roundRectPath(ctx, bx, by, bw, 32, 16); ctx.fill();
+    ctx.fillStyle = "#ffffff"; ctx.fillText(ddText, W / 2, by + 21);
+    ctx.fillStyle = "#c4c4cc"; ctx.font = "600 12px sans-serif"; ctx.fillText("MY STAR CALENDAR", W / 2, H - 18);
+  }
+  function showProfileCard(b, ratioKey) {
+    let curRatio = ratioKey || "기본";
+    let cardFit = JSON.parse(JSON.stringify(coverFit(b, "prof")));
+    let avFit = JSON.parse(JSON.stringify(coverFit(b, "avatar")));
+    let ci = null, ai = null, coverRatio = null, avRatio = null;
+    openModalRaw("프로필 카드", `
+      <div class="crop-ratios" id="pcardRatios" style="justify-content:center;flex-wrap:wrap;margin-bottom:10px"></div>
+      <div class="pcard-preview"><canvas id="pcardCanvas"></canvas></div>
+      <p class="dt-hint-mini" style="text-align:center;margin:8px 0 0">배경·프로필을 끌어 위치, 휠·손가락 모으기로 크기 · <button type="button" id="pcardReset" style="background:none;border:none;color:var(--accent-deep);text-decoration:underline;cursor:pointer;font:inherit;padding:0 2px">초기화</button></p>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn btn-primary btn-sm" id="pcardSave">이미지 저장</button>
+        ${navigator.share ? `<button class="btn btn-ghost btn-sm" id="pcardShare">${I("share")} 공유</button>` : ""}
+      </div>`);
+    if ($("modalBox")) $("modalBox").classList.add("wide");
+    $("pcardRatios").innerHTML = PCARD_RATIOS.map(([k]) => `<button type="button" class="crop-ratio" data-pcr="${k}">${k}</button>`).join("");
+    const canvas = $("pcardCanvas");
+    const redraw = () => drawProfileCard(canvas, b, curRatio, cardFit, avFit, ci, ai);
+    const fnameOf = (rk) => `프로필_${b.name || "최애"}_${rk.replace(":", "x")}.png`;
+    const markActive = () => $("pcardRatios").querySelectorAll("[data-pcr]").forEach((x) => x.classList.toggle("on", x.dataset.pcr === curRatio));
+    markActive(); redraw();
+    Promise.all([_loadImg(b.cover), _loadImg(b.photo)]).then(([c, a]) => { ci = c; ai = a; coverRatio = ci ? ci.naturalWidth / ci.naturalHeight : null; avRatio = ai ? ai.naturalWidth / ai.naturalHeight : null; redraw(); });
+    $("pcardRatios").querySelectorAll("[data-pcr]").forEach((bn) => { bn.onclick = () => { curRatio = bn.dataset.pcr; markActive(); redraw(); }; });
+    $("pcardReset").onclick = () => { cardFit = JSON.parse(JSON.stringify(coverFit(b, "prof"))); avFit = JSON.parse(JSON.stringify(coverFit(b, "avatar"))); redraw(); };
+
+    // 배경(cover) / 동그란 프로필(av)을 영역으로 구분해 각각 끌어 위치 + 휠·핀치 확대
+    canvas.style.touchAction = "none";
+    const ptrs = new Map();
+    let drag = null, pinch = null;
+    const canvasPt = (clientX, clientY) => { const rect = canvas.getBoundingClientRect(); const scale = canvas.width / rect.width; return { cx: (clientX - rect.left) * scale, cy: (clientY - rect.top) * scale, scale }; };
+    const targetOf = (clientX, clientY) => { const { cx, cy } = canvasPt(clientX, clientY); const d = pcardDims(curRatio); if (ai && Math.hypot(cx - d.W / 2, cy - d.coverH) <= d.r + 8) return "av"; if (ci && cy < d.coverH) return "cover"; return null; };
+    const fitBox = (target) => { const d = pcardDims(curRatio); return target === "av" ? { fit: avFit, boxW: d.avD, boxH: d.avD, imgRatio: avRatio } : { fit: cardFit, boxW: d.W, boxH: d.coverH, imgRatio: coverRatio }; };
+    const beginDrag = (cx, cy, target) => { const fb = fitBox(target); drag = { x: cx, y: cy, target, pos: { ...fb.fit.pos }, shift: { ...fb.fit.shift }, z: (fb.fit.zoom || 100) / 100 }; };
+    canvas.onpointerdown = (e) => {
+      e.preventDefault();
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+      ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (ptrs.size === 2) {
+        const p = [...ptrs.values()];
+        const mt = targetOf((p[0].x + p[1].x) / 2, (p[0].y + p[1].y) / 2) || "cover";
+        const fb = fitBox(mt);
+        pinch = { dist: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1, zoom: fb.fit.zoom || 100, target: mt }; drag = null;
+      } else { const t = targetOf(e.clientX, e.clientY); if (t) beginDrag(e.clientX, e.clientY, t); else drag = null; }
+    };
+    canvas.onpointermove = (e) => {
+      if (!ptrs.has(e.pointerId)) return;
+      ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const { scale } = canvasPt(e.clientX, e.clientY);
+      if (pinch && ptrs.size >= 2) {
+        const p = [...ptrs.values()];
+        const dist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1;
+        const fb = fitBox(pinch.target);
+        fb.fit.zoom = Math.min(300, Math.max(100, Math.round(pinch.zoom * (dist / pinch.dist))));
+        clampShift(fb.fit); redraw();
+      } else if (drag) {
+        const fb = fitBox(drag.target), fit = fb.fit;
+        const dx = (e.clientX - drag.x) * scale, dy = (e.clientY - drag.y) * scale;
+        if (drag.z > 1.001) {
+          const lim = (drag.z - 1) / 2;
+          fit.shift.x = Math.min(lim, Math.max(-lim, drag.shift.x + dx / fb.boxW));
+          fit.shift.y = Math.min(lim, Math.max(-lim, drag.shift.y + dy / fb.boxH));
+        } else {
+          let nx = drag.pos.x, ny = drag.pos.y; const boxRatio = fb.boxW / fb.boxH;
+          if (fb.imgRatio) { if (fb.imgRatio > boxRatio) { const ow = fb.boxH * fb.imgRatio - fb.boxW; if (ow > 1) nx = drag.pos.x - (dx * 100) / ow; } else { const oh = fb.boxW / fb.imgRatio - fb.boxH; if (oh > 1) ny = drag.pos.y - (dy * 100) / oh; } }
+          fit.pos.x = Math.min(100, Math.max(0, +nx.toFixed(1)));
+          fit.pos.y = Math.min(100, Math.max(0, +ny.toFixed(1)));
+        }
+        redraw();
+      }
+    };
+    const endPtr = (e) => { ptrs.delete(e.pointerId); if (ptrs.size === 1) { pinch = null; const p = [...ptrs.values()][0]; const t = targetOf(p.x, p.y); if (t) beginDrag(p.x, p.y, t); else drag = null; } else if (ptrs.size === 0) { drag = null; pinch = null; } };
+    canvas.onpointerup = endPtr;
+    canvas.onpointercancel = endPtr;
+    canvas.onwheel = (e) => { const t = targetOf(e.clientX, e.clientY); if (!t) return; e.preventDefault(); const fb = fitBox(t); fb.fit.zoom = Math.min(300, Math.max(100, Math.round((fb.fit.zoom || 100) * (e.deltaY < 0 ? 1.08 : 0.93)))); clampShift(fb.fit); redraw(); };
+
+    const exportCard = (cb) => { const off = document.createElement("canvas"); drawProfileCard(off, b, curRatio, cardFit, avFit, ci, ai, 2); off.toBlob(cb, "image/png"); };
+    $("pcardSave").onclick = () => exportCard((blob) => { if (!blob) return toast("이미지를 만들지 못했어요"); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = fnameOf(curRatio); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000); toast("이미지를 저장했어요"); });
+    const sh = $("pcardShare");
+    if (sh) sh.onclick = () => exportCard(async (blob) => { if (!blob) return; try { const file = new File([blob], fnameOf(curRatio), { type: "image/png" }); if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: b.name || "프로필" }); else await navigator.share({ title: b.name || "프로필" }); } catch (e) {} });
   }
 
+  const FUN_FACTS = [["zodiac", "별자리"], ["chinese", "띠"], ["stone", "탄생석"], ["flower", "탄생화"], ["debut", "데뷔 기념일"], ["milestone", "다음 기념일"]];
+  function funOn(k) { return !(S.funFacts && S.funFacts[k] === false); }
+  function openFunFactsSettings() {
+    const rows = FUN_FACTS.map(([k, l]) => `<div class="field row-field" style="margin:0 0 12px"><label>${l}</label><button type="button" class="switch ${funOn(k) ? "on" : ""}" data-ff="${k}"><span class="knob"></span></button></div>`).join("");
+    openModalRaw("별별 정보 표시", rows + `<p class="hint" style="margin:2px 0 14px">끄면 프로필 카드와 배지에서 숨겨져요. 생일·데뷔일이 없으면 자동으로도 안 떠요.</p><button class="btn btn-primary btn-lg" id="ffDone">완료</button>`);
+    $("modalBody").querySelectorAll("[data-ff]").forEach((btn) => {
+      btn.onclick = () => { const k = btn.dataset.ff; if (!S.funFacts) S.funFacts = {}; S.funFacts[k] = !funOn(k); btn.classList.toggle("on", S.funFacts[k]); save(); renderProfile(); renderHome(); };
+    });
+    $("ffDone").onclick = closeModal;
+  }
   function renderProfile() {
     const b = curBias();
     if (!b || !$("profName")) return;
@@ -2603,6 +2796,29 @@
         save(); renderProfile(); renderHome(); toast("기념일을 지웠어요");
       };
     });
+    const ff = $("funFacts"), funCard = $("funCard");
+    if (ff) {
+      const items = [];
+      const z = zodiacOf(b);
+      if (funOn("zodiac") && z) { const tr = ZTRAIT[z.key]; items.push(["별자리", `${z.symbol} ${z.name}${tr ? ` · ${tr[0]} · ${tr[1]}` : ""}`]); }
+      const cz = chineseZodiacOf(b);
+      if (funOn("chinese") && cz) items.push(["띠", cz]);
+      const md = birthSolarMD(b);
+      if (md) {
+        const st = BIRTHSTONE[md.mo - 1]; if (funOn("stone") && st) items.push(["탄생석", `<i class="ff-dot" style="background:${st[1]}"></i>${st[0]}`]);
+        const fl = BIRTHFLOWER[md.mo - 1]; if (funOn("flower") && fl) items.push(["탄생화", `${fl[0]} · ${fl[1]}`]);
+      }
+      const da = debutAnniv(b);
+      if (funOn("debut") && da) items.push(["데뷔 기념일", `${da.years}주년 ${da.d === 0 ? "D-DAY" : "D-" + da.d}`]);
+      const ms = nextMilestone(b);
+      if (funOn("milestone") && ms) items.push(["다음 기념일", `${ms.label} ${ms.d === 0 ? "D-DAY" : "D-" + ms.d}`]);
+      const anyAvail = !!(zodiacOf(b) || chineseZodiacOf(b) || birthSolarMD(b) || debutAnniv(b) || nextMilestone(b));
+      ff.innerHTML = items.length
+        ? items.map(([k, v]) => `<li><span>${k}</span><span class="al-v">${v}</span></li>`).join("")
+        : `<li><span class="al-v" style="color:var(--muted);font-weight:600">표시할 항목이 없어요 · 위 ‘표시 설정’에서 켜보세요</span></li>`;
+      if (funCard) funCard.classList.toggle("hidden", items.length === 0 && !anyAvail);
+    }
+    applyBgFx();
     renderDeco();
   }
 
@@ -2611,7 +2827,7 @@
   }
 
   /* ═══ 배경 사진 위치 조정 (드래그 패닝) ═══ */
-  let posMode = false;
+  let posMode = false, posGesture = false;
   let coverRatio = null;
 
   let posTarget = "prof";
@@ -2705,18 +2921,8 @@
       btn.innerHTML = I("check");
       btn.title = "위치 저장";
       const { zoom } = posRefs();
-      if (zoom) {
-        zoom.classList.remove("hidden");
-        zoom.onpointerdown = (e) => e.stopPropagation();
-        zoom.querySelectorAll("button").forEach((zb) => {
-          zb.onclick = (e) => {
-            e.stopPropagation();
-            const cur = coverFit(curBias(), posTarget).zoom || 100;
-            setCoverZoom(cur + (zb.dataset.z === "+" ? 10 : -10));
-          };
-        });
-      }
-      toast("드래그로 위치, ＋−·휠로 확대/축소!");
+      if (zoom) zoom.classList.add("hidden");
+      toast("드래그로 위치, 휠·손가락 모으기로 확대/축소!");
     } else {
       const isAv = posTarget === "avatar";
       const { wrap, btn, zoom } = posRefs();
@@ -2739,9 +2945,7 @@
     const fit = { pos: { ...orig.pos }, zoom: orig.zoom || 100, shift: { ...orig.shift } };
     openModalRaw("프로필 사진", `
       <div class="av-edit" id="avEdit"><i class="av-edit-bg" id="avEditBg" style="background-image:url(${b.photo})"></i></div>
-      <p class="dt-label" style="margin-top:16px">크기</p>
-      <input type="range" class="av-zoom-range" id="avZoom" min="100" max="300" step="1" value="${fit.zoom}">
-      <p class="dt-hint-mini">사진을 드래그해 위치를, 슬라이더로 크기를 맞춰요</p>
+      <p class="dt-hint-mini" style="margin-top:16px">사진을 드래그해 위치를, 휠(또는 손가락 모으기)로 크기를 맞춰요</p>
       <div class="btn-row" style="margin-bottom:10px">
         <button class="btn btn-ghost btn-sm" id="avChange">사진 변경</button>
         <button class="btn btn-ghost btn-sm" id="avReset">초기화</button>
@@ -2752,35 +2956,66 @@
     let ratio = null; const im = new Image(); im.onload = () => { ratio = im.width / im.height; }; im.src = b.photo;
     const apply = () => applyCoverFitTo(bg, fit);
     apply();
-    $("avZoom").oninput = (e) => { fit.zoom = Math.min(300, Math.max(100, +e.target.value || 100)); clampShift(fit); apply(); };
+    // 끌어 이동 + 두 손가락/휠로 확대 — 슬라이더 없이
+    area.style.touchAction = "none";
+    const ptrs = new Map();
+    let mode = null, dragStart = null, pinchDist = 0, pinchZoom = 100;
+    const startDrag = (cx, cy) => {
+      const rect = area.getBoundingClientRect();
+      dragStart = { x: cx, y: cy, rect, z: (fit.zoom || 100) / 100, pos: { ...fit.pos }, shift: { ...fit.shift }, boxRatio: rect.width / rect.height };
+    };
     area.onpointerdown = (e) => {
       e.preventDefault();
-      const rect = area.getBoundingClientRect();
-      const sx = e.clientX, sy = e.clientY, z = (fit.zoom || 100) / 100;
-      if (z > 1.001) {
-        const ss = { ...fit.shift }, lim = (z - 1) / 2;
-        const mv = (ev) => { fit.shift.x = Math.min(lim, Math.max(-lim, ss.x + (ev.clientX - sx) / rect.width)); fit.shift.y = Math.min(lim, Math.max(-lim, ss.y + (ev.clientY - sy) / rect.height)); apply(); };
-        const up = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); };
-        window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up);
-      } else {
-        const sp = { ...fit.pos }, boxRatio = rect.width / rect.height;
-        const mv = (ev) => {
-          const dx = ev.clientX - sx, dy = ev.clientY - sy; let nx = sp.x, ny = sp.y;
-          if (ratio) { if (ratio > boxRatio) { const ow = rect.height * ratio - rect.width; if (ow > 1) nx = sp.x - (dx * 100) / ow; } else { const oh = rect.width / ratio - rect.height; if (oh > 1) ny = sp.y - (dy * 100) / oh; } }
-          else { nx = sp.x - dx * 0.25; ny = sp.y - dy * 0.25; }
-          fit.pos.x = Math.min(100, Math.max(0, +nx.toFixed(1))); fit.pos.y = Math.min(100, Math.max(0, +ny.toFixed(1))); apply();
-        };
-        const up = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); };
-        window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up);
+      try { area.setPointerCapture(e.pointerId); } catch (_) {}
+      ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (ptrs.size === 2) {
+        const p = [...ptrs.values()];
+        pinchDist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1;
+        pinchZoom = fit.zoom || 100; mode = "pinch";
+      } else { mode = "drag"; startDrag(e.clientX, e.clientY); }
+    };
+    area.onpointermove = (e) => {
+      if (!ptrs.has(e.pointerId)) return;
+      ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (mode === "pinch" && ptrs.size >= 2) {
+        const p = [...ptrs.values()];
+        const dist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1;
+        fit.zoom = Math.min(300, Math.max(100, Math.round(pinchZoom * (dist / pinchDist))));
+        clampShift(fit); apply();
+      } else if (mode === "drag" && dragStart) {
+        const dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+        if (dragStart.z > 1.001) {
+          const lim = (dragStart.z - 1) / 2;
+          fit.shift.x = Math.min(lim, Math.max(-lim, dragStart.shift.x + dx / dragStart.rect.width));
+          fit.shift.y = Math.min(lim, Math.max(-lim, dragStart.shift.y + dy / dragStart.rect.height));
+        } else {
+          let nx = dragStart.pos.x, ny = dragStart.pos.y;
+          if (ratio) { if (ratio > dragStart.boxRatio) { const ow = dragStart.rect.height * ratio - dragStart.rect.width; if (ow > 1) nx = dragStart.pos.x - (dx * 100) / ow; } else { const oh = dragStart.rect.width / ratio - dragStart.rect.height; if (oh > 1) ny = dragStart.pos.y - (dy * 100) / oh; } }
+          else { nx = dragStart.pos.x - dx * 0.25; ny = dragStart.pos.y - dy * 0.25; }
+          fit.pos.x = Math.min(100, Math.max(0, +nx.toFixed(1))); fit.pos.y = Math.min(100, Math.max(0, +ny.toFixed(1)));
+        }
+        apply();
       }
     };
+    const endPtr = (e) => {
+      ptrs.delete(e.pointerId);
+      if (ptrs.size === 0) { mode = null; dragStart = null; }
+      else if (ptrs.size === 1) { mode = "drag"; const p = [...ptrs.values()][0]; startDrag(p.x, p.y); }
+    };
+    area.onpointerup = endPtr;
+    area.onpointercancel = endPtr;
+    area.onwheel = (e) => {
+      e.preventDefault();
+      fit.zoom = Math.min(300, Math.max(100, Math.round((fit.zoom || 100) * (e.deltaY < 0 ? 1.08 : 0.93))));
+      clampShift(fit); apply();
+    };
     $("avChange").onclick = () => { closeModal(); document.getElementById("profPhotoInput").click(); };
-    $("avReset").onclick = () => { fit.pos = { x: 50, y: 50 }; fit.zoom = 100; fit.shift = { x: 0, y: 0 }; $("avZoom").value = 100; apply(); };
+    $("avReset").onclick = () => { fit.pos = { x: 50, y: 50 }; fit.zoom = 100; fit.shift = { x: 0, y: 0 }; apply(); };
     $("avSave").onclick = () => { b.coverFit["avatar"] = fit; save(); renderAll(); closeModal(); toast("프로필 사진을 저장했어요"); };
   }
 
   function coverDragStart(e) {
-    if (!posMode) return;
+    if (!posMode || posGesture) return;
     if (e.target.closest && (e.target.closest(".zoom-btns") || e.target.closest(".cover-pos-btn") || e.target.closest(".hero-pos-btn") || e.target.closest(".hero-deco-btn") || e.target.closest(".av-pos-btn"))) return;
     const b = curBias();
     const dragImg = posTarget === "avatar" ? b && b.photo : b && b.cover;
@@ -2788,53 +3023,60 @@
     e.preventDefault();
     const refs = posRefs();
     const rect = refs.wrap.getBoundingClientRect();
-    const startX = e.clientX, startY = e.clientY;
     const fit = coverFit(b, posTarget);
-    const sp = { ...fit.pos };
-    const z = (fit.zoom || 100) / 100;
-    if (z > 1.001) {
-      // 줌 상태: 드래그 = 이동(팬)
-      const ss = { ...fit.shift };
-      const lim = (z - 1) / 2;
-      const onMoveZ = (ev) => {
-        fit.shift.x = Math.min(lim, Math.max(-lim, ss.x + (ev.clientX - startX) / rect.width));
-        fit.shift.y = Math.min(lim, Math.max(-lim, ss.y + (ev.clientY - startY) / rect.height));
-        applyCoverFitTo(refs.cover, fit);
-      };
-      const onUpZ = () => {
-        window.removeEventListener("pointermove", onMoveZ);
-        window.removeEventListener("pointerup", onUpZ);
-        save();
-      };
-      window.addEventListener("pointermove", onMoveZ);
-      window.addEventListener("pointerup", onUpZ);
-      return;
-    }
     const boxRatio = rect.width / rect.height;
-    const onMove = (ev) => {
-      const dx = ev.clientX - startX, dy = ev.clientY - startY;
-      let nx = sp.x, ny = sp.y;
-      if (coverRatio) {
-        if (coverRatio > boxRatio) {
-          const ow = rect.height * coverRatio - rect.width;
-          if (ow > 1) nx = sp.x - (dx * 100) / ow;
-        } else {
-          const oh = rect.width / coverRatio - rect.height;
-          if (oh > 1) ny = sp.y - (dy * 100) / oh;
-        }
-      } else {
-        nx = sp.x - dx * 0.25;
-        ny = sp.y - dy * 0.25;
+    const ptrs = new Map([[e.pointerId, { x: e.clientX, y: e.clientY }]]);
+    let dragBase = null, pinch = null;
+    const beginDrag = () => {
+      const p = [...ptrs.values()][0];
+      dragBase = { x: p.x, y: p.y, pos: { ...fit.pos }, shift: { ...fit.shift }, z: (fit.zoom || 100) / 100 };
+    };
+    beginDrag();
+    posGesture = true;
+    const onDown = (ev) => {
+      ev.preventDefault && ev.preventDefault();
+      ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (ptrs.size === 2) {
+        const p = [...ptrs.values()];
+        pinch = { dist: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1, zoom: fit.zoom || 100 };
       }
-      fit.pos.x = Math.min(100, Math.max(0, +nx.toFixed(1)));
-      fit.pos.y = Math.min(100, Math.max(0, +ny.toFixed(1)));
-      applyCoverFitTo(refs.cover, fit);
     };
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      save();
+    const onMove = (ev) => {
+      if (ptrs.has(ev.pointerId)) ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (pinch && ptrs.size >= 2) {
+        const p = [...ptrs.values()];
+        const dist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1;
+        fit.zoom = Math.min(300, Math.max(100, Math.round(pinch.zoom * (dist / pinch.dist))));
+        clampShift(fit);
+        applyCoverFitTo(refs.cover, fit);
+      } else if (dragBase) {
+        const dx = ev.clientX - dragBase.x, dy = ev.clientY - dragBase.y;
+        if (dragBase.z > 1.001) {
+          const lim = (dragBase.z - 1) / 2;
+          fit.shift.x = Math.min(lim, Math.max(-lim, dragBase.shift.x + dx / rect.width));
+          fit.shift.y = Math.min(lim, Math.max(-lim, dragBase.shift.y + dy / rect.height));
+        } else {
+          let nx = dragBase.pos.x, ny = dragBase.pos.y;
+          if (coverRatio) { if (coverRatio > boxRatio) { const ow = rect.height * coverRatio - rect.width; if (ow > 1) nx = dragBase.pos.x - (dx * 100) / ow; } else { const oh = rect.width / coverRatio - rect.height; if (oh > 1) ny = dragBase.pos.y - (dy * 100) / oh; } }
+          else { nx = dragBase.pos.x - dx * 0.25; ny = dragBase.pos.y - dy * 0.25; }
+          fit.pos.x = Math.min(100, Math.max(0, +nx.toFixed(1)));
+          fit.pos.y = Math.min(100, Math.max(0, +ny.toFixed(1)));
+        }
+        applyCoverFitTo(refs.cover, fit);
+      }
     };
+    const onUp = (ev) => {
+      ptrs.delete(ev.pointerId);
+      if (ptrs.size === 1) { pinch = null; beginDrag(); }
+      else if (ptrs.size === 0) {
+        window.removeEventListener("pointerdown", onDown);
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        posGesture = false;
+        save();
+      }
+    };
+    window.addEventListener("pointerdown", onDown);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
   }
@@ -3676,6 +3918,51 @@
   }
 
   /* ═══════════ 포카 바인더 ═══════════ */
+  // ── 포토카드 반짝이 효과 (기본/홀로그램/글리터/스파클/골드/오로라) ──
+  const POCA_FX = [["", "기본"], ["holo", "홀로그램"], ["glitter", "글리터"], ["sparkle", "스파클"], ["gold", "골드 포일"], ["aurora", "오로라"], ["rainbow", "레인보우"], ["heart", "하트"], ["silver", "실버 포일"], ["pearl", "펄"], ["laser", "레이저"], ["constellation", "별자리"], ["neon", "네온"], ["prism", "프리즘"], ["petal", "벚꽃"], ["glitch", "글리치"]];
+  const POCA_FX_KEYS = POCA_FX.map((f) => f[0]).filter(Boolean);
+  function pocaFxHtml(effect) {
+    return (effect && POCA_FX_KEYS.includes(effect)) ? `<span class="poca-fx fx-${effect}" aria-hidden="true"></span>` : "";
+  }
+  // 포인터(마우스·터치) 위치를 --mx/--my로 흘려 빛이 손가락을 따라오게
+  function attachFxReact(el) {
+    if (!el) return;
+    const set = (e) => {
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      el.style.setProperty("--mx", Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)).toFixed(3));
+      el.style.setProperty("--my", Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)).toFixed(3));
+      el.classList.add("fx-active");
+    };
+    const reset = () => { el.style.removeProperty("--mx"); el.style.removeProperty("--my"); el.classList.remove("fx-active"); };
+    el.addEventListener("pointermove", set);
+    el.addEventListener("pointerdown", set);
+    el.addEventListener("pointerleave", reset);
+    el.addEventListener("pointercancel", reset);
+  }
+  // 기기 기울임(자이로)으로 빛 각도 변경 — 안드로이드는 바로, iOS는 권한 허용 후
+  let _tiltAsked = false;
+  function initPocaTilt() {
+    if (window._pocaTiltOn) return;
+    window._pocaTiltOn = true;
+    window.addEventListener("deviceorientation", (e) => {
+      if (e.gamma == null && e.beta == null) return;
+      const gx = Math.max(-40, Math.min(40, e.gamma || 0)) / 40;
+      const gy = Math.max(-1, Math.min(1, ((e.beta || 0) - 35) / 40));
+      const st = document.documentElement.style;
+      st.setProperty("--mx", (0.5 + gx * 0.5).toFixed(3));
+      st.setProperty("--my", (0.5 + gy * 0.5).toFixed(3));
+    });
+  }
+  function enablePocaTilt() {
+    try {
+      const D = window.DeviceOrientationEvent;
+      if (D && typeof D.requestPermission === "function") {
+        if (_tiltAsked) return; _tiltAsked = true;
+        D.requestPermission().then((s) => { if (s === "granted") initPocaTilt(); }).catch(() => {});
+      } else if (D) { initPocaTilt(); }
+    } catch (_) {}
+  }
   // 캔버스에 이미지를 박스에 꽉 차게(cover) 그림
   function coverDrawImg(ctx, img, x, y, w, h) {
     const ir = img.width / img.height, br = w / h;
@@ -3740,6 +4027,27 @@
   function renderBinder(skipReflow) {
     // 탭별 장수 표시 (보유/위시/교환)
     const allCards = byBias(S.photocards);
+    const _bsEl = $("binderStats");
+    if (_bsEl) {
+      if (!allCards.length) { _bsEl.classList.add("hidden"); _bsEl.innerHTML = ""; }
+      else {
+        const own = allCards.filter((p) => p.status === "own");
+        const wishN = allCards.filter((p) => p.status === "wish").length;
+        const tradeN = allCards.filter((p) => p.status === "trade").length;
+        const qty = own.reduce((a, p) => a + (+p.qty || 1), 0);
+        const spend = allCards.reduce((a, p) => a + (+p.price || 0), 0);
+        const byAlb = {}; allCards.forEach((p) => { const k = (p.album || "").trim() || "기타"; byAlb[k] = (byAlb[k] || 0) + 1; });
+        const topAlb = Object.entries(byAlb).sort((a, c) => c[1] - a[1]).slice(0, 3);
+        _bsEl.innerHTML =
+          `<span class="bs-chip">보유 <b>${own.length}</b></span>`
+          + `<span class="bs-chip">위시 <b>${wishN}</b></span>`
+          + (tradeN ? `<span class="bs-chip">교환 <b>${tradeN}</b></span>` : "")
+          + `<span class="bs-chip">총 <b>${qty}</b>장</span>`
+          + (spend > 0 ? `<span class="bs-chip">시세합 <b>${won(spend)}</b></span>` : "")
+          + (topAlb.length ? `<span class="bs-chip alt">${topAlb.map(([n, c]) => `${esc(n)} ${c}`).join(" · ")}</span>` : "");
+        _bsEl.classList.remove("hidden");
+      }
+    }
     const counts = { own: 0, wish: 0, trade: 0 };
     allCards.forEach((p) => { if (counts[p.status] != null) counts[p.status]++; });
     document.querySelectorAll("[data-btab]").forEach((t) => {
@@ -3809,13 +4117,19 @@
     if (binderPage > totalPages - 1) binderPage = totalPages - 1;
     if (binderPage < 0) binderPage = 0;
     const pageCards = cards.slice(binderPage * PER_PAGE, binderPage * PER_PAGE + PER_PAGE);
-    let html = pageCards.map((p) => `
-      <div class="poca-slot ${p.img ? "" : "noimg"}" data-pid="${p.id}">
-        ${p.img ? `<img src="${p.img}" alt="${p.name ? "" : "포토카드"}" draggable="false">` : esc(p.name)}
+    let html = pageCards.map((p) => {
+      const face = !p.img ? esc(p.name)
+        : (p.imgBack
+            ? `<div class="poca-flip"><div class="poca-flip-inner"><div class="poca-face pf-front"><img src="${p.img}" alt="${p.name ? "" : "포토카드"}" draggable="false">${pocaFxHtml(p.effect)}</div><div class="poca-face pf-back"><img src="${p.imgBack}" alt="뒷면" draggable="false"></div></div></div>`
+            : `<img src="${p.img}" alt="${p.name ? "" : "포토카드"}" draggable="false">${pocaFxHtml(p.effect)}`);
+      return `
+      <div class="poca-slot ${p.img ? "" : "noimg"}${p.imgBack ? " has-back" : ""}" data-pid="${p.id}">
+        ${face}
         ${p.img && p.name ? `<span class="pc-label">${esc(p.name)}</span>` : ""}
         ${(+p.qty > 1) ? `<span class="pc-qty">×${+p.qty}</span>` : ""}
         ${p.imgBack ? `<span class="pc-twoside">양면</span>` : ""}
-      </div>`).join("");
+      </div>`;
+    }).join("");
     const emptyCount = PER_PAGE - pageCards.length; // 남은 칸을 빈 포켓으로 채움 (모두 동일하게)
     for (let i = 0; i < emptyCount; i++) {
       html += `<div class="poca-slot empty" data-add="1"><span class="plus">+</span></div>`;
@@ -3858,24 +4172,35 @@
   // 포카 카드: 탭=상세보기 / 꾹 눌러 드래그=순서 변경
   function bindPocaCards(grid, canDrag) {
     grid.querySelectorAll(".poca-slot[data-pid]").forEach((el) => {
-      let down = null, lp = null;
+      let st = null, lp = null;
+      const clearLp = () => { if (lp) { clearTimeout(lp); lp = null; } };
       el.addEventListener("pointerdown", (e) => {
         if (e.button && e.button !== 0) return;
-        down = { x: e.clientX, y: e.clientY };
-        if (canDrag) lp = setTimeout(() => { lp = null; down = null; startPocaDrag(e, el, grid); }, 380);
+        st = { x: e.clientX, y: e.clientY, moved: false, flipped: false };
+        if (canDrag) lp = setTimeout(() => { lp = null; st = null; startPocaDrag(e, el, grid); }, 380);
       });
       el.addEventListener("pointermove", (e) => {
-        if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 10) {
-          if (lp) { clearTimeout(lp); lp = null; }
-          down = null; // 움직이면 스크롤로 보고 취소
+        if (!st) return;
+        const dx = e.clientX - st.x, dy = e.clientY - st.y;
+        if (Math.hypot(dx, dy) <= 10) return;
+        clearLp();
+        const inner = el.querySelector(".poca-flip-inner");
+        // 가로로 충분히 밀면 앞/뒤 뒤집기 (양면 카드만, 한 제스처에 한 번)
+        if (inner && !st.flipped && Math.abs(dx) > Math.abs(dy) * 1.2 && Math.abs(dx) > 24) {
+          inner.classList.toggle("flipped");
+          st.flipped = true; st.moved = true;
+          if (S.haptics !== false) { try { navigator.vibrate && navigator.vibrate(8); } catch (_) {} }
+        } else {
+          st.moved = true;          // 세로 이동 등은 스크롤로 보고 탭만 취소
+          if (!inner) st = null;     // 단면 카드는 예전처럼 즉시 종료
         }
       });
-      el.addEventListener("pointerup", (e) => {
-        if (lp) { clearTimeout(lp); lp = null; }
-        if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) <= 10) openPocaView(el.dataset.pid);
-        down = null;
+      el.addEventListener("pointerup", () => {
+        clearLp();
+        if (st && !st.moved) openPocaView(el.dataset.pid);
+        st = null;
       });
-      el.addEventListener("pointercancel", () => { if (lp) { clearTimeout(lp); lp = null; } down = null; });
+      el.addEventListener("pointercancel", () => { clearLp(); st = null; });
     });
   }
   function startPocaDrag(e, slot, grid) {
@@ -3943,7 +4268,13 @@
       p.memo ? esc(p.memo) : "",
     ].filter(Boolean).join(" · ");
     openModalRaw(p.name || "포토카드", `
-      ${p.img ? `<img id="pcViewImg" src="${p.img}" data-front="${p.img}" ${p.imgBack ? `data-back="${p.imgBack}"` : ""} alt="${esc(p.name) || "포토카드"} 사진" style="max-width:100%;max-height:72vh;object-fit:contain;border-radius:12px;margin:0 auto 10px;display:block">` : ""}
+      ${p.img ? (p.imgBack ? `
+        <div class="pc-flip" id="pcFlipWrap">
+          <div class="pc-flip-inner" id="pcFlipInner" role="button" tabindex="0" aria-label="포토카드 앞/뒤 뒤집기">
+            <div class="pc-face pc-front"><img src="${p.img}" alt="${esc(p.name) || "포토카드"} 앞면" draggable="false">${pocaFxHtml(p.effect)}</div>
+            <div class="pc-face pc-back"><img src="${p.imgBack}" alt="${esc(p.name) || "포토카드"} 뒷면" draggable="false"></div>
+          </div>
+        </div>` : `<div class="pc-single" id="pcSingle"><img id="pcViewImg" src="${p.img}" alt="${esc(p.name) || "포토카드"} 사진">${pocaFxHtml(p.effect)}</div>`) : ""}
       ${p.imgBack ? `<div style="text-align:center;margin-bottom:10px"><button class="btn btn-ghost btn-sm" id="pcFlip">${I("refresh") || "↺"} 앞/뒤 뒤집기</button></div>` : ""}
       <p style="font-size:12px;color:var(--muted);margin-bottom:14px">${sub}</p>
       <div class="btn-row">
@@ -3954,8 +4285,23 @@
         <button class="btn btn-danger btn-sm" id="pcDel">삭제</button>
       </div>
     `);
+    const pcFlipInner = $("pcFlipInner");
+    const doPcFlip = () => {
+      if (!pcFlipInner) return;
+      pcFlipInner.classList.toggle("flipped");
+      if (S.haptics !== false) { try { navigator.vibrate && navigator.vibrate(8); } catch (_) {} }
+    };
     const pcFlip = $("pcFlip");
-    if (pcFlip) pcFlip.onclick = () => { const im = $("pcViewImg"); if (!im) return; const showingBack = im.src === im.dataset.back; im.src = showingBack ? im.dataset.front : im.dataset.back; };
+    if (pcFlip) pcFlip.onclick = doPcFlip;
+    if (pcFlipInner) {
+      pcFlipInner.addEventListener("click", doPcFlip);
+      pcFlipInner.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); doPcFlip(); } });
+    }
+    // 반짝이 효과: 빛이 마우스/손가락을 따라오고, 기기를 기울이면 각도가 바뀜
+    if (p.effect && POCA_FX_KEYS.includes(p.effect)) {
+      attachFxReact(pcFlipInner || $("pcSingle"));
+      enablePocaTilt();
+    }
     $("pcTrade").onclick = () => {
       p.status = p.status === "trade" ? "own" : "trade";
       save(); closeModal(); binderTab(p.status); renderHome();
@@ -4489,7 +4835,7 @@
     // 최애 목록
     $("biasList").innerHTML = S.biases.map((b) => `
       <li class="${b.id === S.currentBias ? "current" : ""}">
-        <div class="bl-avatar" ${b.photo ? `style="background-image:url(${b.photo})"` : ""}></div>
+        <div class="bl-avatar" data-bid="${b.id}"></div>
         <div class="bl-main">
           <div class="bl-name">${esc(b.name)}</div>
           <div class="bl-sub">${esc(b.group || "")} ${b.startDate ? "· D+" + dPlus(b.startDate) : ""}</div>
@@ -4499,6 +4845,7 @@
           : `<button class="chip-btn" data-switch="${b.id}">전환</button>`}
         <button class="chip-btn" data-edit="${b.id}">수정</button>
       </li>`).join("");
+    $("biasList").querySelectorAll(".bl-avatar").forEach((el) => { applyAvatarPhoto(el, S.biases.find((x) => x.id === el.dataset.bid)); });
     $("biasList").querySelectorAll("[data-switch]").forEach((b) => {
       b.onclick = () => { S.currentBias = b.dataset.switch; save(); renderAll(); toast("최애를 전환했어요!"); };
     });
@@ -4664,7 +5011,7 @@
   }
 
   /* ═══════════ 모달 ═══════════ */
-  let modalPhotoData = null;
+  let modalPhotoData = null, modalPhotoOrig = null, modalPhotoState = null;
 
   // 폼 라벨 연결: .field 안의 label ↔ 입력칸을 for/id로 자동 매칭 (접근성 표준)
   function linkFieldLabels(root) {
@@ -4725,7 +5072,7 @@
       </label>`;
   }
   function bindPhotoPick(maxW, useCrop) {
-    modalPhotoData = null;
+    modalPhotoData = null; modalPhotoOrig = null; modalPhotoState = null;
     const box = $("mpBox");
     if (!box) return;
     const set = (data) => { modalPhotoData = data; $("mpPreview").src = data; $("mpPreview").classList.remove("hidden"); $("mpHint").classList.add("hidden"); };
@@ -4734,12 +5081,12 @@
       const f = e.target.files[0];
       e.target.value = "";
       if (!f) return;
-      if (useCrop) openPhotoCropper(f, (data) => { if (data) set(data); });
+      if (useCrop) openPhotoCropper(f, (data, orig, state) => { if (data) { set(data); modalPhotoOrig = orig || data; modalPhotoState = state || null; } });
       else fileToData(f, maxW || 700, set);
     };
   }
   // 뒷면(또는 보조) 사진용 별도 단일 피커
-  let modalPhotoBack = null;
+  let modalPhotoBack = null, modalPhotoBackOrig = null, modalPhotoBackState = null;
   function photoPickBackHtml(label) {
     return `
       <label class="photo-pick" id="mp2Box">
@@ -4749,7 +5096,7 @@
       </label>`;
   }
   function bindPhotoPickBack(useCrop) {
-    modalPhotoBack = null;
+    modalPhotoBack = null; modalPhotoBackOrig = null; modalPhotoBackState = null;
     const box = $("mp2Box");
     if (!box) return;
     const set = (data) => { modalPhotoBack = data; $("mp2Preview").src = data; $("mp2Preview").classList.remove("hidden"); $("mp2Hint").classList.add("hidden"); };
@@ -4757,7 +5104,7 @@
       const f = e.target.files[0];
       e.target.value = "";
       if (!f) return;
-      if (useCrop) openPhotoCropper(f, (data) => { if (data) set(data); });
+      if (useCrop) openPhotoCropper(f, (data, orig, state) => { if (data) { set(data); modalPhotoBackOrig = orig || data; modalPhotoBackState = state || null; } });
       else fileToData(f, 500, set);
     };
   }
@@ -4807,7 +5154,38 @@
     r.onerror = () => { toast("사진을 불러오지 못했어요"); onDone(null); };
     r.readAsDataURL(file);
   }
-  function buildCropper(img, onDone) {
+  // 이미 지정한 사진(dataURL)을 재업로드 없이 다시 크롭 편집
+  function openCropperData(dataUrl, onDone, initState) {
+    if (!dataUrl) { onDone(null); return; }
+    const img = new Image();
+    img.onload = () => buildCropper(img, onDone, initState);
+    img.onerror = () => { toast("사진을 불러오지 못했어요"); onDone(null); };
+    img.src = dataUrl;
+  }
+  function downscaleDataURL(img, maxLong) {
+    const w = img.naturalWidth, h = img.naturalHeight;
+    const sc = Math.min(1, maxLong / Math.max(w, h));
+    if (sc >= 1) return img.src;
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(w * sc)); c.height = Math.max(1, Math.round(h * sc));
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg", 0.85);
+  }
+  // 사진 미리보기 옆 '크기·위치 편집' 버튼: 현재 사진을 다시 크롭
+  function bindPhotoEdit(previewId, btnId, getOrig, getState, setResult) {
+    const pv = $(previewId), btn = $(btnId);
+    if (!pv || !btn) return;
+    const sync = () => { btn.hidden = pv.classList.contains("hidden") || !pv.getAttribute("src"); };
+    btn.onclick = (e) => {
+      e.preventDefault();
+      const orig = getOrig();
+      if (!orig) { toast("먼저 사진을 넣어주세요"); return; }
+      openCropperData(orig, (cropped, newOrig, state) => { if (cropped) setResult(cropped, newOrig, state); }, getState());
+    };
+    if (window.MutationObserver) new MutationObserver(sync).observe(pv, { attributes: true, attributeFilter: ["src", "class"] });
+    sync();
+  }
+  function buildCropper(img, onDone, initState) {
     const natW = img.naturalWidth, natH = img.naturalHeight;
     let ratioKey = "1:1", tx = 0, ty = 0, z = 1;
     let frameW = 0, frameH = 0, baseScale = 1, isOrig = false;
@@ -4818,16 +5196,14 @@
       <div class="crop-box" role="dialog" aria-label="사진 자르기" aria-modal="true">
         <div class="crop-head"><b>사진 자르기</b><button class="crop-x" type="button" aria-label="닫기">${I("x")}</button></div>
         <div class="crop-ratios">${ARCH_RATIOS.map(([k, l]) => `<button class="crop-ratio ${k === ratioKey ? "on" : ""}" type="button" data-r="${k}">${l}</button>`).join("")}</div>
-        <div class="crop-stage" id="cropStage"><img class="crop-img" id="cropImg" alt=""></div>
-        <div class="crop-zoom" id="cropZoomRow"><span>크기</span><input type="range" id="cropZoom" min="100" max="300" step="1" value="100"></div>
-        <p class="crop-hint">비율을 고르고, 사진을 끌어 위치를 · 슬라이더로 크기를 맞춰요</p>
+        <div class="crop-stage" id="cropStage"><div class="crop-bg" id="cropBg"></div><img class="crop-img" id="cropImg" alt=""></div>
+        <p class="crop-hint">사진을 끌어 옮기고, 휠(또는 손가락 모으기)로 자유롭게 확대·축소해요</p>
         <div class="crop-actions"><button class="btn btn-ghost btn-sm" type="button" id="cropCancel">취소</button><button class="btn btn-primary btn-sm" type="button" id="cropApply">적용</button></div>
       </div>`;
     document.body.appendChild(ov);
     const stage = ov.querySelector("#cropStage");
     const imEl = ov.querySelector("#cropImg");
-    const zoomEl = ov.querySelector("#cropZoom");
-    const zoomRow = ov.querySelector("#cropZoomRow");
+    const bgEl = ov.querySelector("#cropBg");
     imEl.src = img.src;
 
     const maxW = Math.min(window.innerWidth * 0.82, 360);
@@ -4839,14 +5215,17 @@
       frameW = maxW; frameH = frameW / aspect;
       if (frameH > maxH) { frameH = maxH; frameW = frameH * aspect; }
       stage.style.width = frameW + "px"; stage.style.height = frameH + "px";
-      baseScale = isOrig ? Math.min(frameW / natW, frameH / natH) : Math.max(frameW / natW, frameH / natH);
+      // 항상 '맞춤(contain)' — 사진을 키워서 자르지 않고 전체를 비율 틀 가운데에 표시
+      baseScale = Math.min(frameW / natW, frameH / natH);
       imEl.style.width = (natW * baseScale) + "px";
       imEl.style.height = (natH * baseScale) + "px";
       imEl.style.marginLeft = (-natW * baseScale / 2) + "px";
       imEl.style.marginTop = (-natH * baseScale / 2) + "px";
-      tx = 0; ty = 0; z = 1; zoomEl.value = 100;
-      zoomRow.style.display = isOrig ? "none" : "";
+      tx = 0; ty = 0; z = 1;
       stage.classList.toggle("orig", isOrig);
+      // 비율 틀이 사진보다 크면 남는 위·아래(또는 좌·우)를 같은 사진의 흐린 배경으로 채움(인스타 스타일).
+      // 원본 비율은 빈틈이 없으므로 배경을 숨김.
+      if (bgEl) { bgEl.style.backgroundImage = isOrig ? "none" : `url("${img.src}")`; bgEl.style.display = isOrig ? "none" : ""; }
       apply();
     }
     function clamp() {
@@ -4860,15 +5239,48 @@
       if (!isOrig) clamp();
       imEl.style.transform = `translate(${tx}px, ${ty}px) scale(${z})`;
     }
+    // 끌어 이동(1포인터) + 손가락 모으기 확대(2포인터) + 휠 확대 — 슬라이더 없이 자유롭게
+    const ptrs = new Map();
+    let drag = null, pinchDist = 0, pinchZ = 1;
     stage.onpointerdown = (e) => {
       if (isOrig) return;
       e.preventDefault();
-      const sx = e.clientX, sy = e.clientY, ox = tx, oy = ty;
-      const mv = (ev) => { tx = ox + (ev.clientX - sx); ty = oy + (ev.clientY - sy); apply(); };
-      const up = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); };
-      window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up);
+      try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+      ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, tx, ty };
+      else if (ptrs.size === 2) {
+        const p = [...ptrs.values()];
+        pinchDist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1;
+        pinchZ = z; drag = null;
+      }
     };
-    zoomEl.oninput = (e) => { z = Math.min(3, Math.max(1, (+e.target.value || 100) / 100)); apply(); };
+    stage.onpointermove = (e) => {
+      if (isOrig || !ptrs.has(e.pointerId)) return;
+      ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (ptrs.size >= 2) {
+        const p = [...ptrs.values()];
+        const dist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1;
+        z = Math.min(5, Math.max(1, pinchZ * (dist / pinchDist)));
+        apply();
+      } else if (drag) {
+        tx = drag.tx + (e.clientX - drag.x);
+        ty = drag.ty + (e.clientY - drag.y);
+        apply();
+      }
+    };
+    const endPtr = (e) => {
+      ptrs.delete(e.pointerId);
+      if (ptrs.size === 1) { const p = [...ptrs.values()][0]; drag = { x: p.x, y: p.y, tx, ty }; }
+      else if (ptrs.size === 0) drag = null;
+    };
+    stage.onpointerup = endPtr;
+    stage.onpointercancel = endPtr;
+    stage.onwheel = (e) => {
+      if (isOrig) return;
+      e.preventDefault();
+      z = Math.min(5, Math.max(1, z * (e.deltaY < 0 ? 1.12 : 0.89)));
+      apply();
+    };
     ov.querySelectorAll("[data-r]").forEach((b) => {
       b.onclick = () => { ratioKey = b.dataset.r; ov.querySelectorAll("[data-r]").forEach((x) => x.classList.toggle("on", x === b)); layout(); };
     });
@@ -4878,7 +5290,12 @@
     ov.querySelector(".crop-x").onclick = cancel;
     ov.querySelector("#cropCancel").onclick = cancel;
     ov.onclick = (e) => { if (e.target === ov) cancel(); };
-    ov.querySelector("#cropApply").onclick = () => { const data = renderCrop(); close(); onDone(data); };
+    ov.querySelector("#cropApply").onclick = () => {
+      const data = renderCrop();
+      const orig = downscaleDataURL(img, 1280);
+      const state = { ratioKey, z, ntx: frameW ? tx / frameW : 0, nty: frameH ? ty / frameH : 0 };
+      close(); onDone(data, orig, state);
+    };
 
     function renderCrop() {
       const c = document.createElement("canvas"), maxLong = 1000;
@@ -4889,21 +5306,37 @@
       } else {
         clamp();
         const ds = baseScale * z;
-        let sw = frameW / ds, sh = frameH / ds;
-        let sx = (natW * ds / 2 - frameW / 2 - tx) / ds;
-        let sy = (natH * ds / 2 - frameH / 2 - ty) / ds;
-        sx = Math.max(0, Math.min(natW - sw, sx));
-        sy = Math.max(0, Math.min(natH - sh, sy));
-        const aspect = sw / sh;
+        // 출력 캔버스 = 선택한 비율(프레임 비율), 긴 변을 maxLong로
+        const fAspect = frameW / frameH;
         let outW, outH;
-        if (aspect >= 1) { outW = Math.min(maxLong, Math.round(sw)); outH = Math.round(outW / aspect); }
-        else { outH = Math.min(maxLong, Math.round(sh)); outW = Math.round(outH * aspect); }
+        if (fAspect >= 1) { outW = maxLong; outH = Math.round(maxLong / fAspect); }
+        else { outH = maxLong; outW = Math.round(maxLong * fAspect); }
         c.width = Math.max(1, outW); c.height = Math.max(1, outH);
-        c.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+        const ctx = c.getContext("2d");
+        const k = outW / frameW; // 편집 프레임(px) → 출력(px) 배율
+        // 1) 남는 영역용 흐린 배경: 같은 사진을 캔버스에 꽉 차게(cover) 그린 뒤 블러
+        const coverScale = Math.max(outW / natW, outH / natH) * 1.18;
+        const bw = natW * coverScale, bh = natH * coverScale;
+        let blurred = false;
+        try { ctx.filter = `blur(${Math.max(8, Math.round(20 * k))}px)`; blurred = true; } catch (_) {}
+        ctx.drawImage(img, (outW - bw) / 2, (outH - bh) / 2, bw, bh);
+        if (blurred) ctx.filter = "none";
+        // 2) 사진 본체: 편집기와 동일하게 '맞춤' 크기로 가운데(+드래그/확대) 배치
+        const dispW = natW * ds * k, dispH = natH * ds * k;
+        const dx = (outW - dispW) / 2 + tx * k;
+        const dy = (outH - dispH) / 2 + ty * k;
+        ctx.drawImage(img, dx, dy, dispW, dispH);
       }
       return c.toDataURL("image/jpeg", 0.85);
     }
     layout();
+    if (initState) {
+      if (initState.ratioKey) { ratioKey = initState.ratioKey; ov.querySelectorAll("[data-r]").forEach((x) => x.classList.toggle("on", x.dataset.r === ratioKey)); layout(); }
+      if (typeof initState.z === "number") z = Math.min(5, Math.max(1, initState.z));
+      tx = (initState.ntx || 0) * frameW;
+      ty = (initState.nty || 0) * frameH;
+      apply();
+    }
   }
 
   /* 공지사항 목록 HTML */
@@ -5289,8 +5722,8 @@
       const edit = editId ? S.photocards.find((x) => x.id === editId) : null;
       openModalRaw(edit ? "포카 수정" : "포카 등록", `
         <div class="poca-pick-row">
-          <div class="poca-pick-col">${photoPickHtml("+ 앞면 사진")}<span class="poca-pick-cap">앞면</span></div>
-          <div class="poca-pick-col">${photoPickBackHtml("+ 뒷면 (선택)")}<span class="poca-pick-cap">뒷면</span></div>
+          <div class="poca-pick-col">${photoPickHtml("+ 앞면 사진")}<span class="poca-pick-cap">앞면</span><button type="button" class="pc-edit-photo" id="mpEdit" hidden>크기·위치 편집</button></div>
+          <div class="poca-pick-col">${photoPickBackHtml("+ 뒷면 (선택)")}<span class="poca-pick-cap">뒷면</span><button type="button" class="pc-edit-photo" id="mp2Edit" hidden>크기·위치 편집</button></div>
         </div>
         <div class="field"><label>이름 / 버전 *</label><input type="text" id="mTitle" placeholder=""></div>
         <div class="field"><label>앨범 / 출처</label><input type="text" id="mAlbum" placeholder=""></div>
@@ -5304,11 +5737,49 @@
         <div class="field"><label>가격 <small>(선택 · 구매가/시세)</small></label><input type="text" id="mPrice" inputmode="numeric" placeholder="0원"></div>
         <div class="field" id="mTradeField"><label>교환 정보 <small>(상대·플랫폼)</small></label><input type="text" id="mTradeWith" placeholder="예: @닉네임 / 트위터"></div>
         <div class="field"><label>메모</label><input type="text" id="mMemo" placeholder="구매처, 상태 등"></div>
+        <div class="field"><label>반짝이 효과 <small>(누르면 아래 미리보기)</small></label><div class="fx-pick" id="mFxPick"></div>
+          <div class="fx-live-wrap" id="fxLiveWrap" hidden>
+            <div class="fx-live-card" id="fxLiveCard"><img id="fxLiveImg" alt="효과 미리보기"><span class="poca-fx" id="fxLiveFx" aria-hidden="true"></span></div>
+            <span class="fx-live-hint">앞면 사진에 적용한 모습 · 마우스·기울임에 반응</span>
+          </div>
+        </div>
         <button class="btn btn-primary btn-lg" id="mSave">바인더에 넣기</button>
       `);
       bindPhotoPick(500, true);
       bindPhotoPickBack(true);
       attachWonInput($("mPrice"));
+      bindPhotoEdit("mpPreview", "mpEdit",
+        () => modalPhotoOrig || (edit && edit.imgOrig) || modalPhotoData || (edit && edit.img),
+        () => modalPhotoState || (edit && edit.imgState) || null,
+        (cropped, orig, state) => { modalPhotoData = cropped; modalPhotoOrig = orig || cropped; modalPhotoState = state || null; const p = $("mpPreview"); p.src = cropped; p.classList.remove("hidden"); $("mpHint").classList.add("hidden"); });
+      bindPhotoEdit("mp2Preview", "mp2Edit",
+        () => modalPhotoBackOrig || (edit && edit.imgBackOrig) || modalPhotoBack || (edit && edit.imgBack),
+        () => modalPhotoBackState || (edit && edit.imgBackState) || null,
+        (cropped, orig, state) => { modalPhotoBack = cropped; modalPhotoBackOrig = orig || cropped; modalPhotoBackState = state || null; const p = $("mp2Preview"); p.src = cropped; p.classList.remove("hidden"); $("mp2Hint").classList.add("hidden"); });
+      let pocaFx = (edit && edit.effect) || "";
+      const fxPick = $("mFxPick");
+      const fxWrap = $("fxLiveWrap"), fxLiveImg = $("fxLiveImg"), fxLiveFx = $("fxLiveFx"), fxLiveCard = $("fxLiveCard");
+      let fxReactBound = false;
+      const updateFxLive = () => {
+        if (!fxWrap) return;
+        const mp = $("mpPreview");
+        const src = modalPhotoData || (edit && edit.img) || (mp && !mp.classList.contains("hidden") ? mp.getAttribute("src") : "");
+        if (src) {
+          fxLiveImg.src = src; fxWrap.hidden = false;
+          if (!fxReactBound) { attachFxReact(fxLiveCard); fxReactBound = true; }
+        } else { fxWrap.hidden = true; }
+        if (fxLiveFx) fxLiveFx.className = "poca-fx" + (pocaFx ? " fx-" + pocaFx : "");
+        if (pocaFx) enablePocaTilt();
+      };
+      if (fxPick) {
+        fxPick.innerHTML = POCA_FX.map(([k, l]) =>
+          `<button type="button" class="fx-chip ${k === pocaFx ? "on" : ""}" data-fx="${k}"><span class="fx-prev ${k ? "fx-" + k : ""}"></span><span class="fx-chip-lb">${l}</span></button>`).join("");
+        fxPick.querySelectorAll("[data-fx]").forEach((b) => {
+          b.onclick = () => { pocaFx = b.dataset.fx; fxPick.querySelectorAll("[data-fx]").forEach((x) => x.classList.toggle("on", x === b)); updateFxLive(); };
+        });
+      }
+      { const mp = $("mpPreview"); if (mp && window.MutationObserver) { new MutationObserver(updateFxLive).observe(mp, { attributes: true, attributeFilter: ["src", "class"] }); } }
+      updateFxLive();
       const pocaSyncFields = () => {
         const st = $("mPStatus").value;
         $("mWishFields").style.display = st === "wish" ? "" : "none";
@@ -5340,13 +5811,14 @@
           priority: +$("mPriority").value || 2,
           price: wonValue($("mPrice")),
           tradeWith: $("mTradeWith").value.trim(),
+          effect: pocaFx,
         };
         if (edit) {
           Object.assign(edit, fields);
-          if (modalPhotoData) { edit.img = modalPhotoData; delete edit.imgKey; } // 새 사진이면 키 새로 부여되게 비움
-          if (modalPhotoBack) { edit.imgBack = modalPhotoBack; delete edit.imgBackKey; }
+          if (modalPhotoData) { edit.img = modalPhotoData; delete edit.imgKey; edit.imgOrig = modalPhotoOrig || modalPhotoData; delete edit.imgOrigKey; edit.imgState = modalPhotoState || null; }
+          if (modalPhotoBack) { edit.imgBack = modalPhotoBack; delete edit.imgBackKey; edit.imgBackOrig = modalPhotoBackOrig || modalPhotoBack; delete edit.imgBackOrigKey; edit.imgBackState = modalPhotoBackState || null; }
         } else {
-          S.photocards.push({ id: uid(), biasId: S.currentBias, img: modalPhotoData, imgBack: modalPhotoBack, ...fields });
+          S.photocards.push({ id: uid(), biasId: S.currentBias, img: modalPhotoData, imgBack: modalPhotoBack, imgOrig: modalPhotoOrig || modalPhotoData || null, imgState: modalPhotoState || null, imgBackOrig: modalPhotoBackOrig || modalPhotoBack || null, imgBackState: modalPhotoBackState || null, ...fields });
         }
         save(); closeModal(); renderHome(); binderTab(status); go("binder");
         toast(edit ? "포카 정보를 수정했어요" : "바인더에 쏙 넣었어요");
@@ -5468,7 +5940,7 @@
         <div class="field"><label>내 이름 (영문 추천)</label><input type="text" id="mName" value="${esc(m.name)}" maxlength="24"></div>
         <div class="field"><label>아이콘 (이모지 1개)</label><input type="text" id="mIcon" value="${esc(m.icon)}" maxlength="2"></div>
         <div class="field"><label>멤버 번호</label><input type="text" id="mNo" value="${esc(m.no)}" maxlength="10"></div>
-        <div class="field"><label>멤버십 만료일 <small>(팬클럽 기간 관리)</small></label>${dateSelectHTML("mExpiry", m.expiry || "", { yearsBack: 100, yearsFwd: 10, yearDesc: true })}</div>
+        <div class="field"><label>멤버십 만료일 <small>(팬클럽 기간 관리)</small></label>${dateSelectHTML("mExpiry", m.expiry || "", { yearsBack: 100, yearsFwd: 10, yearDesc: true, clearable: true })}</div>
         <div class="mc-photos">
           <div class="field mc-photo-field">
             <label>증명사진 <small>(선택)</small></label>
@@ -5572,8 +6044,8 @@
         <div class="field"><label>이름 *</label><input type="text" id="mTitle" value="${edit ? esc(edit.name) : ""}"></div>
         <div class="field"><label>그룹 / 소속</label><input type="text" id="mGroup" value="${edit ? esc(edit.group || "") : ""}"></div>
         <div class="field"><label>덕질 시작일 *</label>${dateSelectHTML("mStart", edit ? edit.startDate : todayKey(), { yearsFwd: 1 })}</div>
-        <div class="field"><label>생일</label><div class="cal-row">${calToggleHTML("mBirthCal", !!(edit && edit.birthdayLunar))}<span class="cal-preview" id="mBirthPrev"></span></div>${dateSelectHTML("mBirth", edit && edit.birthday ? edit.birthday : "", { yearsFwd: 1 })}</div>
-        <div class="field"><label>데뷔일</label>${dateSelectHTML("mDebut", edit && edit.debutDate ? edit.debutDate : "", { yearsFwd: 1 })}</div>
+        <div class="field"><label>생일</label><div class="cal-row">${calToggleHTML("mBirthCal", !!(edit && edit.birthdayLunar))}<span class="cal-preview" id="mBirthPrev"></span></div>${dateSelectHTML("mBirth", edit && edit.birthday ? edit.birthday : "", { yearsFwd: 1, clearable: true })}</div>
+        <div class="field"><label>데뷔일</label>${dateSelectHTML("mDebut", edit && edit.debutDate ? edit.debutDate : "", { yearsFwd: 1, clearable: true })}</div>
         <button class="btn btn-primary btn-lg" id="mSave">${edit ? "수정 완료" : "추가"}</button>
         ${edit && S.biases.length > 1 ? `<button class="btn btn-danger btn-lg" id="mDel">이 최애 삭제</button>` : ""}
       `);
@@ -5805,11 +6277,17 @@
     load();
     applyTheme();
     // 온보딩 세로 중앙 정렬용: 인앱 브라우저 실제 보이는 높이를 px로 고정
-    const setAppH = () =>
-      document.documentElement.style.setProperty("--app-h", window.innerHeight + "px");
+    const setAppH = () => {
+      const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+      document.documentElement.style.setProperty("--app-h", Math.round(h) + "px");
+    };
     setAppH();
     window.addEventListener("resize", setAppH);
     window.addEventListener("orientationchange", setAppH);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", setAppH);
+      window.visualViewport.addEventListener("scroll", setAppH);
+    }
     if (!S.onboarded || !S.biases.length) {
       initOnboarding();
     } else {
@@ -6425,7 +6903,7 @@
     openStandby, closeStandby,
     toggleEditHome,
     homeOpenCalendar, homeBackToToday,
-    promptInstall, openAvatarViewer, openProfileShare,
+    promptInstall, openAvatarViewer, openProfileShare, openFunFactsSettings,
   };
 
   document.addEventListener("DOMContentLoaded", init);

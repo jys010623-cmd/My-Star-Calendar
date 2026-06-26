@@ -75,7 +75,7 @@
 <link rel="apple-touch-startup-image" media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="splash/splash-2732x2048.png?v=1">
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="css/fonts.css?v=13">
-<link rel="stylesheet" href="css/style.css?v=81">
+<link rel="stylesheet" href="css/style.css?v=82">
 </head>
 <body>
 <!-- 스타더스트 전용 하늘 레이어 (콘텐츠와 분리된 합성층) -->
@@ -278,6 +278,7 @@
       <div class="profile-card-main" onclick="App.cardGo()">
         <div class="pc-cover" id="homeCover">
           <i class="cz" id="homeCoverBg"></i>
+          <span class="cover-fx poca-fx" id="homeCoverFx" aria-hidden="true" style="display:none"></span>
           <span class="zoom-btns hidden" id="zoomHome"><button type="button" title="확대" aria-label="배경 확대" data-z="+">＋</button><button type="button" title="축소" aria-label="배경 축소" data-z="-">−</button></span>
           <button class="cover-pos-btn" id="homePosBtn" title="배경 위치 조정" aria-label="배경 위치 조정" onclick="event.stopPropagation();App.toggleCoverPos('home')"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></svg></button>
         </div>
@@ -392,6 +393,7 @@
       <button class="back-btn" onclick="App.go('home')">‹ 메인으로</button>
       <div class="hero-wrap" id="heroWrap">
         <div class="hero-bg" id="profCover"></div>
+        <span class="cover-fx poca-fx" id="profCoverFx" aria-hidden="true" style="display:none"></span>
         <span class="zoom-btns hidden" id="zoomProf"><button type="button" title="확대" aria-label="배경 확대" data-z="+">＋</button><button type="button" title="축소" aria-label="배경 축소" data-z="-">−</button></span>
         <div class="hero-deco-layer" id="heroDeco"></div>
         <button class="hero-pos-btn chip-btn icon-only" id="posBtn" title="배경 위치 조정" aria-label="배경 위치 조정" onclick="App.toggleCoverPos()"><svg class="li" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></svg></button>
@@ -419,6 +421,10 @@
       <div class="card">
         <div class="card-title">기념일</div>
         <ul class="anniv-list" id="annivList"></ul>
+      </div>
+      <div class="card hidden" id="funCard">
+        <div class="card-title">별별 정보 <button class="chip-btn" style="margin-left:auto;font-size:11px;font-weight:700" onclick="App.openFunFactsSettings()">표시 설정</button></div>
+        <ul class="anniv-list" id="funFacts"></ul>
       </div>
     </section>
 
@@ -481,6 +487,7 @@
         <h2>포카 바인더</h2>
         <p class="page-sub">수집한 포토카드를 실물 감성 그대로</p>
       </div>
+      <div class="binder-stats hidden" id="binderStats"></div>
       <div class="tab-row">
         <button class="tab active" data-btab="own" onclick="App.binderTab('own')">보유</button>
         <button class="tab" data-btab="wish" onclick="App.binderTab('wish')">위시</button>
@@ -889,9 +896,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="script/notices-data.js?v=44"></script>
+<script src="script/notices-data.js?v=45"></script>
 <script src="script/lunar.js?v=1"></script>
-<script src="script/app.js?v=80"></script>
+<script src="script/app.js?v=81"></script>
 <!-- 서비스워커 등록 (오프라인 지원) — http(s)에서만, file://·미지원 브라우저는 건너뜀 -->
 <script>
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
