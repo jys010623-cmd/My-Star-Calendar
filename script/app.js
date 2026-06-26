@@ -709,9 +709,9 @@
     const cut = [20, 19, 21, 20, 21, 21, 23, 23, 23, 23, 22, 22];
     const STARTS = ["aquarius", "pisces", "aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra", "scorpio", "sagittarius", "capricorn"];
     const META = {
-      aries: ["양자리", "♈"], taurus: ["황소자리", "♉"], gemini: ["쌍둥이자리", "♊"], cancer: ["게자리", "♋"],
-      leo: ["사자자리", "♌"], virgo: ["처녀자리", "♍"], libra: ["천칭자리", "♎"], scorpio: ["전갈자리", "♏"],
-      sagittarius: ["궁수자리", "♐"], capricorn: ["염소자리", "♑"], aquarius: ["물병자리", "♒"], pisces: ["물고기자리", "♓"],
+      aries: ["양자리", "♈︎"], taurus: ["황소자리", "♉︎"], gemini: ["쌍둥이자리", "♊︎"], cancer: ["게자리", "♋︎"],
+      leo: ["사자자리", "♌︎"], virgo: ["처녀자리", "♍︎"], libra: ["천칭자리", "♎︎"], scorpio: ["전갈자리", "♏︎"],
+      sagittarius: ["궁수자리", "♐︎"], capricorn: ["염소자리", "♑︎"], aquarius: ["물병자리", "♒︎"], pisces: ["물고기자리", "♓︎"],
     };
     if (!(mo >= 1 && mo <= 12) || !(d >= 1 && d <= 31)) return null;
     const key = (d >= cut[mo - 1]) ? STARTS[mo - 1] : STARTS[(mo - 2 + 12) % 12];
