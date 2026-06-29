@@ -1,5 +1,5 @@
-/* Pretendard Variable — CDN */
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+/* Pretendard JP Variable — CDN (한글·영문은 일반 Pretendard와 동일 + 일본어·한자 지원, 동적 서브셋이라 쓰인 글자만 로드) */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-jp-dynamic-subset.min.css");
 /* Gowun Batang — 발레코어 모드 제목용 한글 세리프 */
 @import url("https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap");
 
@@ -13,8 +13,46 @@
        url("../fonts/Logo/OK_Mallang_Font/ttf/Ok%20Mallang%20B.ttf") format("truetype");
 }
 
+/* ── 본문 글꼴(사용자 선택용) ── 로컬 파일, 고른 사람만 다운로드됨(@font-face 지연 로드) */
+@font-face {
+  font-family: "Griun Cherry";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/Body/Griun_Cherry1Spoon-Rg.ttf") format("truetype");
+}
+/* 페이퍼로지 — 멀티 굵기(진짜 볼드 지원). 앱이 자주 쓰는 400·600·700·800만 등록 */
+@font-face {
+  font-family: "Paperlogy";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/Body/Paperlogy-1.001/Paperlogy-4Regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Paperlogy";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../fonts/Body/Paperlogy-1.001/Paperlogy-6SemiBold.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Paperlogy";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/Body/Paperlogy-1.001/Paperlogy-7Bold.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Paperlogy";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("../fonts/Body/Paperlogy-1.001/Paperlogy-8ExtraBold.ttf") format("truetype");
+}
+
 :root {
-  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+  --font-sans: "Pretendard JP Variable", "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
     system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo",
     "Noto Sans KR", "Malgun Gothic", sans-serif;
   --font-serif: "Gowun Batang", Georgia, "Times New Roman", serif;

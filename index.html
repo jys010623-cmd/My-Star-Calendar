@@ -29,8 +29,8 @@
 <meta property="og:url" content="https://mystarzip.com/">
 <meta property="og:site_name" content="마이 스타 캘린더">
 <meta property="og:locale" content="ko_KR">
-<meta property="og:image" content="https://mystarzip.com/og-image.png?v=1">
-<meta property="og:image:secure_url" content="https://mystarzip.com/og-image.png?v=1">
+<meta property="og:image" content="https://mystarzip.com/og-image.png?v=2">
+<meta property="og:image:secure_url" content="https://mystarzip.com/og-image.png?v=2">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -38,7 +38,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="마이 스타 캘린더 (My Star Calendar)">
 <meta name="twitter:description" content="최애 덕질을 한 곳에 — 캘린더·티켓팅·가계부·포카 바인더·기록.">
-<meta name="twitter:image" content="https://mystarzip.com/og-image.png?v=1">
+<meta name="twitter:image" content="https://mystarzip.com/og-image.png?v=2">
 <link rel="canonical" href="https://mystarzip.com/">
 <title>마이 스타 캘린더 (My Star Calendar)</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -74,8 +74,8 @@
 <link rel="apple-touch-startup-image" media="screen and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="splash/splash-2388x1668.png?v=1">
 <link rel="apple-touch-startup-image" media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="splash/splash-2732x2048.png?v=1">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="css/fonts.css?v=13">
-<link rel="stylesheet" href="css/style.css?v=82">
+<link rel="stylesheet" href="css/fonts.css?v=14">
+<link rel="stylesheet" href="css/style.css?v=83">
 </head>
 <body>
 <!-- 스타더스트 전용 하늘 레이어 (콘텐츠와 분리된 합성층) -->
@@ -665,6 +665,12 @@
       </div>
 
       <div class="card">
+        <div class="card-title">본문 글꼴 <small>(로고·제목 제외)</small></div>
+        <div class="tab-row" id="fontTabs" style="margin-bottom:0;flex-wrap:wrap"></div>
+        <p class="hint" style="margin-top:8px">앱 본문 글씨체를 바꿔요. 기본은 프리텐다드, '기기 기본'은 휴대폰에 설정된 글꼴을 따라가요. 로고와 발레코어 제목은 그대로예요.</p>
+      </div>
+
+      <div class="card">
         <div class="card-title">메인 템플릿</div>
         <div class="tpl-thumbs" id="setTplThumbs"></div>
         <p class="hint">메인 상단 프로필 영역의 스타일을 고를 수 있어요.</p>
@@ -896,9 +902,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="script/notices-data.js?v=45"></script>
+<script src="script/notices-data.js?v=46"></script>
 <script src="script/lunar.js?v=1"></script>
-<script src="script/app.js?v=82"></script>
+<script src="script/app.js?v=83"></script>
 <!-- 서비스워커 등록 (오프라인 지원) — http(s)에서만, file://·미지원 브라우저는 건너뜀 -->
 <script>
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {

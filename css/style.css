@@ -61,8 +61,14 @@ html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; } /* 스크롤�
 html:has(.app) { scrollbar-gutter: auto; } /* 메인 앱(SPA)은 본문 .main이 스크롤을 맡으므로 문서 거터 불필요 → 오른쪽 빈 띠 방지 */
 
 body {
-  font-family: var(--font-sans);
+  font-family: var(--font-body, var(--font-sans));
   background: var(--bg);
+}
+/* 사용자가 고른 본문 글꼴은 굵기가 한 종류뿐 → 브라우저의 가짜 볼드(번짐) 끄기. 기본 프리텐다드일 땐 적용 안 됨 */
+html[data-customfont="true"] body {
+  font-synthesis: none;
+}
+body {
   color: var(--text);
   line-height: 1.55;
   letter-spacing: -0.01em;

@@ -166,6 +166,14 @@
     ["note", "메모장"], ["retropc", "레트로 윈도우"],
   ];
   const BGS = [["none", "기본"], ["dot", "땡땡이"], ["heart", "하트"], ["sparkle", "반짝이"], ["star", "별"], ["flower", "꽃"], ["clover", "클로버"], ["ribbon", "리본"], ["cherry", "체리"], ["apple", "사과"], ["cloud", "구름"], ["wave", "물결"], ["diamond", "마름모"], ["stripe", "사선"], ["zigzag", "지그재그"], ["grid", "격자"], ["check", "체크"]];
+  // 본문 글꼴 — [키, 보이는 이름, CSS font-family]. ""는 기본(Pretendard). 고른 글꼴 뒤엔 Pretendard가 폴백으로 붙어 빠진 글자를 메움.
+  // [키, 보이는 이름, CSS font-family, 단일굵기여부(가짜 볼드 끔)]
+  const FONTS = [
+    ["", "기본", "", false],
+    ["system", "기기 기본", 'system-ui, -apple-system, "Segoe UI", Roboto, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif', false],
+    ["cherry", "체리한스푼", '"Griun Cherry"', true],
+    ["paperlogy", "페이퍼로지", '"Paperlogy"', false],
+  ];
   const ALIGNS = [["left", "왼쪽"], ["center", "가운데"]];
   const PATSTYLES = [["scatter", "흩뿌림"], ["diag", "사선"]];
   // 패턴 배치(흩뿌림/사선)가 실제로 모양을 바꾸는 패턴만. 나머지(땡땡이·리본·물결·사선·지그재그·격자·체크)는 영향 없음 → 배치 토글 비활성화
@@ -458,7 +466,7 @@
 
   function defaults() {
     return {
-      onboarded: false, preset: "idol", dark: false, retro: false, retroSkin: "browser", retroPos: "float", bg: "none", align: "left", widgets: {}, budget: 0, notifyTicket: false, notifyTicketLead: 10, notifyEvents: false, notifyEventsLead: 60, notifyBirthday: false, notifyBdayDays: 0, notifyDaily: false, notifyDailyHour: 9, haptics: true, veil: 0, mode: "", template: "classic", archView: "card", accent: "#141414", weekStart: "sun", weekStartWeek: "mon", weekStartCircle: "mon", ttHideWeekend: false, ttHideWeekendFixed: null, ttHideWeekendWeek: null, ttHideWeekendCircle: null, ttCircleStyle: "full", ttLink: true, ttFixedLink: true, lastFx: {},
+      onboarded: false, preset: "idol", dark: false, retro: false, retroSkin: "browser", retroPos: "float", bg: "none", align: "left", widgets: {}, budget: 0, notifyTicket: false, notifyTicketLead: 10, notifyEvents: false, notifyEventsLead: 60, notifyBirthday: false, notifyBdayDays: 0, notifyDaily: false, notifyDailyHour: 9, haptics: true, veil: 0, mode: "", template: "classic", archView: "card", accent: "#141414", weekStart: "sun", weekStartWeek: "mon", weekStartCircle: "mon", ttHideWeekend: false, ttHideWeekendFixed: null, ttHideWeekendWeek: null, ttHideWeekendCircle: null, ttCircleStyle: "full", ttLink: true, ttFixedLink: true, lastFx: {}, font: "",
       biases: [], currentBias: null,
       customArchTypes: { offline: [], online: [] }, customStyleCats: [],
       cats: [], recLabel: "기록", recColor: "#c3aee8", schedules: [], stickers: {}, photocards: [],
@@ -602,6 +610,13 @@
     root.setAttribute("data-template", S.template || "classic");
     root.setAttribute("data-mode", S.mode || "none");
     root.style.setProperty("--veil", (S.veil || 0) + "%"); // 콘텐츠 배경 불투명 막 농도
+    // 본문 글꼴 — 고른 글꼴이 있으면 --font-body로 덮어쓰고 뒤에 기본 폰트(Pretendard)를 폴백으로 붙임. 기본이면 변수 제거 → CSS 기본값으로 복귀.
+    const fontDef = FONTS.find(([k]) => k === (S.font || ""));
+    if (fontDef && fontDef[2]) root.style.setProperty("--font-body", fontDef[2] + ", var(--font-sans)");
+    else root.style.removeProperty("--font-body");
+    // 단일 굵기 손글씨체만 가짜 볼드(font-synthesis) 끔. 기본·기기 기본 글꼴은 진짜 볼드 유지.
+    if (fontDef && fontDef[3]) root.setAttribute("data-customfont", "true");
+    else root.removeAttribute("data-customfont");
     if (!S.retro) { root.removeAttribute("data-retro-min"); root.removeAttribute("data-retro-max"); }
     // 상태바/주소창 색을 현재 테마 배경에 맞춤 (수동 다크 토글·감성 모드 반영)
     const mt = $("metaTheme");
@@ -1115,7 +1130,7 @@
   function resetPresets() {
     if (!confirm("화면·테마를 기본값으로 되돌릴까요?\n(템플릿·감성모드·배경·색·정렬·미니홈피·다크 등 꾸미기만 초기화돼요)")) return;
     const d = defaults();
-    ["template", "mode", "bg", "align", "accent", "dark", "retro", "retroSkin", "retroPos", "veil"].forEach((k) => { S[k] = d[k]; });
+    ["template", "mode", "bg", "align", "accent", "dark", "retro", "retroSkin", "retroPos", "veil", "font"].forEach((k) => { S[k] = d[k]; });
     S.patstyle = "scatter";
     save(); applyTheme(); renderAll(); renderSettings();
     toast("화면·테마를 기본값으로 되돌렸어요");
@@ -1419,6 +1434,10 @@
         <input type="range" id="fpVeilRange" class="veil-range" min="0" max="100" step="5" value="0" oninput="App.setVeil(this.value)">
       </div>
       <div class="field" style="margin:14px 0 0">
+        <label>본문 글꼴 <small>(로고·제목 제외)</small></label>
+        <div class="tab-row" id="fpFontRow" style="margin-bottom:0;flex-wrap:wrap"></div>
+      </div>
+      <div class="field" style="margin:14px 0 0">
         <label>메인 템플릿</label>
         <div class="tpl-thumbs" id="fpTplThumbs"></div>
       </div>
@@ -1454,6 +1473,16 @@
         fxr.innerHTML = POCA_FX.map(([k, l]) =>
           `<button type="button" class="fx-chip ${(S.bgFx || "") === k ? "on" : ""}" data-fpfx="${k}"><span class="fx-prev ${k ? "fx-" + k : ""}"></span><span class="fx-chip-lb">${l}</span></button>`).join("");
         fxr.querySelectorAll("[data-fpfx]").forEach((b) => { b.onclick = () => { setBgFx(b.dataset.fpfx); sync(); }; });
+      }
+      const ffr = $("fpFontRow");
+      if (ffr) {
+        ffr.innerHTML = FONTS.map(([id, name]) =>
+          `<button class="tab ${(S.font || "") === id ? "active" : ""}" data-fpfont="${id}">${name}</button>`).join("");
+        ffr.querySelectorAll("[data-fpfont]").forEach((b) => {
+          const def = FONTS.find(([id]) => id === b.dataset.fpfont); // 버튼을 그 글꼴로 미리보기 (따옴표 충돌 피하려 JS로 지정)
+          if (def && def[2]) b.style.fontFamily = def[2] + ", var(--font-sans)";
+          b.onclick = () => { setFont(b.dataset.fpfont); sync(); };
+        });
       }
     };
     $("modalBody").querySelectorAll(".fp-card").forEach((c) => {
@@ -1500,6 +1529,13 @@
     save(); applyTheme(); renderSettings();
     const found = ALIGNS.find(([id]) => id === a);
     toast(`${found ? found[1] : ""} 정렬로 바꿨어요`);
+  }
+  function setFont(k) {
+    if (!FONTS.some(([id]) => id === k)) k = "";
+    S.font = k;
+    save(); applyTheme(); renderSettings();
+    const found = FONTS.find(([id]) => id === k);
+    toast(k === "" ? "본문 글꼴을 기본으로 되돌렸어요" : `본문 글꼴을 '${found ? found[1] : ""}'(으)로 바꿨어요`);
   }
   function setWeekStart(w) { // 캘린더(+홈 이번 주)
     S.weekStart = w === "mon" ? "mon" : "sun";
@@ -4914,6 +4950,16 @@
         b.onclick = () => setAlign(b.dataset.alignBtn);
       });
     }
+    const ft = $("fontTabs");
+    if (ft) {
+      ft.innerHTML = FONTS.map(([id, name]) =>
+        `<button class="tab ${(S.font || "") === id ? "active" : ""}" data-font-btn="${id}">${name}</button>`).join("");
+      ft.querySelectorAll("[data-font-btn]").forEach((b) => {
+        const def = FONTS.find(([id]) => id === b.dataset.fontBtn); // 버튼을 그 글꼴로 미리보기
+        if (def && def[2]) b.style.fontFamily = def[2] + ", var(--font-sans)";
+        b.onclick = () => setFont(b.dataset.fontBtn);
+      });
+    }
     const wsc = $("weekStartCalTabs");
     if (wsc) wsc.querySelectorAll("[data-wsc]").forEach((b) => b.classList.toggle("active", b.dataset.wsc === (S.weekStart || "sun")));
     const wsw = $("weekStartWeekTabs");
@@ -6894,7 +6940,7 @@
 
   window.App = {
     obNext, obPrev, obFinish, obSkip, extractFromPhoto, openColorFromPhoto,
-    go, toggleFab, toggleDark, toggleRetro, setRetroSkin, setRetroPos, setBg, setAlign, setWeekStart, toggleCalWeekStart, setWeekStartWeek, setWeekStartCircle, toggleTtLink, toggleTtFixedLink, toggleTtWeekend, toggleTtWeekendView, setPatStyle, openFramePicker, openColorPicker, openBudget, openYearReview, toggleNotifyTicket, toggleHaptics, setVeil, setPreset, retroMin, retroMax, toggleDeco, toggleCoverPos, cardGo, coverDragStart, editCurrentBias, setTemplate, resetPresets, setMode,
+    go, toggleFab, toggleDark, toggleRetro, setRetroSkin, setRetroPos, setBg, setAlign, setWeekStart, toggleCalWeekStart, setWeekStartWeek, setWeekStartCircle, toggleTtLink, toggleTtFixedLink, toggleTtWeekend, toggleTtWeekendView, setPatStyle, openFramePicker, openColorPicker, openBudget, openYearReview, toggleNotifyTicket, toggleHaptics, setVeil, setFont, setPreset, retroMin, retroMax, toggleDeco, toggleCoverPos, cardGo, coverDragStart, editCurrentBias, setTemplate, resetPresets, setMode,
     calMove, calToday, calJump, openStickerPicker, shareDay,
     ttMove, ttThisWeek, ttSetView, ttSetDay, ttSetCircleStyle, openTTRange, openTTCopy, openTTBlock, openTTOptions,
     binderTab, ledgerMove, ledgerToday, archiveTab, styleTab,
