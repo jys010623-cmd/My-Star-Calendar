@@ -4156,7 +4156,7 @@
     let html = pageCards.map((p) => {
       const face = !p.img ? esc(p.name)
         : (p.imgBack
-            ? `<div class="poca-flip"><div class="poca-flip-inner"><div class="poca-face pf-front"><img src="${p.img}" alt="${p.name ? "" : "포토카드"}" draggable="false">${pocaFxHtml(p.effect)}</div><div class="poca-face pf-back"><img src="${p.imgBack}" alt="뒷면" draggable="false"></div></div></div>`
+            ? `<div class="poca-flip"><div class="poca-flip-inner"><div class="poca-face pf-front"><img src="${p.img}" alt="${p.name ? "" : "포토카드"}" draggable="false">${pocaFxHtml(p.effect)}</div><div class="poca-face pf-back"><img src="${p.imgBack}" alt="뒷면" draggable="false">${p.effectBack ? pocaFxHtml(p.effect) : ""}</div></div></div>`
             : `<img src="${p.img}" alt="${p.name ? "" : "포토카드"}" draggable="false">${pocaFxHtml(p.effect)}`);
       return `
       <div class="poca-slot ${p.img ? "" : "noimg"}${p.imgBack ? " has-back" : ""}" data-pid="${p.id}">
@@ -4164,6 +4164,7 @@
         ${p.img && p.name ? `<span class="pc-label">${esc(p.name)}</span>` : ""}
         ${(+p.qty > 1) ? `<span class="pc-qty">×${+p.qty}</span>` : ""}
         ${p.imgBack ? `<span class="pc-twoside">양면</span>` : ""}
+        ${p.imgBack ? `<button type="button" class="pc-flipbtn" aria-label="앞뒤 뒤집기" title="앞뒤 뒤집기">${I("refresh") || "↺"}</button>` : ""}
       </div>`;
     }).join("");
     const emptyCount = PER_PAGE - pageCards.length; // 남은 칸을 빈 포켓으로 채움 (모두 동일하게)
@@ -4237,6 +4238,17 @@
         st = null;
       });
       el.addEventListener("pointercancel", () => { clearLp(); st = null; });
+      // 양면 카드: 뒤집기 버튼으로 제자리에서 앞/뒤 전환 (상세 열기·드래그와 분리)
+      const flipBtn = el.querySelector(".pc-flipbtn");
+      if (flipBtn) {
+        flipBtn.addEventListener("pointerdown", (e) => { e.stopPropagation(); st = null; clearLp(); });
+        flipBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const inner = el.querySelector(".poca-flip-inner");
+          if (inner) inner.classList.toggle("flipped");
+          if (S.haptics !== false) { try { navigator.vibrate && navigator.vibrate(8); } catch (_) {} }
+        });
+      }
     });
   }
   function startPocaDrag(e, slot, grid) {
@@ -4308,7 +4320,7 @@
         <div class="pc-flip" id="pcFlipWrap">
           <div class="pc-flip-inner" id="pcFlipInner" role="button" tabindex="0" aria-label="포토카드 앞/뒤 뒤집기">
             <div class="pc-face pc-front"><img src="${p.img}" alt="${esc(p.name) || "포토카드"} 앞면" draggable="false">${pocaFxHtml(p.effect)}</div>
-            <div class="pc-face pc-back"><img src="${p.imgBack}" alt="${esc(p.name) || "포토카드"} 뒷면" draggable="false"></div>
+            <div class="pc-face pc-back"><img src="${p.imgBack}" alt="${esc(p.name) || "포토카드"} 뒷면" draggable="false">${p.effectBack ? pocaFxHtml(p.effect) : ""}</div>
           </div>
         </div>` : `<div class="pc-single" id="pcSingle"><img id="pcViewImg" src="${p.img}" alt="${esc(p.name) || "포토카드"} 사진">${pocaFxHtml(p.effect)}</div>`) : ""}
       ${p.imgBack ? `<div style="text-align:center;margin-bottom:10px"><button class="btn btn-ghost btn-sm" id="pcFlip">${I("refresh") || "↺"} 앞/뒤 뒤집기</button></div>` : ""}
@@ -4330,8 +4342,24 @@
     const pcFlip = $("pcFlip");
     if (pcFlip) pcFlip.onclick = doPcFlip;
     if (pcFlipInner) {
-      pcFlipInner.addEventListener("click", doPcFlip);
       pcFlipInner.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); doPcFlip(); } });
+      // 탭 + 좌우 스와이프(손가락으로 옆으로 밀기) 둘 다로 뒤집기
+      let _sx = 0, _sy = 0, _tracking = false, _swiped = false;
+      pcFlipInner.addEventListener("pointerdown", (e) => { _tracking = true; _swiped = false; _sx = e.clientX; _sy = e.clientY; });
+      pcFlipInner.addEventListener("pointermove", (e) => {
+        if (!_tracking) return;
+        const dx = e.clientX - _sx, dy = e.clientY - _sy;
+        if (Math.abs(dx) > 36 && Math.abs(dx) > Math.abs(dy) * 1.3) { // 가로 이동이 충분하고 세로보다 우세할 때만
+          _tracking = false; _swiped = true; doPcFlip();
+        }
+      });
+      const _endTrack = () => { _tracking = false; };
+      pcFlipInner.addEventListener("pointerup", _endTrack);
+      pcFlipInner.addEventListener("pointercancel", _endTrack);
+      pcFlipInner.addEventListener("click", (e) => {
+        if (_swiped) { _swiped = false; e.preventDefault(); e.stopPropagation(); return; } // 방금 스와이프로 뒤집었으면 클릭은 무시
+        doPcFlip();
+      });
     }
     // 반짝이 효과: 빛이 마우스/손가락을 따라오고, 기기를 기울이면 각도가 바뀜
     if (p.effect && POCA_FX_KEYS.includes(p.effect)) {
@@ -5241,9 +5269,11 @@
     ov.innerHTML = `
       <div class="crop-box" role="dialog" aria-label="사진 자르기" aria-modal="true">
         <div class="crop-head"><b>사진 자르기</b><button class="crop-x" type="button" aria-label="닫기">${I("x")}</button></div>
-        <div class="crop-ratios">${ARCH_RATIOS.map(([k, l]) => `<button class="crop-ratio ${k === ratioKey ? "on" : ""}" type="button" data-r="${k}">${l}</button>`).join("")}</div>
-        <div class="crop-stage" id="cropStage"><div class="crop-bg" id="cropBg"></div><img class="crop-img" id="cropImg" alt=""></div>
-        <p class="crop-hint">사진을 끌어 옮기고, 휠(또는 손가락 모으기)로 자유롭게 확대·축소해요</p>
+        <div class="crop-body">
+          <div class="crop-ratios">${ARCH_RATIOS.map(([k, l]) => `<button class="crop-ratio ${k === ratioKey ? "on" : ""}" type="button" data-r="${k}">${l}</button>`).join("")}</div>
+          <div class="crop-stage" id="cropStage"><div class="crop-bg" id="cropBg"></div><img class="crop-img" id="cropImg" alt=""></div>
+          <p class="crop-hint">사진을 끌어 옮기고, 휠(또는 손가락 모으기)로 자유롭게 확대·축소해요</p>
+        </div>
         <div class="crop-actions"><button class="btn btn-ghost btn-sm" type="button" id="cropCancel">취소</button><button class="btn btn-primary btn-sm" type="button" id="cropApply">적용</button></div>
       </div>`;
     document.body.appendChild(ov);
@@ -5788,6 +5818,7 @@
             <div class="fx-live-card" id="fxLiveCard"><img id="fxLiveImg" alt="효과 미리보기"><span class="poca-fx" id="fxLiveFx" aria-hidden="true"></span></div>
             <span class="fx-live-hint">앞면 사진에 적용한 모습 · 마우스·기울임에 반응</span>
           </div>
+          <label class="fx-back-toggle" id="mFxBackWrap" hidden><input type="checkbox" id="mFxBack"> 뒷면에도 같은 효과 적용</label>
         </div>
         <button class="btn btn-primary btn-lg" id="mSave">바인더에 넣기</button>
       `);
@@ -5815,6 +5846,8 @@
           if (!fxReactBound) { attachFxReact(fxLiveCard); fxReactBound = true; }
         } else { fxWrap.hidden = true; }
         if (fxLiveFx) fxLiveFx.className = "poca-fx" + (pocaFx ? " fx-" + pocaFx : "");
+        const fxBackWrap = $("mFxBackWrap");
+        if (fxBackWrap) fxBackWrap.hidden = !pocaFx; // 효과가 있을 때만 '뒷면에도 적용' 노출
         if (pocaFx) enablePocaTilt();
       };
       if (fxPick) {
@@ -5840,6 +5873,7 @@
         $("mQty").value = edit.qty || 1;
         $("mPriority").value = String(edit.priority || 2);
         $("mTradeWith").value = edit.tradeWith || "";
+        if ($("mFxBack")) $("mFxBack").checked = !!edit.effectBack;
         if (edit.price) attachWonInput($("mPrice"), edit.price);
         if (edit.img) { $("mpPreview").src = edit.img; $("mpPreview").classList.remove("hidden"); $("mpHint").classList.add("hidden"); }
         if (edit.imgBack) { $("mp2Preview").src = edit.imgBack; $("mp2Preview").classList.remove("hidden"); $("mp2Hint").classList.add("hidden"); }
@@ -5858,6 +5892,7 @@
           price: wonValue($("mPrice")),
           tradeWith: $("mTradeWith").value.trim(),
           effect: pocaFx,
+          effectBack: !!($("mFxBack") && $("mFxBack").checked),
         };
         if (edit) {
           Object.assign(edit, fields);
