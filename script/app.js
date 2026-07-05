@@ -6278,7 +6278,9 @@
   function _pushBackSentinel() {
     try { if (!(history.state && history.state.msc)) history.pushState({ msc: 1 }, ""); } catch (e) {}
   }
+  function _bgDebug(msg) { try { if (/bgdebug/.test(location.search)) toast(msg); } catch (e) {} }
   function _onBackPop() {
+    _bgDebug("뒤로 감지 · len=" + history.length + " · " + (history.state && history.state.msc ? "sentinel" : "none"));
     if (backClosedOverlay()) { _pushBackSentinel(); return; }
     if (!_exitArmed) {
       _exitArmed = true;
@@ -6301,6 +6303,7 @@
     _backGuardOn = true;
     _pushBackSentinel();
     window.addEventListener("popstate", _onBackPop);
+    _bgDebug("가드 설치됨 · len=" + history.length + " · " + (history.state && history.state.msc ? "sentinel OK" : "센티널 없음"));
     // 뒤/앞 이동 캐시(bfcache) 복원·포그라운드 복귀 시 센티널이 사라졌을 수 있어 다시 확보
     window.addEventListener("pageshow", (e) => { if (e.persisted) { _backGuardOn = true; _pushBackSentinel(); } });
     document.addEventListener("visibilitychange", () => { if (!document.hidden) _pushBackSentinel(); });
