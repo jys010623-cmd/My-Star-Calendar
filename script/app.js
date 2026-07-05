@@ -6275,18 +6275,22 @@
     return false;
   }
   // 뒤로가기로 되돌아갈 '센티널' 기록을 확보.
-  // 삼성 인터넷 등은 URL이 그대로인 pushState 항목을 뒤로가기 때 건너뛰므로 해시(#_)로 URL을 바꾼다.
-  // 또 브라우저에 따라 뒤로가기에서 popstate 대신 hashchange만 오기도 해서 두 이벤트를 모두 듣는다.
+  // 삼성 인터넷은 (1) URL이 같은 pushState 항목을 뒤로가기 때 이벤트 없이 건너뛰고 (2) popstate도 잘 안 준다.
+  // → 센티널마다 '고유한 해시(#_숫자)'를 붙여 인접 항목 URL이 절대 같지 않게 하고,
+  //   popstate·hashchange를 모두 들어 되돌아온 항목에 표식(state.msc)이 없으면 뒤로가기로 처리한다.
+  var _sentN = 0;
+  function _onSentinel() { return !!(history.state && history.state.msc); }
   function _pushBackSentinel() {
-    try { if (!(history.state && history.state.msc)) history.pushState({ msc: 1 }, "", "#_"); } catch (e) {}
+    try { if (!_onSentinel()) { _sentN++; history.pushState({ msc: 1 }, "", "#_" + _sentN.toString(36)); } } catch (e) {}
   }
   function _bgDebug(msg) { try { if (/bgdebug/.test(location.search)) toast(msg); } catch (e) {} }
   let _backBusy = false;
   function _handleBack(src) {
+    if (_onSentinel()) { _bgDebug(src + " · 센티널(무시) · " + (location.hash || "(없음)")); return; } // 우리가 쌓은 항목
     _bgDebug("뒤로 감지(" + src + ") · hash=" + (location.hash || "(없음)") + " · len=" + history.length);
-    if (_backBusy) return;                 // popstate·hashchange가 같이 와도 한 번만 처리
+    if (_backBusy) return;
     _backBusy = true;
-    setTimeout(function () { _backBusy = false; }, 60);
+    setTimeout(function () { _backBusy = false; }, 80);
     if (backClosedOverlay()) { _pushBackSentinel(); return; }
     if (!_exitArmed) {
       _exitArmed = true;
@@ -6305,18 +6309,15 @@
     history.back();
   }
   function _onPop() { _handleBack("popstate"); }
-  function _onHash() {
-    if (location.hash === "#_") { _bgDebug("hashchange · #_ (자체 arming, 무시)"); return; } // 우리가 붙인 해시
-    _handleBack("hashchange");
-  }
+  function _onHash() { _handleBack("hashchange"); }
   function _onPageShow(e) { if (e.persisted) { _backGuardOn = false; setupBackGuard(); } }
   function _onVis() { if (!document.hidden) _pushBackSentinel(); }
   // 어떤 상황에서도(초기화 도중 오류가 나더라도) 뒤로가기 가드가 반드시 설치되도록 독립 실행.
   function setupBackGuard() {
     if (_backGuardOn) { _pushBackSentinel(); return; } // 중복 설치 방지 + 센티널만 재확보
     _backGuardOn = true;
-    // 이전 세션의 가드 해시(#_)가 URL에 남아 있으면 깨끗한 base로 되돌린 뒤 센티널을 새로 쌓는다
-    try { if (location.hash === "#_") history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+    // 로드시 URL에 가드 해시(#_...)가 남아 있으면 깨끗한 base로 되돌린 뒤 센티널을 새로 쌓는다
+    try { if (/^#_/.test(location.hash)) history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
     _pushBackSentinel();
     window.addEventListener("popstate", _onPop);
     window.addEventListener("hashchange", _onHash);
