@@ -6274,44 +6274,55 @@
     if (fm && fm.classList.contains("open")) { closeFab(); return true; }
     return false;
   }
-  // 뒤로가기로 되돌아갈 '센티널' 기록을 확보 (없으면 뒤로가기 한 번에 앱이 그냥 닫힘)
-  // 삼성 인터넷 등은 URL이 그대로인 pushState 항목을 뒤로가기 때 건너뛰어 popstate가 안 온다.
-  // 그래서 해시(#_)를 붙여 URL이 실제로 바뀌게 만들면 뒤로가기가 확실히 popstate로 잡힌다.
+  // 뒤로가기로 되돌아갈 '센티널' 기록을 확보.
+  // 삼성 인터넷 등은 URL이 그대로인 pushState 항목을 뒤로가기 때 건너뛰므로 해시(#_)로 URL을 바꾼다.
+  // 또 브라우저에 따라 뒤로가기에서 popstate 대신 hashchange만 오기도 해서 두 이벤트를 모두 듣는다.
   function _pushBackSentinel() {
     try { if (!(history.state && history.state.msc)) history.pushState({ msc: 1 }, "", "#_"); } catch (e) {}
   }
   function _bgDebug(msg) { try { if (/bgdebug/.test(location.search)) toast(msg); } catch (e) {} }
-  function _onBackPop() {
-    _bgDebug("뒤로 감지 · len=" + history.length + " · " + (history.state && history.state.msc ? "sentinel" : "none"));
+  let _backBusy = false;
+  function _handleBack(src) {
+    _bgDebug("뒤로 감지(" + src + ") · hash=" + (location.hash || "(없음)") + " · len=" + history.length);
+    if (_backBusy) return;                 // popstate·hashchange가 같이 와도 한 번만 처리
+    _backBusy = true;
+    setTimeout(function () { _backBusy = false; }, 60);
     if (backClosedOverlay()) { _pushBackSentinel(); return; }
     if (!_exitArmed) {
       _exitArmed = true;
       try { toast("뒤로가기를 한 번 더 누르면 종료돼요"); } catch (e) {}
       _pushBackSentinel();
       clearTimeout(_exitTimer);
-      _exitTimer = setTimeout(() => { _exitArmed = false; }, 2000);
+      _exitTimer = setTimeout(function () { _exitArmed = false; }, 2000);
       return;
     }
-    // 두 번째 뒤로가기 → 종료. 핸들러를 먼저 떼어 popstate 재진입(삼성 인터넷 '리디렉션 차단됨' 루프) 방지
+    // 두 번째 뒤로가기 → 종료. 핸들러를 먼저 떼어 재진입 방지
     clearTimeout(_exitTimer);
     _exitArmed = false;
-    window.removeEventListener("popstate", _onBackPop);
+    window.removeEventListener("popstate", _onPop);
+    window.removeEventListener("hashchange", _onHash);
     _backGuardOn = false;
     history.back();
   }
+  function _onPop() { _handleBack("popstate"); }
+  function _onHash() {
+    if (location.hash === "#_") { _bgDebug("hashchange · #_ (자체 arming, 무시)"); return; } // 우리가 붙인 해시
+    _handleBack("hashchange");
+  }
+  function _onPageShow(e) { if (e.persisted) { _backGuardOn = false; setupBackGuard(); } }
+  function _onVis() { if (!document.hidden) _pushBackSentinel(); }
   // 어떤 상황에서도(초기화 도중 오류가 나더라도) 뒤로가기 가드가 반드시 설치되도록 독립 실행.
   function setupBackGuard() {
     if (_backGuardOn) { _pushBackSentinel(); return; } // 중복 설치 방지 + 센티널만 재확보
     _backGuardOn = true;
     // 이전 세션의 가드 해시(#_)가 URL에 남아 있으면 깨끗한 base로 되돌린 뒤 센티널을 새로 쌓는다
-    // (base와 센티널의 URL이 서로 달라야 뒤로가기가 popstate로 잡힘)
     try { if (location.hash === "#_") history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
     _pushBackSentinel();
-    window.addEventListener("popstate", _onBackPop);
-    _bgDebug("가드 설치됨 · len=" + history.length + " · " + (history.state && history.state.msc ? "sentinel OK" : "센티널 없음"));
-    // 뒤/앞 이동 캐시(bfcache) 복원·포그라운드 복귀 시 센티널이 사라졌을 수 있어 다시 확보
-    window.addEventListener("pageshow", (e) => { if (e.persisted) { _backGuardOn = true; _pushBackSentinel(); } });
-    document.addEventListener("visibilitychange", () => { if (!document.hidden) _pushBackSentinel(); });
+    window.addEventListener("popstate", _onPop);
+    window.addEventListener("hashchange", _onHash);
+    window.addEventListener("pageshow", _onPageShow);
+    document.addEventListener("visibilitychange", _onVis);
+    _bgDebug("가드 설치됨 · href=" + location.href + " · len=" + history.length);
   }
 
   // ── 앱 아이콘 배지: 오늘 일정 수 ──
