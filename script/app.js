@@ -6264,7 +6264,7 @@
 
   /* ═══════════ 시작 ═══════════ */
   // ── 하드웨어/브라우저 뒤로가기: 열린 오버레이부터 닫고, 그다음엔 한 번 더 눌러야 종료 ──
-  let _exitArmed = false, _exitTimer = null;
+  let _exitArmed = false, _exitTimer = null, _backGuardOn = false;
   function backClosedOverlay() {
     const sb = document.getElementById("standby");
     if (sb && !sb.classList.contains("hidden")) { closeStandby(); return true; }
@@ -6274,25 +6274,36 @@
     if (fm && fm.classList.contains("open")) { closeFab(); return true; }
     return false;
   }
-  function setupBackGuard() {
-    try { history.pushState({ msc: 1 }, ""); } catch (e) { return; }
-    function onPop() {
-      if (backClosedOverlay()) { history.pushState({ msc: 1 }, ""); return; }
-      if (!_exitArmed) {
-        _exitArmed = true;
-        toast("뒤로가기를 한 번 더 누르면 종료돼요");
-        history.pushState({ msc: 1 }, "");
-        clearTimeout(_exitTimer);
-        _exitTimer = setTimeout(() => { _exitArmed = false; }, 2000);
-        return;
-      }
-      // 두 번째 뒤로가기 → 종료. 핸들러를 먼저 떼어 popstate 재진입(삼성 인터넷 '리디렉션 차단됨' 루프) 방지
+  // 뒤로가기로 되돌아갈 '센티널' 기록을 확보 (없으면 뒤로가기 한 번에 앱이 그냥 닫힘)
+  function _pushBackSentinel() {
+    try { if (!(history.state && history.state.msc)) history.pushState({ msc: 1 }, ""); } catch (e) {}
+  }
+  function _onBackPop() {
+    if (backClosedOverlay()) { _pushBackSentinel(); return; }
+    if (!_exitArmed) {
+      _exitArmed = true;
+      try { toast("뒤로가기를 한 번 더 누르면 종료돼요"); } catch (e) {}
+      _pushBackSentinel();
       clearTimeout(_exitTimer);
-      _exitArmed = false;
-      window.removeEventListener("popstate", onPop);
-      history.back();
+      _exitTimer = setTimeout(() => { _exitArmed = false; }, 2000);
+      return;
     }
-    window.addEventListener("popstate", onPop);
+    // 두 번째 뒤로가기 → 종료. 핸들러를 먼저 떼어 popstate 재진입(삼성 인터넷 '리디렉션 차단됨' 루프) 방지
+    clearTimeout(_exitTimer);
+    _exitArmed = false;
+    window.removeEventListener("popstate", _onBackPop);
+    _backGuardOn = false;
+    history.back();
+  }
+  // 어떤 상황에서도(초기화 도중 오류가 나더라도) 뒤로가기 가드가 반드시 설치되도록 독립 실행.
+  function setupBackGuard() {
+    if (_backGuardOn) { _pushBackSentinel(); return; } // 중복 설치 방지 + 센티널만 재확보
+    _backGuardOn = true;
+    _pushBackSentinel();
+    window.addEventListener("popstate", _onBackPop);
+    // 뒤/앞 이동 캐시(bfcache) 복원·포그라운드 복귀 시 센티널이 사라졌을 수 있어 다시 확보
+    window.addEventListener("pageshow", (e) => { if (e.persisted) { _backGuardOn = true; _pushBackSentinel(); } });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) _pushBackSentinel(); });
   }
 
   // ── 앱 아이콘 배지: 오늘 일정 수 ──
@@ -6988,5 +6999,8 @@
   };
 
   document.addEventListener("DOMContentLoaded", init);
+  // init()이 도중에 실패해도 뒤로가기 가드는 반드시 걸리도록 별도로 등록 (idempotent)
+  document.addEventListener("DOMContentLoaded", setupBackGuard);
+  if (document.readyState !== "loading") setupBackGuard(); // 스크립트가 늦게 로드된 경우 즉시 설치
 })();
 
