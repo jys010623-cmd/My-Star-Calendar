@@ -6275,8 +6275,10 @@
     return false;
   }
   // 뒤로가기로 되돌아갈 '센티널' 기록을 확보 (없으면 뒤로가기 한 번에 앱이 그냥 닫힘)
+  // 삼성 인터넷 등은 URL이 그대로인 pushState 항목을 뒤로가기 때 건너뛰어 popstate가 안 온다.
+  // 그래서 해시(#_)를 붙여 URL이 실제로 바뀌게 만들면 뒤로가기가 확실히 popstate로 잡힌다.
   function _pushBackSentinel() {
-    try { if (!(history.state && history.state.msc)) history.pushState({ msc: 1 }, ""); } catch (e) {}
+    try { if (!(history.state && history.state.msc)) history.pushState({ msc: 1 }, "", "#_"); } catch (e) {}
   }
   function _bgDebug(msg) { try { if (/bgdebug/.test(location.search)) toast(msg); } catch (e) {} }
   function _onBackPop() {
@@ -6301,6 +6303,9 @@
   function setupBackGuard() {
     if (_backGuardOn) { _pushBackSentinel(); return; } // 중복 설치 방지 + 센티널만 재확보
     _backGuardOn = true;
+    // 이전 세션의 가드 해시(#_)가 URL에 남아 있으면 깨끗한 base로 되돌린 뒤 센티널을 새로 쌓는다
+    // (base와 센티널의 URL이 서로 달라야 뒤로가기가 popstate로 잡힘)
+    try { if (location.hash === "#_") history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
     _pushBackSentinel();
     window.addEventListener("popstate", _onBackPop);
     _bgDebug("가드 설치됨 · len=" + history.length + " · " + (history.state && history.state.msc ? "sentinel OK" : "센티널 없음"));

@@ -4,7 +4,7 @@
          네트워크가 안 될 때만 캐시로 대체. 그래서 기존 '항상 최신' 동작과 충돌하지 않음.
    주의: version.json·notices-data.js는 캐시를 거치지 않고 항상 네트워크 최신으로 받음.
    ▶ 앱 셸을 갱신하고 싶으면 아래 CACHE 버전 숫자만 올리면 됨. */
-const CACHE = "msc-shell-v27";
+const CACHE = "msc-shell-v28";
 const SHELL = [
   "./",
   "./index.html",
