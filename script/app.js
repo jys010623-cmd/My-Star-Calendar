@@ -478,13 +478,24 @@
   }
 
   function save() {
-    try {
-      ensureImgKeys(); // 포카 사진은 IndexedDB로 보내고 참조만 남김
-      localStorage.setItem(LS_KEY, JSON.stringify(persistState()));
-      updateAppBadge();
-    } catch (e) {
-      toast("저장 공간이 가득 찼어요. 사진을 줄이거나 백업 후 정리해 주세요.");
+    try { ensureImgKeys(); } catch (e) {} // 포카 사진은 IndexedDB로 보내고, 저장 확인된 것만 참조로 대체
+    persistLite();
+    try { updateAppBadge(); } catch (e) {}
+  }
+  // localStorage에 현재 상태를 저장. 사진 원본(base64)은 persistState가 'IndexedDB 저장 확인된' 것만 빼냄
+  function persistLite() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(persistState())); return true; }
+    catch (e) {
+      // 아직 저장 대기 중인 사진이 있으면, 곧 원본을 뺀 가벼운 저장이 다시 오므로 경고를 미룸(오탐 방지)
+      if (_imgPending === 0) toast("저장 공간이 가득 찼어요. 사진을 줄이거나 백업 후 정리해 주세요.");
+      return false;
     }
+  }
+  // IndexedDB 저장이 확인된 뒤, 이제 안전하게 원본을 뺀 가벼운 상태로 다시 저장 (짧게 묶어서 한 번만)
+  let _persistT = null;
+  function persistLiteSoon() {
+    if (_persistT) return;
+    _persistT = setTimeout(() => { _persistT = null; persistLite(); }, 60);
   }
   function load() {
     try { S = Object.assign(defaults(), JSON.parse(localStorage.getItem(LS_KEY)) || {}); }
@@ -690,9 +701,14 @@
     if (!b || !b.birthday) return false;
     if (isLunarBirth(b)) {
       const ref = stripTime(refKey ? parseYMD(refKey) : new Date());
+      if (!window.Lunar) return false;
       const p = b.birthday.split("-");
-      const s = window.Lunar && window.Lunar.toSolar(ref.getFullYear(), +p[1], +p[2], false);
-      return !!(s && stripTime(s).getTime() === ref.getTime());
+      // 음력 11~12월 생일은 양력으로 이듬해 초에 오므로, 음력 연도 후보를 그 해와 직전 해 둘 다 검사
+      for (const ly of [ref.getFullYear(), ref.getFullYear() - 1]) {
+        const s = window.Lunar.toSolar(ly, +p[1], +p[2], false);
+        if (s && stripTime(s).getTime() === ref.getTime()) return true;
+      }
+      return false;
     }
     return isAnnivOn(b.birthday, refKey);
   }
@@ -700,9 +716,14 @@
   function birthdayOnYMD(b, year, month0, day) {
     if (!b || !b.birthday) return false;
     if (isLunarBirth(b)) {
+      if (!window.Lunar) return false;
       const p = b.birthday.split("-");
-      const s = window.Lunar && window.Lunar.toSolar(year, +p[1], +p[2], false);
-      return !!(s && s.getMonth() === month0 && s.getDate() === day);
+      // 음력 11~12월 생일은 양력으로 이듬해 초에 오므로, 음력 연도 후보를 그 해와 직전 해 둘 다 확인 (전체 날짜가 일치해야 함)
+      for (const ly of [year, year - 1]) {
+        const s = window.Lunar.toSolar(ly, +p[1], +p[2], false);
+        if (s && s.getFullYear() === year && s.getMonth() === month0 && s.getDate() === day) return true;
+      }
+      return false;
     }
     return sameMD(b.birthday, month0, day);
   }
@@ -2004,13 +2025,27 @@
       rq.onerror = () => rej(rq.error);
     });
   }
+  // IndexedDB에 사진 저장. 성공 여부를 boolean으로 알려줌 (실패해도 예외를 던지지 않음)
   function imgPut(id, val) {
-    return imgDB().then((db) => new Promise((res, rej) => {
+    return imgDB().then((db) => new Promise((res) => {
       const tx = db.transaction(IMG_STORE, "readwrite");
       tx.objectStore(IMG_STORE).put(val, id);
-      tx.oncomplete = () => res();
-      tx.onerror = () => rej(tx.error);
-    })).catch(() => {});
+      tx.oncomplete = () => res(true);
+      tx.onerror = () => res(false);
+      tx.onabort = () => res(false);
+    })).catch(() => false);
+  }
+  const imgConfirmed = new Set(); // IndexedDB 저장이 실제로 완료됐다고 확인된 키
+  let _imgWarned = false;          // 사진 저장 실패 경고 (세션당 1회만)
+  let _imgPending = 0;             // 아직 결과를 기다리는 IndexedDB 쓰기 수
+  // 원본을 localStorage에서 빼기 전에 'IndexedDB에 확실히 들어갔는지' 확인하는 저장 래퍼
+  function storeImg(id, val) {
+    _imgPending++;
+    imgPut(id, val).then((ok) => {
+      _imgPending--;
+      if (ok) { imgConfirmed.add(id); persistLiteSoon(); } // 저장 확인됨 → 이제 원본을 뺀 가벼운 상태로 다시 저장
+      else if (!_imgWarned) { _imgWarned = true; toast("사진을 저장하지 못했어요. 저장 공간을 정리하거나 백업해 주세요."); }
+    });
   }
   function imgGet(id) {
     return imgDB().then((db) => new Promise((res, rej) => {
@@ -2033,12 +2068,12 @@
     const v = obj && obj[field];
     if (typeof v === "string" && v.indexOf("data:") === 0) {
       const k = imgKeyOf(v);
-      if (!imgStored.has(k)) { imgStored.add(k); imgPut(k, v); }
+      if (!imgStored.has(k)) { imgStored.add(k); storeImg(k, v); }
       obj[keyField] = k;
     }
   }
   function stripImgField(obj, field, keyField) {
-    if (obj && obj[keyField] && typeof obj[field] === "string" && obj[field].indexOf("data:") === 0) {
+    if (obj && obj[keyField] && imgConfirmed.has(obj[keyField]) && typeof obj[field] === "string" && obj[field].indexOf("data:") === 0) {
       const q = Object.assign({}, obj);
       delete q[field];
       return q;
@@ -2048,16 +2083,18 @@
   // 새로 들어온 사진(base64)에 키를 부여하고 IndexedDB에 저장 (이미 저장된 건 건너뜀)
   function ensureImgKeys() {
     (S.photocards || []).forEach((p) => {
-      if (typeof p.img === "string" && p.img.indexOf("data:") === 0 && !p.imgKey) { p.imgKey = uid(); imgPut(p.imgKey, p.img); }
-      if (typeof p.imgOrig === "string" && p.imgOrig.indexOf("data:") === 0 && !p.imgOrigKey) { p.imgOrigKey = uid(); imgPut(p.imgOrigKey, p.imgOrig); }
-      if (typeof p.imgBackOrig === "string" && p.imgBackOrig.indexOf("data:") === 0 && !p.imgBackOrigKey) { p.imgBackOrigKey = uid(); imgPut(p.imgBackOrigKey, p.imgBackOrig); }
+      // 키가 있어도 아직 IndexedDB 저장이 확인되지 않았으면 다시 저장 시도 (확인 전 종료로 남은 base64를 자가 치유)
+      if (typeof p.img === "string" && p.img.indexOf("data:") === 0) { if (!p.imgKey) p.imgKey = uid(); if (!imgConfirmed.has(p.imgKey)) storeImg(p.imgKey, p.img); }
+      if (typeof p.imgOrig === "string" && p.imgOrig.indexOf("data:") === 0) { if (!p.imgOrigKey) p.imgOrigKey = uid(); if (!imgConfirmed.has(p.imgOrigKey)) storeImg(p.imgOrigKey, p.imgOrig); }
+      if (typeof p.imgBack === "string" && p.imgBack.indexOf("data:") === 0) { if (!p.imgBackKey) p.imgBackKey = uid(); if (!imgConfirmed.has(p.imgBackKey)) storeImg(p.imgBackKey, p.imgBack); }
+      if (typeof p.imgBackOrig === "string" && p.imgBackOrig.indexOf("data:") === 0) { if (!p.imgBackOrigKey) p.imgBackOrigKey = uid(); if (!imgConfirmed.has(p.imgBackOrigKey)) storeImg(p.imgBackOrigKey, p.imgBackOrig); }
     });
     (S.archives || []).forEach((d) => {
       if (!Array.isArray(d.imgs) || !d.imgs.length) return;
       if (!d.imgs.every((im) => typeof im === "string" && im.indexOf("data:") === 0)) return; // 비정상이면 그대로 둠(안전)
       d.imgKeys = d.imgs.map((im) => {
         const key = imgKeyOf(im);
-        if (!imgStored.has(key)) { imgStored.add(key); imgPut(key, im); }
+        if (!imgStored.has(key)) { imgStored.add(key); storeImg(key, im); }
         return key;
       });
     });
@@ -2065,7 +2102,7 @@
     (S.styles || []).forEach((s) => {
       assignImgKey(s, "img", "imgKey");
       if (Array.isArray(s.imgs) && s.imgs.length && s.imgs.every((im) => typeof im === "string" && im.indexOf("data:") === 0)) {
-        s.imgKeys = s.imgs.map((im) => { const key = imgKeyOf(im); if (!imgStored.has(key)) { imgStored.add(key); imgPut(key, im); } return key; });
+        s.imgKeys = s.imgs.map((im) => { const key = imgKeyOf(im); if (!imgStored.has(key)) { imgStored.add(key); storeImg(key, im); } return key; });
       }
     });
     assignImgKey(S.membership, "photo", "photoKey");
@@ -2076,15 +2113,16 @@
     const lite = Object.assign({}, S);
     lite.photocards = (S.photocards || []).map((p) => {
       let q = p;
-      if (p.imgKey && typeof p.img === "string" && p.img.indexOf("data:") === 0) { if (q === p) q = Object.assign({}, p); delete q.img; }
-      if (p.imgOrigKey && typeof p.imgOrig === "string" && p.imgOrig.indexOf("data:") === 0) { if (q === p) q = Object.assign({}, p); delete q.imgOrig; }
-      if (p.imgBackOrigKey && typeof p.imgBackOrig === "string" && p.imgBackOrig.indexOf("data:") === 0) { if (q === p) q = Object.assign({}, p); delete q.imgBackOrig; }
+      if (p.imgKey && imgConfirmed.has(p.imgKey) && typeof p.img === "string" && p.img.indexOf("data:") === 0) { if (q === p) q = Object.assign({}, p); delete q.img; }
+      if (p.imgOrigKey && imgConfirmed.has(p.imgOrigKey) && typeof p.imgOrig === "string" && p.imgOrig.indexOf("data:") === 0) { if (q === p) q = Object.assign({}, p); delete q.imgOrig; }
+      if (p.imgBackKey && imgConfirmed.has(p.imgBackKey) && typeof p.imgBack === "string" && p.imgBack.indexOf("data:") === 0) { if (q === p) q = Object.assign({}, p); delete q.imgBack; }
+      if (p.imgBackOrigKey && imgConfirmed.has(p.imgBackOrigKey) && typeof p.imgBackOrig === "string" && p.imgBackOrig.indexOf("data:") === 0) { if (q === p) q = Object.assign({}, p); delete q.imgBackOrig; }
       return q;
     });
     lite.archives = (S.archives || []).map((d) => {
-      if (Array.isArray(d.imgs) && d.imgs.length && Array.isArray(d.imgKeys) && d.imgKeys.length === d.imgs.length) {
+      if (Array.isArray(d.imgs) && d.imgs.length && Array.isArray(d.imgKeys) && d.imgKeys.length === d.imgs.length && d.imgKeys.every((k) => imgConfirmed.has(k))) {
         const q = Object.assign({}, d);
-        delete q.imgs; // base64들은 IndexedDB에, localStorage엔 imgKeys만
+        delete q.imgs; // base64들은 IndexedDB에, localStorage엔 imgKeys만 (저장 확인된 경우에만)
         return q;
       }
       return d;
@@ -2092,7 +2130,7 @@
     lite.biases = (S.biases || []).map((b) => stripImgField(stripImgField(b, "photo", "photoKey"), "cover", "coverKey"));
     lite.styles = (S.styles || []).map((s) => {
       let q = stripImgField(s, "img", "imgKey");
-      if (Array.isArray(s.imgs) && s.imgs.length && Array.isArray(s.imgKeys) && s.imgKeys.length === s.imgs.length) { q = Object.assign({}, q); delete q.imgs; }
+      if (Array.isArray(s.imgs) && s.imgs.length && Array.isArray(s.imgKeys) && s.imgKeys.length === s.imgs.length && s.imgKeys.every((k) => imgConfirmed.has(k))) { q = Object.assign({}, q); delete q.imgs; }
       return q;
     });
     if (S.membership) lite.membership = stripImgField(stripImgField(S.membership, "photo", "photoKey"), "memberPhoto", "memberPhotoKey");
@@ -2101,32 +2139,35 @@
   // 시작할 때 IndexedDB에 있는 포카 사진을 메모리(S)로 다시 채워 넣음
   function hydrateImages() {
     const tasks = [];
+    // 이미 IndexedDB에 들어있던(=여기서 꺼내온) 사진은 '저장 확인됨'으로 표시해, 다음 저장 때 정상적으로 참조만 남기게 함
+    const grab = (key, set) => imgGet(key).then((v) => { if (v) { set(v); imgConfirmed.add(key); imgStored.add(key); } });
     (S.photocards || []).forEach((p) => {
-      if (!p.img && p.imgKey) tasks.push(imgGet(p.imgKey).then((v) => { if (v) p.img = v; }));
-      if (!p.imgOrig && p.imgOrigKey) tasks.push(imgGet(p.imgOrigKey).then((v) => { if (v) p.imgOrig = v; }));
-      if (!p.imgBackOrig && p.imgBackOrigKey) tasks.push(imgGet(p.imgBackOrigKey).then((v) => { if (v) p.imgBackOrig = v; }));
+      if (!p.img && p.imgKey) tasks.push(grab(p.imgKey, (v) => { p.img = v; }));
+      if (!p.imgOrig && p.imgOrigKey) tasks.push(grab(p.imgOrigKey, (v) => { p.imgOrig = v; }));
+      if (!p.imgBack && p.imgBackKey) tasks.push(grab(p.imgBackKey, (v) => { p.imgBack = v; }));
+      if (!p.imgBackOrig && p.imgBackOrigKey) tasks.push(grab(p.imgBackOrigKey, (v) => { p.imgBackOrig = v; }));
     });
     (S.archives || []).forEach((d) => {
       if ((!Array.isArray(d.imgs) || !d.imgs.length) && Array.isArray(d.imgKeys) && d.imgKeys.length) {
-        tasks.push(Promise.all(d.imgKeys.map((k) => { imgStored.add(k); return imgGet(k); }))
+        tasks.push(Promise.all(d.imgKeys.map((k) => { imgStored.add(k); return imgGet(k).then((v) => { if (v != null) imgConfirmed.add(k); return v; }); }))
           .then((vals) => { d.imgs = vals.filter((v) => v != null); }));
       }
     });
     (S.biases || []).forEach((b) => {
-      if (!b.photo && b.photoKey) tasks.push(imgGet(b.photoKey).then((v) => { if (v) b.photo = v; }));
-      if (!b.cover && b.coverKey) tasks.push(imgGet(b.coverKey).then((v) => { if (v) b.cover = v; }));
+      if (!b.photo && b.photoKey) tasks.push(grab(b.photoKey, (v) => { b.photo = v; }));
+      if (!b.cover && b.coverKey) tasks.push(grab(b.coverKey, (v) => { b.cover = v; }));
     });
     (S.styles || []).forEach((s) => {
-      if (!s.img && s.imgKey) tasks.push(imgGet(s.imgKey).then((v) => { if (v) s.img = v; }));
+      if (!s.img && s.imgKey) tasks.push(grab(s.imgKey, (v) => { s.img = v; }));
       if ((!Array.isArray(s.imgs) || !s.imgs.length) && Array.isArray(s.imgKeys) && s.imgKeys.length) {
-        tasks.push(Promise.all(s.imgKeys.map((k) => { imgStored.add(k); return imgGet(k); })).then((vals) => { s.imgs = vals.filter((v) => v != null); }));
+        tasks.push(Promise.all(s.imgKeys.map((k) => { imgStored.add(k); return imgGet(k).then((v) => { if (v != null) imgConfirmed.add(k); return v; }); })).then((vals) => { s.imgs = vals.filter((v) => v != null); }));
       }
     });
     if (S.membership && !S.membership.photo && S.membership.photoKey) {
-      tasks.push(imgGet(S.membership.photoKey).then((v) => { if (v) S.membership.photo = v; }));
+      tasks.push(grab(S.membership.photoKey, (v) => { S.membership.photo = v; }));
     }
     if (S.membership && !S.membership.memberPhoto && S.membership.memberPhotoKey) {
-      tasks.push(imgGet(S.membership.memberPhotoKey).then((v) => { if (v) S.membership.memberPhoto = v; }));
+      tasks.push(grab(S.membership.memberPhotoKey, (v) => { S.membership.memberPhoto = v; }));
     }
     if (tasks.length) Promise.all(tasks).then(renderAll);
   }
@@ -5039,9 +5080,11 @@
   function exportData() {
     const blob = new Blob([JSON.stringify(S, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    a.href = url;
     a.download = `my-star-calendar-backup-${todayKey()}.json`;
     a.click();
+    setTimeout(() => { try { URL.revokeObjectURL(url); } catch (_) {} }, 30000);
     toast("백업 파일을 내려받았어요");
   }
 
@@ -5055,11 +5098,12 @@
         normalizeState();   // 구버전 마이그레이션·카테고리(buildCats)·필터 재구성
         // 다른 기기의 IndexedDB를 가리키던 옛 사진 참조키 제거 → 백업에 담긴 사진(base64)을
         // 이 기기 IndexedDB에 새로 저장하도록 함 (참조키만 남아 사진이 사라지는 문제 방지)
-        (S.photocards || []).forEach((p) => { if (p.img) delete p.imgKey; });
+        (S.photocards || []).forEach((p) => { if (p.img) delete p.imgKey; if (p.imgOrig) delete p.imgOrigKey; if (p.imgBack) delete p.imgBackKey; if (p.imgBackOrig) delete p.imgBackOrigKey; });
         (S.archives || []).forEach((d) => { if (Array.isArray(d.imgs) && d.imgs.length) delete d.imgKeys; });
         (S.biases || []).forEach((b) => { if (b.photo) delete b.photoKey; if (b.cover) delete b.coverKey; });
-        (S.styles || []).forEach((s) => { if (s.img) delete s.imgKey; });
+        (S.styles || []).forEach((s) => { if (s.img) delete s.imgKey; if (Array.isArray(s.imgs) && s.imgs.length) delete s.imgKeys; });
         if (S.membership && S.membership.photo) delete S.membership.photoKey;
+        if (S.membership && S.membership.memberPhoto) delete S.membership.memberPhotoKey;
         imgStored.clear();  // 이 기기에 다시 써야 하므로 '이미 저장됨' 표시 초기화
         save(); applyTheme(); renderAll();
         toast("데이터를 불러왔어요!");
